@@ -7,14 +7,15 @@ import androidx.room.PrimaryKey
 data class Item(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
+    val name: String,
     val category: String,
+    val imageUri: String?,
     val color: String,
     val season: String,
     val occasion: String,
     val brand: String,
     val purchaseDate: String,
-    val price: Double,
-    val imageUrl: String = "" // Added for future use
+    val price: Double
 )
 
 object Categories {
@@ -27,5 +28,5 @@ object Categories {
     const val ACCESSORIES = "Accessories"
     const val JEWELRY = "Jewelry"
 
-    val list = listOf(ALL, TOPS, BOTTOMS, DRESSES, FOOTWEAR, BAGS, ACCESSORIES, JEWELRY)
+    val list = listOf(TOPS, BOTTOMS, DRESSES, FOOTWEAR, BAGS, ACCESSORIES, JEWELRY)
 }

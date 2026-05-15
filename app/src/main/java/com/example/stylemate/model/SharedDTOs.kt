@@ -1,8 +1,6 @@
 package com.example.stylemate.model
 
-import kotlinx.serialization.Serializable
-
-@Serializable
+@kotlinx.serialization.Serializable
 data class ClothingItem(
     val id: String,
     val name: String,
@@ -12,7 +10,7 @@ data class ClothingItem(
     val tags: List<String> = emptyList()
 )
 
-@Serializable
+@kotlinx.serialization.Serializable
 data class Outfit(
     val id: String,
     val items: List<ClothingItem> = emptyList(),
@@ -20,17 +18,16 @@ data class Outfit(
     val rating: Int = 0
 )
 
-@Serializable
+@kotlinx.serialization.Serializable
 data class User(
     val id: String,
     val name: String,
     val stylePreference: String
 )
 
-@Serializable
+@kotlinx.serialization.Serializable
 data class ChatMessage(
     val sender: String,
     val content: String,
     val timestamp: Long
 )
-

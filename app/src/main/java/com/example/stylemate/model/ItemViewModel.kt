@@ -3,6 +3,7 @@ package com.example.stylemate.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -12,11 +13,12 @@ import kotlinx.coroutines.launch
 
 class ItemViewModel(private val itemDao: ItemDao) : ViewModel() {
 
-    private val _selectedCategory = MutableStateFlow(Categories.ALL)
+    private val _selectedCategory = MutableStateFlow("All") // Default to "All"
     val selectedCategory: StateFlow<String> = _selectedCategory
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val items: StateFlow<List<Item>> = _selectedCategory.flatMapLatest { category ->
-        if (category == Categories.ALL) {
+        if (category == "All") {
             itemDao.getAllItems()
         } else {
             itemDao.getItemsByCategory(category)
@@ -28,7 +30,7 @@ class ItemViewModel(private val itemDao: ItemDao) : ViewModel() {
     }
 
     fun getItemCount(category: String): Flow<Int> {
-        return if (category == Categories.ALL) {
+        return if (category == "All") {
             itemDao.getItemCount()
         } else {
             itemDao.getItemCountByCategory(category)
@@ -43,7 +45,7 @@ class ItemViewModel(private val itemDao: ItemDao) : ViewModel() {
 }
 
 class ItemViewModelFactory(private val itemDao: ItemDao) : ViewModelProvider.Factory {
-    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ItemViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
             return ItemViewModel(itemDao) as T
