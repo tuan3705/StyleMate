@@ -8,20 +8,31 @@ import androidx.room.RoomDatabase
 /**
  * 🗄️ AppDatabase — Room Database singleton cho StyleMate.
  *
- * - [ClothingItemEntity]: Entity chính cho module Quản lý tủ đồ.
- * - [Item]: Entity cũ (giữ lại tương thích với UI hiện tại, sẽ migrate sau).
+ * 📌 Danh sách Entity:
+ * - [ClothingItemEntity]: Module Quản lý tủ đồ.
+ * - [OutfitEntity]: Module Phối đồ (Outfit).
+ * - [OutfitClothingCrossRef]: Bảng trung gian quan hệ N-N Outfit ↔ ClothingItem.
+ * - [Item]: Entity cũ (giữ lại tương thích).
  *
  * Singleton pattern với Double-Checked Locking (@Volatile + synchronized)
  * đảm bảo thread-safe, chỉ khởi tạo một lần duy nhất trong toàn bộ vòng đời app.
  */
 @Database(
-    entities = [ClothingItemEntity::class, Item::class],
-    version = 4,
+    entities = [
+        ClothingItemEntity::class,
+        OutfitEntity::class,
+        OutfitClothingCrossRef::class,
+        Item::class
+    ],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
-    // DAO mới cho ClothingItemEntity
+    // DAO cho ClothingItem
     abstract fun clothingDao(): ClothingDao
+
+    // DAO cho Outfit
+    abstract fun outfitDao(): OutfitDao
 
     // DAO cũ (giữ lại tương thích)
     abstract fun itemDao(): ItemDao
