@@ -113,7 +113,7 @@ class ClothingViewModel(
      * 📸 Quy trình xử lý:
      * 1. Bật loading state (UI hiển thị spinner).
      * 2. Giả lập xử lý tách nền bằng [delay] — mô phỏng API call hoặc xử lý ảnh.
-     * 3. Tạo entity mới với ID (UUID), đường dẫn ảnh, category, color.
+     * 3. Tạo entity mới với ID (UUID) + đầy đủ thông tin chi tiết.
      * 4. Lưu vào database qua Repository (trên [Dispatchers.IO]).
      * 5. Tắt loading, UI tự động cập nhật nhờ Flow reactive.
      *
@@ -122,8 +122,24 @@ class ClothingViewModel(
      * @param imageFile File ảnh gốc người dùng chụp/chọn từ thư viện.
      * @param category Danh mục quần áo (vd: "Tops", "Bottoms").
      * @param color Màu sắc chính của item.
+     * @param name Tên món đồ (vd: "Áo sơ mi trắng").
+     * @param season Mùa phù hợp ("Spring", "Summer", "Autumn", "Winter").
+     * @param occasion Dịp sử dụng ("Casual", "Work", "Sports", "Formal").
+     * @param brand Thương hiệu (vd: "Nike", "Uniqlo", "Adidas").
+     * @param purchaseDate Ngày mua (timestamp epoch millis).
+     * @param price Giá tiền.
      */
-    fun addClothingItem(imageFile: File, category: String, color: String) {
+    fun addClothingItem(
+        imageFile: File,
+        category: String,
+        color: String,
+        name: String,
+        season: String,
+        occasion: String,
+        brand: String,
+        purchaseDate: Long,
+        price: Double
+    ) {
         viewModelScope.launch {
             try {
                 // ── Bước 1: Bật loading ──────────────────────────
@@ -148,17 +164,23 @@ class ClothingViewModel(
                     "no_bg_${imageFile.name}"
                 )
 
-                // ── Bước 4: Tạo entity mới ───────────────────────
+                // ── Bước 4: Tạo entity mới với đầy đủ thông tin ───
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),
                     imageOriginal = imageFile.absolutePath,
                     imageNoBg = noBgPath,
                     category = category,
                     color = color,
+                    name = name,
+                    season = season,
+                    occasion = occasion,
+                    brand = brand,
+                    purchaseDate = purchaseDate,
+                    price = price,
                     createdAt = System.currentTimeMillis()
                 )
 
-                Log.d(TAG, "✅ Tách nền hoàn tất. ID: ${newItem.id}")
+                Log.d(TAG, "✅ Tách nền hoàn tất. ID: ${newItem.id}, Tên: ${newItem.name}")
 
                 // ── Bước 5: Lưu vào database qua Repository ──────
                 repository.insertItem(newItem)

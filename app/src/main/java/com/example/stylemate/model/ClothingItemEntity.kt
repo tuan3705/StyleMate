@@ -14,6 +14,12 @@ import androidx.room.PrimaryKey
  * @property imageNoBg Đường dẫn (URI/local path) tới ảnh đã được tách nền.
  * @property category Danh mục quần áo: "Tops", "Bottoms", "Footwear", ...
  * @property color Màu sắc chính của item.
+ * @property name Tên món đồ (vd: "Áo sơ mi trắng", "Quần jeans xanh").
+ * @property season Mùa phù hợp: "Spring", "Summer", "Autumn", "Winter".
+ * @property occasion Dịp sử dụng: "Casual", "Work", "Sports", "Formal".
+ * @property brand Thương hiệu (vd: "Nike", "Uniqlo").
+ * @property purchaseDate Ngày mua (timestamp epoch millis) — dùng cho thống kê/lịch sử.
+ * @property price Giá tiền (Double) — dùng cho tính năng thống kê chi tiêu.
  * @property createdAt Timestamp (epoch millis) lưu thời điểm tạo item — dùng cho sắp xếp.
  */
 @Entity(tableName = "clothing_items")
@@ -24,5 +30,13 @@ data class ClothingItemEntity(
     val imageNoBg: String,
     val category: String,
     val color: String,
+    // ── Các trường mới bổ sung ──────────────────────────────
+    val name: String = "",
+    val season: String = "",
+    val occasion: String = "",
+    val brand: String = "",
+    val purchaseDate: Long = System.currentTimeMillis(),
+    val price: Double = 0.0,
+    // ────────────────────────────────────────────────────────
     val createdAt: Long = System.currentTimeMillis()
 )

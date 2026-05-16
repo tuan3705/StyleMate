@@ -2,15 +2,20 @@ package com.example.stylemate.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
@@ -19,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,6 +39,10 @@ import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -238,12 +248,35 @@ fun ClothingItemCard(
                     .background(Color.Black.copy(alpha = 0.5f))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text = item.category,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+                // 👤 Tên món đồ (nếu có)
+                if (item.name.isNotBlank()) {
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                // 🏷️ Danh mục + Thương hiệu
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.category,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    if (item.brand.isNotBlank()) {
+                        Text(
+                            text = item.brand,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -317,13 +350,31 @@ fun NewClothingItemSheet(
     var color by remember { mutableStateOf("") }
     var expandedMenu by remember { mutableStateOf(false) }
 
+    // 🔸 Các state mới cho trường chi tiết
+    var itemName by remember { mutableStateOf("") }
+    var brand by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
+    var selectedSeason by remember { mutableStateOf("") }
+    var selectedOccasion by remember { mutableStateOf("") }
+    var purchaseDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    var purchaseDateText by remember {
+        mutableStateOf(dateFormat.format(Date()))
+    }
+    // 📅 State cho DatePickerDialog
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val seasons = listOf("Spring", "Summer", "Autumn", "Winter")
+    val occasions = listOf("Casual", "Work", "Sports", "Formal")
+
     // Collect loading state từ ViewModel
     val isLoading by viewModel.isLoading.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),  // Cho phép scroll khi sheet có nhiều field
     ) {
         Text(
             "Quick Add Item",
@@ -366,7 +417,7 @@ fun NewClothingItemSheet(
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         // ── Color ──────────────────────────────────────────────
         Text("Color", style = MaterialTheme.typography.labelLarge)
@@ -379,18 +430,153 @@ fun NewClothingItemSheet(
             modifier = Modifier.fillMaxWidth()
         )
 
+        Spacer(Modifier.height(12.dp))
+
+        // ── Item Name 👤 ─────────────────────────────────────────
+        Text("Item Name", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        OutlinedTextField(
+            value = itemName,
+            onValueChange = { itemName = it },
+            label = { Text("Enter item name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. White Shirt") }
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // ── Brand 🏷️ ─────────────────────────────────────────────
+        Text("Brand", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        OutlinedTextField(
+            value = brand,
+            onValueChange = { brand = it },
+            label = { Text("Enter brand") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Uniqlo, Nike") }
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // ── Price 💰 ──────────────────────────────────────────────
+        Text("Price", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        OutlinedTextField(
+            value = price,
+            onValueChange = { price = it },
+            label = { Text("Enter price") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. 250000") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            prefix = { Text("₫ ") }
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        // ── Season 🌸 ─────────────────────────────────────────────
+        Text("Season", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            seasons.forEach { season ->
+                FilterChip(
+                    selected = selectedSeason == season,
+                    onClick = {
+                        selectedSeason = if (selectedSeason == season) "" else season
+                    },
+                    label = { Text(season) }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // ── Occasion 👔 ───────────────────────────────────────────
+        Text("Occasion", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            occasions.forEach { occasion ->
+                FilterChip(
+                    selected = selectedOccasion == occasion,
+                    onClick = {
+                        selectedOccasion = if (selectedOccasion == occasion) "" else occasion
+                    },
+                    label = { Text(occasion) }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // ── Purchase Date 📅 ──────────────────────────────────────
+        Text("Purchase Date", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        OutlinedCard(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { showDatePicker = true }  // 📅 Mở DatePickerDialog
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "Tap to select date",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = purchaseDateText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(24.dp))
 
         // ── Nút Add ────────────────────────────────────────────
         Button(
             onClick = {
+                // Validate cơ bản
                 if (category.isBlank() || color.isBlank()) return@Button
+
+                // Parse price
+                val parsedPrice = price.toDoubleOrNull() ?: 0.0
+
                 // ⚡ Tạo file mock và gọi ViewModel.addClothingItem()
-                val mockFile = java.io.File("/tmp/quick_add_${System.currentTimeMillis()}.jpg")
+                val mockFile = File("/tmp/quick_add_${System.currentTimeMillis()}.jpg")
                 viewModel.addClothingItem(
                     imageFile = mockFile,
                     category = category,
-                    color = color
+                    color = color,
+                    name = itemName,
+                    season = selectedSeason,
+                    occasion = selectedOccasion,
+                    brand = brand,
+                    purchaseDate = purchaseDate,
+                    price = parsedPrice
                 )
                 // Đóng sheet sau khi gọi
                 onItemAdded()
@@ -409,6 +595,45 @@ fun NewClothingItemSheet(
             } else {
                 Text("Add Item")
             }
+        }
+
+        // Spacer bottom để tránh bị che bởi system bar
+        Spacer(Modifier.height(16.dp))
+    }
+
+    // ── DatePickerDialog (Material3) ─────────────────────────────
+    // 📅 Cho phép chọn ngày từ quá khứ đến hiện tại
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = purchaseDate,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    // 🚫 Không cho chọn ngày trong tương lai
+                    return utcTimeMillis <= System.currentTimeMillis()
+                }
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { selectedMillis ->
+                        purchaseDate = selectedMillis
+                        purchaseDateText = dateFormat.format(Date(selectedMillis))
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("Chọn")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Huỷ")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }
