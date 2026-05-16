@@ -14,8 +14,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -98,7 +103,9 @@ fun ClosetScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }  // 0 = Items, 1 = Outfits
     var showBottomSheet by remember { mutableStateOf(false) }    // Quick Add item
     var showCreateOutfitSheet by remember { mutableStateOf(false) } // Tạo outfit
-    val sheetState = rememberModalBottomSheetState()
+    // Mỗi BottomSheet có sheetState riêng để vuốt mượt, không conflict
+    val quickAddSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val createOutfitSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -213,17 +220,17 @@ fun ClosetScreen() {
         ModalBottomSheet(
             onDismissRequest = {
                 scope.launch {
-                    sheetState.hide()
+                    quickAddSheetState.hide()
                     showBottomSheet = false
                 }
             },
-            sheetState = sheetState
+            sheetState = quickAddSheetState
         ) {
             NewClothingItemSheet(
                 viewModel = clothingVM,
                 onItemAdded = {
                     scope.launch {
-                        sheetState.hide()
+                        quickAddSheetState.hide()
                         showBottomSheet = false
                     }
                 }
@@ -236,18 +243,18 @@ fun ClosetScreen() {
         ModalBottomSheet(
             onDismissRequest = {
                 scope.launch {
-                    sheetState.hide()
+                    createOutfitSheetState.hide()
                     showCreateOutfitSheet = false
                 }
             },
-            sheetState = sheetState
+            sheetState = createOutfitSheetState
         ) {
             CreateOutfitBottomSheetContent(
                 outfitVM = outfitVM,
                 clothingRepo = clothingRepo,
                 onSaved = {
                     scope.launch {
-                        sheetState.hide()
+                        createOutfitSheetState.hide()
                         showCreateOutfitSheet = false
                     }
                 }
@@ -534,6 +541,8 @@ private fun CreateOutfitBottomSheetContent(
         }
     }
 
+    val focusManager = LocalFocusManager.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -556,7 +565,11 @@ private fun CreateOutfitBottomSheetContent(
             placeholder = { Text("VD: Đi biển mùa hè") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = { focusManager.clearFocus() }
+            )
         )
 
         Spacer(Modifier.height(8.dp))
@@ -885,6 +898,16 @@ fun NewClothingItemSheet(
     viewModel: ClothingViewModel,
     onItemAdded: () -> Unit
 ) {
+    // ── Focus management ──────────────────────────────────────────
+    // Mỗi field có FocusRequester riêng, bấm Enter/Done → nhảy field tiếp
+    val focusManager = LocalFocusManager.current
+    val categoryFocus = remember { FocusRequester() }
+    val colorFocus = remember { FocusRequester() }
+    val nameFocus = remember { FocusRequester() }
+    val brandFocus = remember { FocusRequester() }
+    val priceFocus = remember { FocusRequester() }
+
+    // ── State ────────────────────────────────────────────────────
     var category by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
     var expandedMenu by remember { mutableStateOf(false) }
@@ -908,106 +931,264 @@ fun NewClothingItemSheet(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text("Quick Add Item", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
+        Text(
+            "Quick Add Item",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
 
+        // ── CATEGORY ─────────────────────────────────────────────
         Text("Category", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        ExposedDropdownMenuBox(expanded = expandedMenu, onExpandedChange = { expandedMenu = !expandedMenu }) {
+        ExposedDropdownMenuBox(
+            expanded = expandedMenu,
+            onExpandedChange = { expandedMenu = !expandedMenu }
+        ) {
             OutlinedTextField(
-                value = category, onValueChange = {}, readOnly = true, label = { Text("Select category") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMenu) },
-                modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable, enabled = true)
+                value = category,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Select category") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMenu)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(type = MenuAnchorType.PrimaryNotEditable, enabled = true),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
             )
-            ExposedDropdownMenu(expanded = expandedMenu, onDismissRequest = { expandedMenu = false }) {
+            ExposedDropdownMenu(
+                expanded = expandedMenu,
+                onDismissRequest = { expandedMenu = false }
+            ) {
                 sheetCategories.forEach { cat ->
-                    DropdownMenuItem(text = { Text(cat) }, onClick = { category = cat; expandedMenu = false })
+                    DropdownMenuItem(
+                        text = { Text(cat) },
+                        onClick = {
+                            category = cat
+                            expandedMenu = false
+                            focusManager.moveFocus(FocusDirection.Down)
+                        }
+                    )
                 }
             }
         }
 
         Spacer(Modifier.height(12.dp))
+
+        // ── COLOR ────────────────────────────────────────────────
         Text("Color", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        OutlinedTextField(value = color, onValueChange = { color = it }, label = { Text("Color (e.g. Red)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = color,
+            onValueChange = { color = it },
+            label = { Text("Color (e.g. Red)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
+        )
 
         Spacer(Modifier.height(12.dp))
+
+        // ── ITEM NAME ────────────────────────────────────────────
         Text("Item Name", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        OutlinedTextField(value = itemName, onValueChange = { itemName = it }, label = { Text("Enter item name") }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("e.g. White Shirt") })
+        OutlinedTextField(
+            value = itemName,
+            onValueChange = { itemName = it },
+            label = { Text("Enter item name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. White Shirt") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
+        )
 
         Spacer(Modifier.height(12.dp))
+
+        // ── BRAND ────────────────────────────────────────────────
         Text("Brand", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        OutlinedTextField(value = brand, onValueChange = { brand = it }, label = { Text("Enter brand") }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("e.g. Uniqlo, Nike") })
+        OutlinedTextField(
+            value = brand,
+            onValueChange = { brand = it },
+            label = { Text("Enter brand") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. Uniqlo, Nike") },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
+        )
 
         Spacer(Modifier.height(12.dp))
+
+        // ── PRICE ────────────────────────────────────────────────
         Text("Price", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Enter price") }, singleLine = true, modifier = Modifier.fillMaxWidth(), placeholder = { Text("e.g. 250000") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), prefix = { Text("₫ ") })
+        OutlinedTextField(
+            value = price,
+            onValueChange = { price = it },
+            label = { Text("Enter price") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("e.g. 250000") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = { focusManager.clearFocus() }
+            ),
+            prefix = { Text("₫ ") }
+        )
 
         Spacer(Modifier.height(12.dp))
+
+        // ── SEASON ───────────────────────────────────────────────
         Text("Season", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             seasons.forEach { season ->
-                FilterChip(selected = selectedSeason == season, onClick = { selectedSeason = if (selectedSeason == season) "" else season }, label = { Text(season) })
+                FilterChip(
+                    selected = selectedSeason == season,
+                    onClick = {
+                        selectedSeason = if (selectedSeason == season) "" else season
+                    },
+                    label = { Text(season) }
+                )
             }
         }
 
         Spacer(Modifier.height(12.dp))
+
+        // ── OCCASION ─────────────────────────────────────────────
         Text("Occasion", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             occasions.forEach { occasion ->
-                FilterChip(selected = selectedOccasion == occasion, onClick = { selectedOccasion = if (selectedOccasion == occasion) "" else occasion }, label = { Text(occasion) })
+                FilterChip(
+                    selected = selectedOccasion == occasion,
+                    onClick = {
+                        selectedOccasion = if (selectedOccasion == occasion) "" else occasion
+                    },
+                    label = { Text(occasion) }
+                )
             }
         }
 
         Spacer(Modifier.height(12.dp))
+
+        // ── PURCHASE DATE ────────────────────────────────────────
         Text("Purchase Date", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
-        OutlinedCard(modifier = Modifier.fillMaxWidth(), onClick = { showDatePicker = true }) {
-            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        OutlinedCard(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { showDatePicker = true }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(Modifier.width(12.dp))
                 Column {
-                    Text("Tap to select date", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(purchaseDateText, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = "Tap to select date",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = purchaseDateText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
 
         Spacer(Modifier.height(24.dp))
+
+        // ── ADD BUTTON ───────────────────────────────────────────
         Button(
             onClick = {
                 if (category.isBlank() || color.isBlank()) return@Button
                 val parsedPrice = price.toDoubleOrNull() ?: 0.0
                 val mockFile = File("/tmp/quick_add_${System.currentTimeMillis()}.jpg")
-                viewModel.addClothingItem(imageFile = mockFile, category = category, color = color, name = itemName, season = selectedSeason, occasion = selectedOccasion, brand = brand, purchaseDate = purchaseDate, price = parsedPrice)
+                viewModel.addClothingItem(
+                    imageFile = mockFile,
+                    category = category,
+                    color = color,
+                    name = itemName,
+                    season = selectedSeason,
+                    occasion = selectedOccasion,
+                    brand = brand,
+                    purchaseDate = purchaseDate,
+                    price = parsedPrice
+                )
                 onItemAdded()
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),
             enabled = !isLoading && category.isNotBlank() && color.isNotBlank()
         ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
                 Spacer(Modifier.width(8.dp))
                 Text("Adding...")
-            } else Text("Add Item")
+            } else {
+                Text("Add Item")
+            }
         }
+
         Spacer(Modifier.height(16.dp))
     }
 
+    // ── DATE PICKER ─────────────────────────────────────────────
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = purchaseDate, selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= System.currentTimeMillis()
-        })
-        DatePickerDialog(onDismissRequest = { showDatePicker = false }, confirmButton = {
-            TextButton(onClick = {
-                datePickerState.selectedDateMillis?.let { selectedMillis -> purchaseDate = selectedMillis; purchaseDateText = dateFormat.format(Date(selectedMillis)) }
-                showDatePicker = false
-            }) { Text("Chọn") }
-        }, dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Huỷ") } }) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = purchaseDate,
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    utcTimeMillis <= System.currentTimeMillis()
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { selectedMillis ->
+                        purchaseDate = selectedMillis
+                        purchaseDateText = dateFormat.format(Date(selectedMillis))
+                    }
+                    showDatePicker = false
+                }) { Text("Chọn") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Huỷ") }
+            }
+        ) {
             DatePicker(state = datePickerState)
         }
     }

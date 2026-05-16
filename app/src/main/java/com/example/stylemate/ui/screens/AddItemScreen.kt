@@ -3,8 +3,13 @@ package com.example.stylemate.ui.screens
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -66,7 +71,7 @@ fun AddItemScreen(navController: NavController) {
     var price by remember { mutableStateOf("") }
     var selectedSeason by remember { mutableStateOf("") }
     var selectedOccasion by remember { mutableStateOf("") }
-    var purchaseDate by remember { mutableStateOf(System.currentTimeMillis()) }
+    var purchaseDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
     // State để hiển thị ngày đã chọn dưới dạng text
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var purchaseDateText by remember {
@@ -80,6 +85,7 @@ fun AddItemScreen(navController: NavController) {
     val occasions = listOf("Casual", "Work", "Sports", "Formal")
     var expandedMenu by remember { mutableStateOf(false) }
 
+    val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -173,7 +179,9 @@ fun AddItemScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth().menuAnchor(
                         type = MenuAnchorType.PrimaryNotEditable,
                         enabled = true
-                    )
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
                 )
                 ExposedDropdownMenu(
                     expanded = expandedMenu,
@@ -185,6 +193,7 @@ fun AddItemScreen(navController: NavController) {
                             onClick = {
                                 category = cat
                                 expandedMenu = false
+                                focusManager.moveFocus(FocusDirection.Down)
                             }
                         )
                     }
@@ -198,7 +207,9 @@ fun AddItemScreen(navController: NavController) {
                 onValueChange = { color = it },
                 label = { Text("Enter color (e.g. Red, Blue)") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
             )
 
             HorizontalDivider()
@@ -215,7 +226,9 @@ fun AddItemScreen(navController: NavController) {
                 label = { Text("Enter item name (e.g. White Shirt)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("e.g. Áo sơ mi trắng") }
+                placeholder = { Text("e.g. Áo sơ mi trắng") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
             )
 
             // ── Brand ───────────────────────────────────────────────
@@ -226,7 +239,9 @@ fun AddItemScreen(navController: NavController) {
                 label = { Text("Enter brand (e.g. Nike, Uniqlo)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("e.g. Uniqlo, Nike, Adidas") }
+                placeholder = { Text("e.g. Uniqlo, Nike, Adidas") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
             )
 
             // ── Price ───────────────────────────────────────────────
@@ -238,8 +253,14 @@ fun AddItemScreen(navController: NavController) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("e.g. 250000") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                prefix = { Text("₫ ") }  // Hiển thị đơn vị tiền tệ
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.clearFocus() }
+                ),
+                prefix = { Text("₫ ") }
             )
 
             // ── Season ──────────────────────────────────────────────
