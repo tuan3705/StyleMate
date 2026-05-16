@@ -53,6 +53,12 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     
     implementation(libs.kotlinx.serialization.json)
+
+    // Retrofit + Gson
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.gson)
+    implementation(libs.okhttp.logging.interceptor)
+    implementation(libs.gson)
     implementation(libs.androidx.navigation.compose)
 
     // Room

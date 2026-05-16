@@ -22,9 +22,10 @@ import androidx.room.RoomDatabase
         ClothingItemEntity::class,
         OutfitEntity::class,
         OutfitClothingCrossRef::class,
-        Item::class
+        Item::class,
+        CalendarEventEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +34,9 @@ abstract class AppDatabase : RoomDatabase() {
 
     // DAO cho Outfit
     abstract fun outfitDao(): OutfitDao
+
+    // DAO cho CalendarEvent
+    abstract fun calendarEventDao(): CalendarEventDao
 
     // DAO cũ (giữ lại tương thích)
     abstract fun itemDao(): ItemDao
