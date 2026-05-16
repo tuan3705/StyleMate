@@ -4,31 +4,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.model.Categories
-import com.example.stylemate.model.Item
-import com.example.stylemate.model.ItemViewModel
-import com.example.stylemate.model.ItemViewModelFactory
-import com.example.stylemate.model.Season
+import com.example.stylemate.model.ClothingItemEntity
+import com.example.stylemate.repository.ClothingRepository
+import com.example.stylemate.viewmodel.ClothingViewModel
+import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
@@ -37,22 +39,43 @@ import kotlinx.coroutines.launch
 fun ClosetScreen() {
     val context = LocalContext.current
     val database = AppDatabase.getDatabase(context)
-    val viewModel: ItemViewModel = viewModel(
-        factory = ItemViewModelFactory(database.itemDao())
+    val repository = ClothingRepository(database.clothingDao())
+
+    // 🔧 Khởi tạo ClothingViewModel với Factory pattern
+    val viewModel: ClothingViewModel = viewModel(
+        factory = ClothingViewModelFactory(repository)
     )
 
-    val selectedCategory by viewModel.selectedCategory.collectAsState()
-    val items by viewModel.items.collectAsState()
+    // 🔷 Collect StateFlow với lifecycle-aware collector
+    // collectAsStateWithLifecycle() tự động dừng collect khi lifecycle không active
+    val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
+    val items by viewModel.items.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showBottomSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val allCategories = listOf(Categories.ALL) + Categories.list
+
+    // ── Hiển thị Snackbar khi có lỗi ─────────────────────────────
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { msg ->
+            snackbarHostState.showSnackbar(
+                message = msg,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
             AddItemFab(onClick = { showBottomSheet = true })
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -85,10 +108,12 @@ fun ClosetScreen() {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(allCategories) { category ->
-                    val itemCount by viewModel.getItemCount(category).collectAsState(initial = 0)
+                    // 📊 Collect số lượng items riêng cho từng category
+                    val count by viewModel.getItemCountByCategory(category)
+                        .collectAsState(initial = 0)
                     CategoryChip(
                         category = category,
-                        count = itemCount,
+                        count = count,
                         isSelected = selectedCategory == category,
                         onClick = { viewModel.selectCategory(category) }
                     )
@@ -97,27 +122,49 @@ fun ClosetScreen() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Content Area (Items List)
+            // ── Content Area: Grid Items ──────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (items.isEmpty()) {
-                    Text(
-                        text = "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}",
-                        color = Color.Gray,
-                        fontSize = 16.sp
-                    )
-                } else {
-                    // Here you would implement a Grid or List to display the items
-                    Text(text = "Displaying ${items.size} items")
+                when {
+                    // Hiển thị loading spinner nếu đang xử lý
+                    isLoading -> {
+                        CircularProgressIndicator()
+                    }
+                    // Hiển thị empty state nếu không có item
+                    items.isEmpty() -> {
+                        Text(
+                            text = "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!",
+                            color = Color.Gray,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                    // 📱 Hiển thị lưới items (2 cột, dạng thumbnail)
+                    else -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(items, key = { it.id }) { clothingItem ->
+                                ClothingItemCard(
+                                    item = clothingItem,
+                                    onDelete = { viewModel.deleteClothingItem(clothingItem) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
+    // ── Bottom Sheet: Thêm item mới ─────────────────────────────
     if (showBottomSheet) {
         ModalBottomSheet(
             onDismissRequest = {
@@ -125,16 +172,13 @@ fun ClosetScreen() {
             },
             sheetState = sheetState
         ) {
-            // Sheet content
-            AddItemSheet(
-                onAddItem = { item ->
+            NewClothingItemSheet(
+                viewModel = viewModel,
+                onItemAdded = {
+                    // Đóng sheet — ViewModel xử lý bất đồng bộ phía sau
                     scope.launch {
-                        viewModel.addItem(item)
                         sheetState.hide()
-                    }.invokeOnCompletion {
-                        if (!sheetState.isVisible) {
-                            showBottomSheet = false
-                        }
+                        showBottomSheet = false
                     }
                 }
             )
@@ -142,17 +186,139 @@ fun ClosetScreen() {
     }
 }
 
+/**
+ * 🃏 ClothingItemCard — Card hiển thị một clothing item dạng thumbnail trong grid.
+ *
+ * @param item ClothingItemEntity cần hiển thị.
+ * @param onDelete Callback khi người dùng nhấn nút xoá.
+ */
 @Composable
-fun AddItemSheet(onAddItem: (Item) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf(Categories.list.first()) }
+fun ClothingItemCard(
+    item: ClothingItemEntity,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // ── Ảnh thumbnail (placeholder màu theo category) ──────
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Icon đại diện cho loại quần áo
+                    Text(
+                        text = getCategoryIcon(item.category),
+                        fontSize = 32.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    // Tên file ảnh (rút gọn)
+                    Text(
+                        text = item.imageOriginal.substringAfterLast("/").take(15),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.DarkGray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // ── Thông tin phía dưới card ──────────────────────────
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = item.category,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.color,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            // ── Nút Xoá (góc trên bên phải) ──────────────────────
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.align(Alignment.TopEnd)
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete item",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .background(Color.Red.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                        .padding(4.dp)
+                )
+            }
+        }
+    }
+}
+
+// ── Helper: Màu nền theo category ────────────────────────────────
+private fun getCategoryColor(category: String): Color = when (category) {
+    "Tops" -> Color(0xFF42A5F5)      // Xanh dương
+    "Bottoms" -> Color(0xFF66BB6A)    // Xanh lá
+    "Dresses" -> Color(0xFFEC407A)    // Hồng
+    "Footwear" -> Color(0xFF8D6E63)   // Nâu
+    "Bags" -> Color(0xFFAB47BC)       // Tím
+    "Accessories" -> Color(0xFFFFA726) // Cam
+    "Jewelry" -> Color(0xFFD4E157)     // Vàng chanh
+    else -> Color(0xFFBDBDBD)          // Xám
+}
+
+// ── Helper: Icon emoji theo category ─────────────────────────────
+private fun getCategoryIcon(category: String): String = when (category) {
+    "Tops" -> "👕"
+    "Bottoms" -> "👖"
+    "Dresses" -> "👗"
+    "Footwear" -> "👟"
+    "Bags" -> "👜"
+    "Accessories" -> "⌚"
+    "Jewelry" -> "💍"
+    else -> "🧥"
+}
+
+// ── Helper: Danh sách categories cho bottom sheet ────────────────
+private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "Bags", "Accessories", "Jewelry")
+
+
+// ─────────────────────────────────────────────────────────────────
+// 📝 NewClothingItemSheet — Bottom sheet để thêm item mới
+// Sử dụng ClothingViewModel thay vì callback truyền thống
+// ─────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NewClothingItemSheet(
+    viewModel: ClothingViewModel,
+    onItemAdded: () -> Unit
+) {
+    // ── Local state ─────────────────────────────────────────────
+    var category by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
-    var selectedSeason by remember { mutableStateOf(Season.Spring) }
-    var brand by remember { mutableStateOf("") }
-    var purchaseDate by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("") }
-    val occasions = listOf("Casual", "Work", "Sports", "Formal")
-    var selectedOccasion by remember { mutableStateOf(occasions.first()) }
+    var expandedMenu by remember { mutableStateOf(false) }
+
+    // Collect loading state từ ViewModel
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Column(
         modifier = Modifier
@@ -160,148 +326,88 @@ fun AddItemSheet(onAddItem: (Item) -> Unit) {
             .padding(16.dp),
     ) {
         Text(
-            "Item Details",
+            "Quick Add Item",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        // Form
-        DetailInputRow(label = "Name", value = name, onValueChange = { name = it }, placeholder = "Enter item name")
-        DetailClickableRow(label = "Category", value = selectedCategory) {
-            // In a real app, this would open a selection screen or dialog
-        }
-        ChipSelectionRow(
-            label = "Category",
-            items = Categories.list,
-            selectedItem = selectedCategory,
-            onItemSelected = { selectedCategory = it }
-        )
-        DetailInputRow(label = "Color", value = color, onValueChange = { color = it }, placeholder = "Enter color(s)")
-        ChipSelectionRow(
-            label = "Season",
-            items = Season.entries.map { it.name },
-            selectedItem = selectedSeason.name,
-            onItemSelected = { selectedSeason = Season.valueOf(it) }
-        )
-        ChipSelectionRow(
-            label = "Occasion",
-            items = occasions,
-            selectedItem = selectedOccasion,
-            onItemSelected = { selectedOccasion = it }
-        )
-        DetailInputRow(label = "Brand", value = brand, onValueChange = { brand = it }, placeholder = "Enter brand")
-        DetailInputRow(label = "Purchase Date", value = purchaseDate, onValueChange = { purchaseDate = it }, placeholder = "Select Date")
-        DetailInputRow(label = "Price", value = price, onValueChange = { price = it }, placeholder = "Enter price")
-
-
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(
-            onClick = {
-                val newItem = Item(
-                    name = name,
-                    category = selectedCategory,
-                    imageUri = null,
-                    color = color,
-                    season = selectedSeason.name,
-                    occasion = selectedOccasion,
-                    brand = brand,
-                    purchaseDate = purchaseDate,
-                    price = price.toDoubleOrNull() ?: 0.0
-                )
-                onAddItem(newItem)
-            },
-            modifier = Modifier.fillMaxWidth()
+        // ── Category (Dropdown) ────────────────────────────────
+        Text("Category", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        ExposedDropdownMenuBox(
+            expanded = expandedMenu,
+            onExpandedChange = { expandedMenu = !expandedMenu }
         ) {
-            Text("Add Item")
-        }
-    }
-}
-
-@Composable
-fun DetailInputRow(label: String, value: String, onValueChange: (String) -> Unit, placeholder: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = label, style = MaterialTheme.typography.bodyLarge)
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = TextStyle(
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp,
-                textAlign = TextAlign.End
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            decorationBox = { innerTextField ->
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                    if (value.isEmpty()) {
-                        Text(text = placeholder, color = Color.Gray, fontSize = 16.sp)
-                    }
-                    innerTextField()
+            OutlinedTextField(
+                value = category,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Select category") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMenu) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(
+                    type = MenuAnchorType.PrimaryNotEditable,
+                    enabled = true
+                )
+            )
+            ExposedDropdownMenu(
+                expanded = expandedMenu,
+                onDismissRequest = { expandedMenu = false }
+            ) {
+                sheetCategories.forEach { cat ->
+                    DropdownMenuItem(
+                        text = { Text(cat) },
+                        onClick = {
+                            category = cat
+                            expandedMenu = false
+                        }
+                    )
                 }
             }
-        )
-    }
-}
-
-@Composable
-fun DetailClickableRow(label: String, value: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(text = label, style = MaterialTheme.typography.bodyLarge)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.Gray,
-                modifier = Modifier.padding(end = 8.dp)
-            )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = "Action",
-                modifier = Modifier.size(16.dp),
-                tint = Color.Gray
-            )
         }
-    }
-}
 
-@Composable
-fun ChipSelectionRow(label: String, items: List<String>, selectedItem: String, onItemSelected: (String) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(text = label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(0.4f))
-        LazyRow(
-            modifier = Modifier.weight(0.6f),
-            horizontalArrangement = Arrangement.End
-        ) {
-            items(items) { item ->
-                SuggestionChip(
-                    onClick = { onItemSelected(item) },
-                    label = { Text(item) },
-                    modifier = Modifier.padding(start = 8.dp),
-                    colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = if (selectedItem == item) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = if (selectedItem == item) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    border = null
+        Spacer(Modifier.height(16.dp))
+
+        // ── Color ──────────────────────────────────────────────
+        Text("Color", style = MaterialTheme.typography.labelLarge)
+        Spacer(Modifier.height(4.dp))
+        OutlinedTextField(
+            value = color,
+            onValueChange = { color = it },
+            label = { Text("Color (e.g. Red)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        // ── Nút Add ────────────────────────────────────────────
+        Button(
+            onClick = {
+                if (category.isBlank() || color.isBlank()) return@Button
+                // ⚡ Tạo file mock và gọi ViewModel.addClothingItem()
+                val mockFile = java.io.File("/tmp/quick_add_${System.currentTimeMillis()}.jpg")
+                viewModel.addClothingItem(
+                    imageFile = mockFile,
+                    category = category,
+                    color = color
                 )
+                // Đóng sheet sau khi gọi
+                onItemAdded()
+            },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            enabled = !isLoading && category.isNotBlank() && color.isNotBlank()
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Adding...")
+            } else {
+                Text("Add Item")
             }
         }
     }
