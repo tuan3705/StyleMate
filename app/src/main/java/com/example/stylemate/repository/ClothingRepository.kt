@@ -81,4 +81,9 @@ class ClothingRepository(private val clothingDao: ClothingDao) {
     suspend fun getItemById(itemId: String): ClothingItemEntity? = withContext(Dispatchers.IO) {
         clothingDao.getItemById(itemId)
     }
+
+    suspend fun updateItemCanvasPosition(itemId: String, posX: Float, posY: Float) =
+        withContext(Dispatchers.IO) {
+            clothingDao.updateItemCanvasPosition(itemId, posX, posY)
+        }
 }

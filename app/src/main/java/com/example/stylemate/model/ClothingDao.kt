@@ -66,4 +66,7 @@ interface ClothingDao {
      */
     @Query("SELECT * FROM clothing_items WHERE id = :itemId")
     suspend fun getItemById(itemId: String): ClothingItemEntity?
+
+    @Query("UPDATE clothing_items SET canvasPosX = :posX, canvasPosY = :posY WHERE id = :itemId")
+    suspend fun updateItemCanvasPosition(itemId: String, posX: Float, posY: Float)
 }

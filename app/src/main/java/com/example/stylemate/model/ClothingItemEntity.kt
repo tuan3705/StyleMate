@@ -37,6 +37,8 @@ data class ClothingItemEntity(
     val brand: String = "",
     val purchaseDate: Long = System.currentTimeMillis(),
     val price: Double = 0.0,
+    val canvasPosX: Float = 0.5f,
+    val canvasPosY: Float = 0.5f,
     // ────────────────────────────────────────────────────────
     val createdAt: Long = System.currentTimeMillis()
 )

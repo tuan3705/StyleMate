@@ -57,5 +57,7 @@ import androidx.room.Index
 )
 data class OutfitClothingCrossRef(
     val outfitId: String,
-    val clothingItemId: String
+    val clothingItemId: String,
+    val posX: Float = 0.5f,
+    val posY: Float = 0.5f
 )

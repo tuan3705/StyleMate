@@ -177,6 +177,8 @@ class ClothingViewModel(
                     brand = brand,
                     purchaseDate = purchaseDate,
                     price = price,
+                    canvasPosX = 0.5f,
+                    canvasPosY = 0.1f,
                     createdAt = System.currentTimeMillis()
                 )
 
@@ -242,6 +244,17 @@ class ClothingViewModel(
      */
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun updateItemCanvasPosition(itemId: String, posX: Float, posY: Float) {
+        viewModelScope.launch {
+            try {
+                repository.updateItemCanvasPosition(itemId, posX, posY)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Lỗi khi cập nhật vị trí item: ${e.message}", e)
+                _errorMessage.value = "Không thể cập nhật vị trí item: ${e.message}"
+            }
+        }
     }
 }
 

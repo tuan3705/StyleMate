@@ -4,6 +4,7 @@ import com.example.stylemate.model.OutfitClothingCrossRef
 import com.example.stylemate.model.OutfitDao
 import com.example.stylemate.model.OutfitEntity
 import com.example.stylemate.model.OutfitWithClothingItems
+import com.example.stylemate.model.OutfitItemWithPosition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -50,6 +51,11 @@ class OutfitRepository(private val outfitDao: OutfitDao) {
     fun getOutfitsContainingItem(clothingItemId: String): Flow<List<OutfitWithClothingItems>> {
         return outfitDao.getOutfitsContainingItem(clothingItemId)
     }
+
+    suspend fun getOutfitItemsWithPosition(outfitId: String): List<OutfitItemWithPosition> =
+        withContext(Dispatchers.IO) {
+            outfitDao.getOutfitItemsWithPosition(outfitId)
+        }
 
     // ─────────────────────────────────────────────────────────────
     // ➕ Ghi (Write) — Suspend + IO

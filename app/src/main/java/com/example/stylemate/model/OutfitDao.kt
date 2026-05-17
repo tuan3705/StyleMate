@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Delete
+import com.example.stylemate.model.OutfitItemWithPosition
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -69,7 +70,7 @@ interface OutfitDao {
      * ⚠️ Các hàm này nên được wrap trong cùng một @Transaction để đảm bảo
      * atomic — nếu insert CrossRef thất bại, Outfit cũng không được tạo.
      */
-    @Insert(onConflict = OnConflictStrategy.IGNORE) // Bỏ qua nếu cặp đã tồn tại
+    @Insert(onConflict = OnConflictStrategy.REPLACE) // Upsert để cập nhật vị trí
     suspend fun insertOutfitClothingCrossRefs(crossRefs: List<OutfitClothingCrossRef>)
 
     /**
@@ -78,6 +79,19 @@ interface OutfitDao {
      */
     @Query("DELETE FROM outfit_clothing_cross_ref WHERE outfitId = :outfitId")
     suspend fun clearOutfitItems(outfitId: String)
+
+    /**
+     * Lấy danh sách items trong outfit kèm vị trí đã lưu.
+     */
+    @Query("""
+        SELECT c.*, x.posX AS posX, x.posY AS posY
+        FROM clothing_items c
+        INNER JOIN outfit_clothing_cross_ref x
+        ON c.id = x.clothingItemId
+        WHERE x.outfitId = :outfitId
+        ORDER BY c.createdAt DESC
+    """)
+    suspend fun getOutfitItemsWithPosition(outfitId: String): List<OutfitItemWithPosition>
 
     // ─────────────────────────────────────────────────────────────
     // ❌ Xoá Outfit

@@ -3,6 +3,8 @@ package com.example.stylemate.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,14 +19,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consumePositionChange
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
@@ -32,6 +41,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.layout.ContentScale
@@ -40,6 +50,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -47,6 +59,7 @@ import coil.request.ImageRequest
 import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
+import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
@@ -62,6 +75,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 // ═════════════════════════════════════════════════════════════════
 // 📱 ClosetScreen — Màn hình Tủ đồ (đã tích hợp Phối đồ)
@@ -99,16 +113,22 @@ fun ClosetScreen() {
     val items by clothingVM.items.collectAsStateWithLifecycle()
     val isItemsLoading by clothingVM.isLoading.collectAsStateWithLifecycle()
     val errorMessage by clothingVM.errorMessage.collectAsStateWithLifecycle()
+    val allClosetItems by clothingRepo.getAllItems().collectAsStateWithLifecycle(initialValue = emptyList())
 
     // ── Collect StateFlows (Outfits) ────────────────────────────
     val outfits by outfitVM.outfits.collectAsStateWithLifecycle()
     val isOutfitLoading by outfitVM.isLoading.collectAsStateWithLifecycle()
     val outfitError by outfitVM.errorMessage.collectAsStateWithLifecycle()
+    val editingItems by outfitVM.editingItems.collectAsStateWithLifecycle()
+    val editingOutfitName by outfitVM.editingOutfitName.collectAsStateWithLifecycle()
+    val editSaveSuccess by outfitVM.editSaveSuccess.collectAsStateWithLifecycle()
 
     // ── Local states ────────────────────────────────────────────
     var selectedTab by remember { mutableIntStateOf(0) }  // 0 = Items, 1 = Outfits
     var showBottomSheet by remember { mutableStateOf(false) }    // Quick Add item
     var showCreateOutfitSheet by remember { mutableStateOf(false) } // Tạo outfit
+    var showOutfitEditor by remember { mutableStateOf(false) }
+    var showAddItemsSheet by remember { mutableStateOf(false) }
     // Mỗi BottomSheet có sheetState riêng để vuốt mượt, không conflict
     val quickAddSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val createOutfitSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -129,6 +149,14 @@ fun ClosetScreen() {
         outfitError?.let { msg ->
             snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
             outfitVM.clearError()
+        }
+    }
+
+    LaunchedEffect(editSaveSuccess) {
+        if (editSaveSuccess) {
+            showOutfitEditor = false
+            showAddItemsSheet = false
+            outfitVM.clearEditSaveSuccess()
         }
     }
 
@@ -160,7 +188,7 @@ fun ClosetScreen() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -215,7 +243,12 @@ fun ClosetScreen() {
                 OutfitsTabContent(
                     outfits = outfits,
                     isLoading = isOutfitLoading,
-                    onDeleteOutfit = { outfitVM.deleteOutfit(it) }
+                    outfitRepo = outfitRepo,
+                    onDeleteOutfit = { outfitVM.deleteOutfit(it) },
+                    onOutfitClick = { outfit ->
+                        outfitVM.startEditingOutfit(outfit.outfit.id, outfit.outfit.name)
+                        showOutfitEditor = true
+                    }
                 )
             }
         }
@@ -270,10 +303,42 @@ fun ClosetScreen() {
             )
         }
     }
+
+    if (showOutfitEditor) {
+        OutfitCanvasEditorDialog(
+            outfitName = editingOutfitName,
+            items = editingItems,
+            isSaving = isOutfitLoading,
+            onDismiss = {
+                showOutfitEditor = false
+                showAddItemsSheet = false
+            },
+            onAddItems = { showAddItemsSheet = true },
+            onSave = { outfitVM.saveEditingOutfit() },
+            onPositionChange = { itemId, posX, posY ->
+                outfitVM.updateEditingItemPosition(itemId, posX, posY)
+            },
+            onDeleteItem = { itemId ->
+                outfitVM.removeEditingItem(itemId)
+            }
+        )
+    }
+
+    if (showOutfitEditor && showAddItemsSheet) {
+        AddItemsBottomSheet(
+            allItems = allClosetItems,
+            existingIds = editingItems.map { it.item.id }.toSet(),
+            onDismiss = { showAddItemsSheet = false },
+            onConfirm = { selectedItems ->
+                outfitVM.addItemsToEditing(selectedItems)
+                showAddItemsSheet = false
+            }
+        )
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════
-// 🔷 TAB 0: ItemsTabContent (Giữ nguyên logic cũ)
+// 🔷 TAB 0: ItemsTabContent (Canvas view)
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -304,38 +369,45 @@ private fun ItemsTabContent(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── Content: Items Grid ──────────────────────────────────
+        // ── Content: Items Grid ─────────────────────────────────
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopCenter
         ) {
             when {
                 isLoading -> CircularProgressIndicator()
                 items.isEmpty() -> {
-                    Text(
-                        text = "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!",
-                        color = Color.Gray,
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-                else -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        items(items, key = { it.id }) { clothingItem ->
-                            ClothingItemCard(
-                                item = clothingItem,
-                                onDelete = { clothingVM.deleteClothingItem(clothingItem) }
-                            )
-                        }
+                        Text(
+                            text = "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!",
+                            color = Color.Gray,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
+            else -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(items, key = { it.id }) { clothingItem ->
+                        ClothingItemCard(
+                            item = clothingItem,
+                            onDelete = { clothingVM.deleteClothingItem(clothingItem) }
+                        )
+                    }
+                }
+            }
             }
         }
     }
@@ -355,11 +427,13 @@ private fun ItemsTabContent(
 private fun OutfitsTabContent(
     outfits: List<OutfitWithClothingItems>,
     isLoading: Boolean,
-    onDeleteOutfit: (com.example.stylemate.model.OutfitEntity) -> Unit
+    outfitRepo: OutfitRepository,
+    onDeleteOutfit: (com.example.stylemate.model.OutfitEntity) -> Unit,
+    onOutfitClick: (OutfitWithClothingItems) -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.TopCenter
     ) {
         when {
             isLoading -> CircularProgressIndicator()
@@ -367,7 +441,9 @@ private fun OutfitsTabContent(
                 // 📝 Empty state
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(32.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 32.dp)
                 ) {
                     Text(text = "🧥", fontSize = 48.sp)
                     Spacer(Modifier.height(16.dp))
@@ -394,7 +470,9 @@ private fun OutfitsTabContent(
                     items(outfits, key = { it.outfit.id }) { outfitWithItems ->
                         SavedOutfitCard(
                             outfitWithItems = outfitWithItems,
-                            onDelete = { onDeleteOutfit(outfitWithItems.outfit) }
+                            outfitRepo = outfitRepo,
+                            onDelete = { onDeleteOutfit(outfitWithItems.outfit) },
+                            onClick = { onOutfitClick(outfitWithItems) }
                         )
                     }
                     // Spacer bottom cho FAB
@@ -412,7 +490,9 @@ private fun OutfitsTabContent(
 @Composable
 private fun SavedOutfitCard(
     outfitWithItems: OutfitWithClothingItems,
-    onDelete: () -> Unit
+    outfitRepo: OutfitRepository,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
 ) {
     val outfit = outfitWithItems.outfit
     val items = outfitWithItems.clothingItems
@@ -420,9 +500,20 @@ private fun SavedOutfitCard(
     val formattedDate = remember(outfit.createdAt) {
         dateFormat.format(Date(outfit.createdAt))
     }
+    val itemsWithPosition by produceState(
+        initialValue = emptyList<OutfitItemWithPosition>(),
+        key1 = outfit.id
+    ) {
+        value = outfitRepo.getOutfitItemsWithPosition(outfit.id)
+    }
+    val previewPlacements = remember(itemsWithPosition) {
+        mapOutfitPreviewPositions(itemsWithPosition)
+    }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -466,17 +557,96 @@ private fun SavedOutfitCard(
                     )
                 }
             }
-            if (items.isNotEmpty()) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = "Món đồ trong bộ:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(items, key = { it.id }) { item ->
-                        OutfitItemThumbnail(item = item)
+            Spacer(Modifier.height(12.dp))
+            OutfitCanvasPreview(items = previewPlacements)
+        }
+    }
+}
+
+private fun mapOutfitPreviewPositions(
+    items: List<OutfitItemWithPosition>
+): List<OutfitViewModel.OutfitItemPlacement> {
+    if (items.isEmpty()) return emptyList()
+    val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
+    return if (hasCustomPos) {
+        items.map { OutfitViewModel.OutfitItemPlacement(it.item, it.posX, it.posY) }
+    } else {
+        items.mapIndexed { index, entry ->
+            val (x, y) = defaultOutfitGridPosition(index)
+            OutfitViewModel.OutfitItemPlacement(entry.item, x, y)
+        }
+    }
+}
+
+private fun defaultOutfitGridPosition(index: Int): Pair<Float, Float> {
+    val col = index % 2
+    val row = index / 2
+    val x = if (col == 0) 0.1f else 0.55f
+    val y = (0.1f + row * 0.25f).coerceAtMost(0.8f)
+    return x to y
+}
+
+@Composable
+private fun OutfitCanvasPreview(
+    items: List<OutfitViewModel.OutfitItemPlacement>
+) {
+    val itemSize = 72.dp
+    val density = LocalDensity.current
+    val itemSizePx = with(density) { itemSize.toPx() }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F2EA))
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+        ) {
+            if (items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Chưa có món đồ nào",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                return@BoxWithConstraints
+            }
+
+            val canvasWidth = constraints.maxWidth.toFloat()
+            val canvasHeight = constraints.maxHeight.toFloat()
+            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
+            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
+
+            items.forEach { placement ->
+                val item = placement.item
+                val imageModel = rememberItemImageModel(item)
+                val offsetX = (placement.posX * maxX).roundToInt()
+                val offsetY = (placement.posY * maxY).roundToInt()
+
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(offsetX, offsetY) }
+                        .size(itemSize)
+                ) {
+                    if (imageModel != null) {
+                        AsyncImage(
+                            model = imageModel,
+                            contentDescription = item.name.ifBlank { item.category },
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+                        }
                     }
                 }
             }
@@ -484,46 +654,354 @@ private fun SavedOutfitCard(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
-// 🔷 OutfitItemThumbnail — Chip nhỏ hiển thị item trong outfit
-// ═════════════════════════════════════════════════════════════════
-
 @Composable
-private fun OutfitItemThumbnail(item: ClothingItemEntity) {
-    val imageModel = rememberItemImageModel(item)
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = getCategoryColor(item.category).copy(alpha = 0.15f),
-        modifier = Modifier
-            .width(100.dp)
-            .height(90.dp)
+private fun OutfitCanvasEditorDialog(
+    outfitName: String,
+    items: List<OutfitViewModel.OutfitItemPlacement>,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onAddItems: () -> Unit,
+    onSave: () -> Unit,
+    onPositionChange: (String, Float, Float) -> Unit,
+    onDeleteItem: (String) -> Unit
+) {
+    var selectedItemId by remember { mutableStateOf<String?>(null) }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 6.dp
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
-                    .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
-                if (imageModel != null) {
-                    AsyncImage(
-                        model = imageModel,
-                        contentDescription = item.name.ifBlank { item.category },
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = outfitName.ifBlank { "Outfit Canvas" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    }
+                }
+
+                OutfitCanvas(
+                    items = items,
+                    selectedItemId = selectedItemId,
+                    onSelectItem = { selectedItemId = it },
+                    onDeleteItem = { itemId ->
+                        onDeleteItem(itemId)
+                        if (selectedItemId == itemId) selectedItemId = null
+                    },
+                    onPositionChange = onPositionChange
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = onAddItems,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Add Items")
+                    }
+                    Button(
+                        onClick = onSave,
+                        modifier = Modifier.weight(1f),
+                        enabled = items.isNotEmpty() && !isSaving
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Saving...")
+                        } else {
+                            Text("Save Outfit")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutfitCanvas(
+    items: List<OutfitViewModel.OutfitItemPlacement>,
+    selectedItemId: String?,
+    onSelectItem: (String) -> Unit,
+    onDeleteItem: (String) -> Unit,
+    onPositionChange: (String, Float, Float) -> Unit
+) {
+    val itemSize = 96.dp
+    val density = LocalDensity.current
+    val itemSizePx = with(density) { itemSize.toPx() }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F2EA))
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(360.dp)
+        ) {
+            if (items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Chưa có món đồ nào",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                return@BoxWithConstraints
+            }
+
+            val canvasWidth = constraints.maxWidth.toFloat()
+            val canvasHeight = constraints.maxHeight.toFloat()
+            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
+            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
+
+            items.forEach { placement ->
+                val item = placement.item
+                val imageModel = rememberItemImageModel(item)
+                val isSelected = item.id == selectedItemId
+                var localPos by remember(item.id) {
+                    mutableStateOf(Offset(placement.posX, placement.posY))
+                }
+                LaunchedEffect(placement.posX, placement.posY) {
+                    localPos = Offset(placement.posX, placement.posY)
+                }
+
+                val offsetX = (localPos.x * maxX).roundToInt()
+                val offsetY = (localPos.y * maxY).roundToInt()
+
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(offsetX, offsetY) }
+                        .size(itemSize)
+                        .pointerInput(item.id) {
+                            detectTapGestures(onTap = { onSelectItem(item.id) })
+                        }
+                        .pointerInput(item.id, maxX, maxY) {
+                            detectDragGestures(
+                                onDragStart = { onSelectItem(item.id) },
+                                onDrag = { change, dragAmount ->
+                                    change.consumePositionChange()
+                                    val newX = (localPos.x * maxX + dragAmount.x).coerceIn(0f, maxX)
+                                    val newY = (localPos.y * maxY + dragAmount.y).coerceIn(0f, maxY)
+                                    localPos = Offset(newX / maxX, newY / maxY)
+                                },
+                                onDragEnd = {
+                                    onPositionChange(item.id, localPos.x, localPos.y)
+                                }
+                            )
+                        }
+                ) {
+                    if (imageModel != null) {
+                        AsyncImage(
+                            model = imageModel,
+                            contentDescription = item.name.ifBlank { item.category },
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
+                        }
+                    }
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .border(2.dp, Color(0xFFFFD54F), RoundedCornerShape(12.dp))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 5.dp, y = (-5).dp)
+                                .size(16.dp)
+                                .zIndex(1f)
+                                .background(Color.Red.copy(alpha = 0.85f), CircleShape)
+                                .clickable { onDeleteItem(item.id) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove item",
+                                tint = Color.White,
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddItemsBottomSheet(
+    allItems: List<ClothingItemEntity>,
+    existingIds: Set<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (List<ClothingItemEntity>) -> Unit
+) {
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    LaunchedEffect(existingIds) {
+        selectedIds = emptySet()
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Add Items",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(12.dp))
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.heightIn(max = 360.dp)
+            ) {
+                items(allItems, key = { it.id }) { item ->
+                    val alreadyAdded = item.id in existingIds
+                    val isSelected = item.id in selectedIds || alreadyAdded
+                    AddItemSelectCard(
+                        item = item,
+                        isSelected = isSelected,
+                        enabled = !alreadyAdded,
+                        onToggle = {
+                            selectedIds = if (item.id in selectedIds) {
+                                selectedIds - item.id
+                            } else {
+                                selectedIds + item.id
+                            }
+                        }
                     )
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = item.name.ifBlank { item.category },
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 6.dp)
-            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cancel")
+                }
+                Button(
+                    onClick = {
+                        val selectedItems = allItems.filter { it.id in selectedIds }
+                        onConfirm(selectedItems)
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = selectedIds.isNotEmpty()
+                ) {
+                    Text("Add")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddItemSelectCard(
+    item: ClothingItemEntity,
+    isSelected: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit
+) {
+    val imageModel = rememberItemImageModel(item)
+    val alpha = if (enabled) 1f else 0.5f
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clickable(enabled = enabled) { onToggle() }
+            .alpha(alpha),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (imageModel != null) {
+                AsyncImage(
+                    model = imageModel,
+                    contentDescription = item.name.ifBlank { item.category },
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+                }
+            }
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Selected",
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = item.name.ifBlank { item.category },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

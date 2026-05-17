@@ -8,6 +8,8 @@ import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitClothingCrossRef
 import com.example.stylemate.model.OutfitEntity
 import com.example.stylemate.model.OutfitWithClothingItems
+import com.example.stylemate.model.OutfitItemWithPosition
+import kotlin.math.min
 import com.example.stylemate.repository.OutfitRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -97,6 +99,24 @@ class OutfitViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
+    private val _editingOutfitId = MutableStateFlow<String?>(null)
+    val editingOutfitId: StateFlow<String?> = _editingOutfitId
+
+    private val _editingOutfitName = MutableStateFlow("")
+    val editingOutfitName: StateFlow<String> = _editingOutfitName
+
+    data class OutfitItemPlacement(
+        val item: ClothingItemEntity,
+        val posX: Float,
+        val posY: Float
+    )
+
+    private val _editingItems = MutableStateFlow<List<OutfitItemPlacement>>(emptyList())
+    val editingItems: StateFlow<List<OutfitItemPlacement>> = _editingItems
+
+    private val _editSaveSuccess = MutableStateFlow(false)
+    val editSaveSuccess: StateFlow<Boolean> = _editSaveSuccess
+
     // ═════════════════════════════════════════════════════════════
     // 🎯 HÀM THAO TÁC TRÊN DRAFT
     // ═════════════════════════════════════════════════════════════
@@ -185,10 +205,13 @@ class OutfitViewModel(
                 Log.d(TAG, "👔 Đang lưu outfit: '$name' với ${draftItems.size} items")
 
                 // ── Bước 2: Tạo danh sách CrossRef ───────────────
-                val crossRefs = draftItems.map { item ->
+                val crossRefs = draftItems.mapIndexed { index, item ->
+                    val (x, y) = defaultGridPosition(index)
                     OutfitClothingCrossRef(
                         outfitId = outfitId,
-                        clothingItemId = item.id
+                        clothingItemId = item.id,
+                        posX = x,
+                        posY = y
                     )
                 }
 
@@ -208,6 +231,100 @@ class OutfitViewModel(
                 _isLoading.value = false
             }
         }
+    }
+
+    fun startEditingOutfit(outfitId: String, outfitName: String) {
+        _editingOutfitId.value = outfitId
+        _editingOutfitName.value = outfitName
+        _editSaveSuccess.value = false
+        viewModelScope.launch {
+            try {
+                val items = repository.getOutfitItemsWithPosition(outfitId)
+                _editingItems.value = mapWithDefaults(items)
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Lỗi khi load outfit editor: ${e.message}", e)
+                _errorMessage.value = "Không thể tải outfit: ${e.message}"
+            }
+        }
+    }
+
+    private fun mapWithDefaults(items: List<OutfitItemWithPosition>): List<OutfitItemPlacement> {
+        if (items.isEmpty()) return emptyList()
+        val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
+        if (hasCustomPos) {
+            return items.map { OutfitItemPlacement(it.item, it.posX, it.posY) }
+        }
+        return items.mapIndexed { index, entry ->
+            val (x, y) = defaultGridPosition(index)
+            OutfitItemPlacement(entry.item, x, y)
+        }
+    }
+
+    private fun defaultGridPosition(index: Int): Pair<Float, Float> {
+        val col = index % 2
+        val row = index / 2
+        val x = if (col == 0) 0.1f else 0.55f
+        val y = min(0.1f + row * 0.25f, 0.8f)
+        return x to y
+    }
+
+    fun updateEditingItemPosition(itemId: String, posX: Float, posY: Float) {
+        _editingItems.value = _editingItems.value.map { placement ->
+            if (placement.item.id == itemId) {
+                placement.copy(posX = posX, posY = posY)
+            } else placement
+        }
+    }
+
+    fun addItemsToEditing(items: List<ClothingItemEntity>) {
+        val existingIds = _editingItems.value.map { it.item.id }.toSet()
+        val newItems = items.filterNot { it.id in existingIds }
+        if (newItems.isEmpty()) return
+        val startIndex = _editingItems.value.size
+        val appended = newItems.mapIndexed { index, item ->
+            val (x, y) = defaultGridPosition(startIndex + index)
+            OutfitItemPlacement(item, x, y)
+        }
+        _editingItems.value = _editingItems.value + appended
+    }
+
+    fun removeEditingItem(itemId: String) {
+        _editingItems.value = _editingItems.value.filterNot { it.item.id == itemId }
+    }
+
+    fun saveEditingOutfit() {
+        val outfitId = _editingOutfitId.value ?: return
+        val items = _editingItems.value
+        if (items.isEmpty()) {
+            _errorMessage.value = "Vui lòng chọn ít nhất một món đồ"
+            return
+        }
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _errorMessage.value = null
+                repository.clearOutfitItems(outfitId)
+                val crossRefs = items.map { placement ->
+                    OutfitClothingCrossRef(
+                        outfitId = outfitId,
+                        clothingItemId = placement.item.id,
+                        posX = placement.posX,
+                        posY = placement.posY
+                    )
+                }
+                repository.insertOutfitClothingCrossRefs(crossRefs)
+                _editSaveSuccess.value = true
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Lỗi khi lưu outfit edit: ${e.message}", e)
+                _errorMessage.value = "Không thể lưu outfit: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun clearEditSaveSuccess() {
+        _editSaveSuccess.value = false
     }
 
     // ═════════════════════════════════════════════════════════════
