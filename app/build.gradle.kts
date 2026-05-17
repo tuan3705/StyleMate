@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.gson)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.coil.compose)
 
     // Room
     implementation(libs.androidx.room.runtime)

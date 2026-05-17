@@ -34,18 +34,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.layout.ContentScale
+import android.net.Uri
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
+import com.example.stylemate.ui.common.ImagePickerSection
+import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import com.example.stylemate.viewmodel.OutfitViewModel
@@ -233,6 +239,9 @@ fun ClosetScreen() {
                         quickAddSheetState.hide()
                         showBottomSheet = false
                     }
+                },
+                onError = { message ->
+                    scope.launch { snackbarHostState.showSnackbar(message) }
                 }
             )
         }
@@ -481,22 +490,39 @@ private fun SavedOutfitCard(
 
 @Composable
 private fun OutfitItemThumbnail(item: ClothingItemEntity) {
+    val imageModel = rememberItemImageModel(item)
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = getCategoryColor(item.category).copy(alpha = 0.15f),
-        modifier = Modifier.width(100.dp)
+        modifier = Modifier
+            .width(100.dp)
+            .height(90.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+                if (imageModel != null) {
+                    AsyncImage(
+                        model = imageModel,
+                        contentDescription = item.name.ifBlank { item.category },
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = item.name.ifBlank { item.category },
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 6.dp)
             )
         }
     }
@@ -688,6 +714,7 @@ private fun SelectableItemCard(
     val borderColor = if (isSelected) Color(0xFF4CAF50) else Color.Transparent
     val borderWidth = if (isSelected) 3.dp else 0.dp
     val bgAlpha = if (isSelected) 0.3f else 0.15f
+    val imageModel = rememberItemImageModel(item)
 
     Card(
         modifier = Modifier
@@ -723,6 +750,14 @@ private fun SelectableItemCard(
                         maxLines = 1
                     )
                 }
+            }
+            if (imageModel != null) {
+                AsyncImage(
+                    model = imageModel,
+                    contentDescription = item.name.ifBlank { item.category },
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             }
             if (isSelected) {
                 Icon(
@@ -772,6 +807,7 @@ fun ClothingItemCard(
     item: ClothingItemEntity,
     onDelete: () -> Unit
 ) {
+    val imageModel = rememberItemImageModel(item)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -797,6 +833,15 @@ fun ClothingItemCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+
+            if (imageModel != null) {
+                AsyncImage(
+                    model = imageModel,
+                    contentDescription = item.name.ifBlank { item.category },
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
             }
             Column(
                 modifier = Modifier
@@ -860,6 +905,34 @@ fun ClothingItemCard(
     }
 }
 
+@Composable
+private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
+    val context = LocalContext.current
+    return remember(item.imageOriginal, item.imageNoBg) {
+        fun resolveData(path: String): Any? {
+            if (path.isBlank()) return null
+            if (path.startsWith("content://") || path.startsWith("file://")) {
+                return Uri.parse(path)
+            }
+            val file = File(path)
+            if (file.isAbsolute) return file
+            val internalFile = File(context.filesDir, path)
+            if (internalFile.exists()) return internalFile
+            val imagesDir = File(context.filesDir, "images")
+            val byName = File(imagesDir, File(path).name)
+            return if (byName.exists()) byName else internalFile
+        }
+
+        val data = resolveData(item.imageOriginal) ?: resolveData(item.imageNoBg)
+        data?.let {
+            ImageRequest.Builder(context)
+                .data(it)
+                .crossfade(true)
+                .build()
+        }
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════
 // 🎨 HELPERS: Màu & Icon theo category
 // ═════════════════════════════════════════════════════════════════
@@ -896,7 +969,8 @@ private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "
 @Composable
 fun NewClothingItemSheet(
     viewModel: ClothingViewModel,
-    onItemAdded: () -> Unit
+    onItemAdded: () -> Unit,
+    onError: (String) -> Unit
 ) {
     // ── Focus management ──────────────────────────────────────────
     // Mỗi field có FocusRequester riêng, bấm Enter/Done → nhảy field tiếp
@@ -924,6 +998,8 @@ fun NewClothingItemSheet(
     val seasons = listOf("Spring", "Summer", "Autumn", "Winter")
     val occasions = listOf("Casual", "Work", "Sports", "Formal")
     val isLoading by viewModel.isLoading.collectAsState()
+    val imagePickerState = rememberImagePickerState(onError = onError)
+    val imagePath by imagePickerState.imagePath
 
     Column(
         modifier = Modifier
@@ -937,6 +1013,16 @@ fun NewClothingItemSheet(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
+
+        ImagePickerSection(
+            title = "Item Image",
+            imagePath = imagePath,
+            onCameraClick = imagePickerState.onCameraClick,
+            onGalleryClick = imagePickerState.onGalleryClick,
+            titleStyle = MaterialTheme.typography.labelLarge
+        )
+
+        Spacer(Modifier.height(12.dp))
 
         // ── CATEGORY ─────────────────────────────────────────────
         Text("Category", style = MaterialTheme.typography.labelLarge)
@@ -1130,11 +1216,14 @@ fun NewClothingItemSheet(
         // ── ADD BUTTON ───────────────────────────────────────────
         Button(
             onClick = {
+                if (imagePath == null) {
+                    onError("Please select an image")
+                    return@Button
+                }
                 if (category.isBlank() || color.isBlank()) return@Button
                 val parsedPrice = price.toDoubleOrNull() ?: 0.0
-                val mockFile = File("/tmp/quick_add_${System.currentTimeMillis()}.jpg")
                 viewModel.addClothingItem(
-                    imageFile = mockFile,
+                    imageFile = File(imagePath!!),
                     category = category,
                     color = color,
                     name = itemName,
@@ -1147,7 +1236,7 @@ fun NewClothingItemSheet(
                 onItemAdded()
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),
-            enabled = !isLoading && category.isNotBlank() && color.isNotBlank()
+            enabled = !isLoading && category.isNotBlank() && color.isNotBlank() && imagePath != null
         ) {
             if (isLoading) {
                 CircularProgressIndicator(

@@ -7,14 +7,11 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +24,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.repository.ClothingRepository
+import com.example.stylemate.ui.common.ImagePickerSection
+import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import kotlinx.coroutines.launch
@@ -60,8 +59,17 @@ fun AddItemScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
+    val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     // ── Local state cho form ─────────────────────────────────────
-    var imagePath by remember { mutableStateOf<String?>(null) }
+    val imagePickerState = rememberImagePickerState(
+        onError = { message ->
+            scope.launch { snackbarHostState.showSnackbar(message) }
+        }
+    )
+    val imagePath by imagePickerState.imagePath
     var category by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
 
@@ -84,10 +92,6 @@ fun AddItemScreen(navController: NavController) {
     val seasons = listOf("Spring", "Summer", "Autumn", "Winter")
     val occasions = listOf("Casual", "Work", "Sports", "Formal")
     var expandedMenu by remember { mutableStateOf(false) }
-
-    val focusManager = LocalFocusManager.current
-    val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     // ── Hiển thị Snackbar khi có lỗi ─────────────────────────────
     LaunchedEffect(errorMessage) {
@@ -121,46 +125,12 @@ fun AddItemScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── Chọn ảnh (mock) ────────────────────────────────────
-            Text("Item Image", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FilledTonalButton(
-                    onClick = {
-                        // 📸 Mock: giả lập chụp ảnh bằng camera
-                        imagePath = "/tmp/mock_camera_${System.currentTimeMillis()}.jpg"
-                    },
-                    modifier = Modifier.height(48.dp)
-                ) {
-                    Icon(Icons.Default.PhotoCamera, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Take Photo")
-                }
-                FilledTonalButton(
-                    onClick = {
-                        // 🖼️ Mock: giả lập chọn từ gallery
-                        imagePath = "/tmp/mock_gallery_${System.currentTimeMillis()}.jpg"
-                    },
-                    modifier = Modifier.height(48.dp)
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("From Gallery")
-                }
-            }
-
-            // Preview đường dẫn ảnh đã chọn
-            if (imagePath != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Text(
-                        text = "✅ Image selected: ${imagePath?.substringAfterLast("/")}",
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
+            ImagePickerSection(
+                title = "Item Image",
+                imagePath = imagePath,
+                onCameraClick = imagePickerState.onCameraClick,
+                onGalleryClick = imagePickerState.onGalleryClick
+            )
 
             HorizontalDivider()
 
