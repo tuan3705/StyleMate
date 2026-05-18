@@ -3,72 +3,76 @@ package com.example.stylemate.repository
 import com.example.stylemate.model.weather.WeatherAnalysis
 import com.example.stylemate.model.weather.WeatherApiResponse
 import com.example.stylemate.network.RetrofitClient
-import com.example.stylemate.network.WeatherApiService
+import com.example.stylemate.network.StylemateApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
  * 🏪 WeatherRepository — Repository Pattern cho module Thời tiết.
  *
- * Gọi [WeatherApiService] qua Retrofit, xử lý exception và parse dữ liệu.
- * ViewModel sẽ gọi repository này để lấy dữ liệu thời tiết.
+ * 🔒 Gọi Backend proxy (/api/weather/forecast), KHÔNG gọi trực tiếp WeatherAPI.com.
+ *    -> WEATHER_API_KEY chi nam o server (file .env), khong lo tren Client.
+ *
+ * ViewModel se goi repository nay de lay du lieu thoi tiet.
  */
 class WeatherRepository(
-    private val apiService: WeatherApiService = RetrofitClient.weatherApiService
+    private val apiService: StylemateApiService = RetrofitClient.stylemateApiService
 ) {
 
     /**
-     * 🌤️ Lấy dữ liệu thời tiết + dự báo 3 ngày.
+     * Lay du lieu thoi tiet + du bao 3 ngay qua Backend proxy.
      *
-     * @param lat Vĩ độ.
-     * @param lon Kinh độ.
-     * @return [WeatherApiResponse] nếu thành công.
-     * @throws Exception nếu network error hoặc API trả về lỗi.
+     * Backend nhan lat+lon, tu them API Key, goi WeatherAPI.com, tra JSON ve.
+     *
+     * @param lat Vi do.
+     * @param lon Kinh do.
+     * @return [WeatherApiResponse] neu thanh cong.
+     * @throws Exception neu network error hoac API tra ve loi.
      */
     suspend fun getWeatherForecast(lat: Double, lon: Double): WeatherApiResponse =
         withContext(Dispatchers.IO) {
-            val query = "$lat,$lon"
-            apiService.getForecast(
-                apiKey = RetrofitClient.WEATHER_API_KEY,
-                q = query,
-                days = 3
-            )
+            val response = apiService.getWeatherForecast(lat, lon)
+            if (response.isSuccessful) {
+                response.body() ?: throw Exception("Response body is null")
+            } else {
+                throw Exception("Weather API error: ${response.code()} ${response.message()}")
+            }
         }
 
     /**
-     * 🧠 Phân tích nhanh thời tiết để làm context cho Chatbot.
+     * Phan tich nhanh thoi tiet de lam context cho Chatbot.
      *
-     * Quy tắc đơn giản dựa trên nhiệt độ:
-     *   - < 10°C  → "VeryCold" — "Mặc ấm, áo khoác dày"
-     *   - < 20°C  → "Cold"     — "Áo len, áo khoác nhẹ"
-     *   - < 25°C  → "Cool"     — "Áo dài tay, quần jeans"
-     *   - < 30°C  → "Warm"     — "Áo ngắn tay, váy mát"
-     *   - ≥ 30°C  → "Hot"      — "Quần short, áo ba lỗ, đồ thoáng mát"
+     * Quy tac don gian dua tren nhiet do:
+     *   - < 10°C  -> "VeryCold"
+     *   - < 20°C  -> "Cold"
+     *   - < 25°C  -> "Cool"
+     *   - < 30°C  -> "Warm"
+     *   - >= 30°C -> "Hot"
      *
-     * @param tempC Nhiệt độ hiện tại (°C).
-     * @return [WeatherAnalysis] chứa nhãn + gợi ý.
+     * @param tempC Nhiet do hien tai (°C).
+     * @return [WeatherAnalysis] chua nhan + goi y.
      */
     fun analyzeWeather(tempC: Double): WeatherAnalysis {
         return when {
             tempC < 10 -> WeatherAnalysis(
                 label = "VeryCold",
-                suggestion = "Trời rất lạnh! Hãy mặc áo khoác dày, khăn quàng cổ và găng tay."
+                suggestion = "Troi rat lanh! Hay mac ao khoac day, khan quang co va gang tay."
             )
             tempC < 20 -> WeatherAnalysis(
                 label = "Cold",
-                suggestion = "Trời lạnh. Áo len, áo khoác nhẹ và quần dài là lựa chọn phù hợp."
+                suggestion = "Troi lanh. Ao len, ao khoac nhe va quan dai la lua chon phu hop."
             )
             tempC < 25 -> WeatherAnalysis(
                 label = "Cool",
-                suggestion = "Trời mát mẻ. Áo dài tay, quần jeans hoặc chân váy nhẹ."
+                suggestion = "Troi mat me. Ao dai tay, quan jeans hoac chan vay nhe."
             )
             tempC < 30 -> WeatherAnalysis(
                 label = "Warm",
-                suggestion = "Trời ấm áp. Áo ngắn tay, váy mát, quần vải nhẹ."
+                suggestion = "Troi am ap. Ao ngan tay, vay mat, quan vai nhe."
             )
             else -> WeatherAnalysis(
                 label = "Hot",
-                suggestion = "Trời nóng! Quần short, áo ba lỗ, váy maxi, chất liệu thoáng mát."
+                suggestion = "Troi nong! Quan short, ao ba lo, vay maxi, chat lieu thoang mat."
             )
         }
     }

@@ -54,20 +54,34 @@ class CalendarViewModel(
     val selectedDate: StateFlow<Long> = _selectedDate
 
     // ──────────────────────────────────────────────────────────────
+    // 🔷 Refresh Trigger
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * 🔄 Trigger để force refresh eventForSelectedDate.
+     * Mỗi lần gán/xoá outfit, ta tăng giá trị này → flatMapLatest được kích hoạt lại.
+     */
+    private val _refreshTrigger = MutableStateFlow(0L)
+
+    // ──────────────────────────────────────────────────────────────
     // 🔷 State: Sự kiện cho ngày đang chọn (reactive)
     // ──────────────────────────────────────────────────────────────
 
     /**
      * Sự kiện lịch của ngày đang chọn.
      *
-     * Sử dụng [flatMapLatest] để mỗi khi người dùng chọn ngày khác,
-     * Flow cũ bị huỷ và Flow mới (từ DAO) được subscribe.
-     * Nhờ vậy, UI luôn hiển thị đúng dữ liệu cho ngày đang chọn.
+     * Sử dụng [flatMapLatest] trên cả [_selectedDate] và [_refreshTrigger] để:
+     *   - Khi đổi ngày → tự động query lại
+     *   - Khi gán/xoá outfit → force query lại mà không cần đổi ngày
+     *
+     * API observeEventByDate chỉ là one-shot Flow → cần trigger refresh thủ công.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val eventForSelectedDate: StateFlow<CalendarEventEntity?> = _selectedDate
-        .flatMapLatest { date ->
-            calendarRepository.observeEventByDate(date)
+    val eventForSelectedDate: StateFlow<CalendarEventEntity?> = _refreshTrigger
+        .flatMapLatest { _ ->
+            _selectedDate.value.let { date ->
+                calendarRepository.observeEventByDate(date)
+            }
         }
         .stateIn(
             scope = viewModelScope,
@@ -158,6 +172,8 @@ class CalendarViewModel(
                 )
 
                 calendarRepository.assignOutfitToDate(event)
+                // 🔄 Refresh để UI cập nhật ngay lập tức
+                _refreshTrigger.value = System.currentTimeMillis()
                 Log.d(TAG, "✅ Đã gán outfit $outfitId cho ngày ${_selectedDate.value}")
 
             } catch (e: Exception) {
@@ -177,6 +193,8 @@ class CalendarViewModel(
             try {
                 val event = eventForSelectedDate.value ?: return@launch
                 calendarRepository.removeEvent(event)
+                // 🔄 Refresh để UI cập nhật ngay lập tức
+                _refreshTrigger.value = System.currentTimeMillis()
                 Log.d(TAG, "🗑️ Đã xoá outfit khỏi ngày ${_selectedDate.value}")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi xoá outfit khỏi ngày: ${e.message}", e)

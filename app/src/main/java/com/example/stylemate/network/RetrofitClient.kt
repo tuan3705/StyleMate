@@ -1,5 +1,6 @@
 package com.example.stylemate.network
 
+import com.example.stylemate.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -7,20 +8,50 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 /**
- * 🏗️ RetrofitClient — Singleton quản lý Retrofit instance.
+ * ═══════════════════════════════════════════════════════════════
+ * 🏗️ RETROFIT CLIENT — Singleton quản lý Retrofit Instance
+ * ═══════════════════════════════════════════════════════════════
  *
- * Cấu hình:
- * - Base URL: https://api.weatherapi.com (WeatherAPI.com)
- * - Timeout: 30s connect + 30s read
- * - Logging interceptor (debug only)
+ * ⚡ Base URL đọc từ BuildConfig (sinh từ local.properties)
+ *    → Muốn đổi IP, chỉ cần sửa local.properties, KHÔNG cần sửa code!
+ *
+ * 🌤️ Thời tiết gọi qua Backend proxy (/api/weather/forecast)
+ *    → Không cần WEATHER_API_KEY ở Android nữa!
+ *
+ * Quản lý 1 Retrofit instance duy nhất cho Backend Node.js.
+ *
+ * Android Emulator dùng 10.0.2.2 để truy cập localhost của máy host.
+ * ───────────────────────────────────────────────────────────────
  */
 object RetrofitClient {
 
-    // ⚠️ Thay bằng API key thật của bạn từ https://www.weatherapi.com/
-    const val WEATHER_API_KEY = "02adf784ac1545719b963122261605"
+    // ═════════════════════════════════════════════════════════════
+    // 🎯 Cấu hình Backend — Đọc từ BuildConfig (BuildConfig sinh từ local.properties)
+    // ═════════════════════════════════════════════════════════════
 
-    private const val BASE_URL = "https://api.weatherapi.com/"
+    /**
+     * Base URL của Backend Node.js.
+     * Giá trị được lấy từ BuildConfig.STYLEMATE_BASE_URL
+     * → BuildConfig được Gradle sinh dựa trên local.properties
+     *
+     * Cách đổi:
+     *   1. Mở file local.properties ở thư mục gốc dự án
+     *   2. Sửa dòng STYLEMATE_BASE_URL=http://IP_MỚI:3000/
+     *   3. Build lại app (Build → Rebuild Project)
+     *
+     * ⚠️ KHÔNG bao giờ sửa trực tiếp trong file này nữa!
+     */
+    @JvmField
+    val STYLEMATE_BASE_URL: String = BuildConfig.STYLEMATE_BASE_URL
+
+    /**
+     * Timeout mặc định cho tất cả request (30 giây).
+     */
     private const val TIMEOUT_SECONDS = 30L
+
+    // ═════════════════════════════════════════════════════════════
+    // 🛡️ OkHttp Client
+    // ═════════════════════════════════════════════════════════════
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -34,15 +65,22 @@ object RetrofitClient {
             .build()
     }
 
-    private val retrofit: Retrofit by lazy {
+    // ═════════════════════════════════════════════════════════════
+    // 🏗️ Retrofit Instance cho Stylemate Backend
+    // ═════════════════════════════════════════════════════════════
+    private val stylemateRetrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(STYLEMATE_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
 
-    val weatherApiService: WeatherApiService by lazy {
-        retrofit.create(WeatherApiService::class.java)
+    /**
+     * Service chính cho toàn bộ API của Stylemate Backend.
+     * Dùng trong tất cả Repository (kể cả weather).
+     */
+    val stylemateApiService: StylemateApiService by lazy {
+        stylemateRetrofit.create(StylemateApiService::class.java)
     }
 }

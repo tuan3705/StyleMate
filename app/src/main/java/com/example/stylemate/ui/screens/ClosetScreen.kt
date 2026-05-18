@@ -56,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitItemWithPosition
@@ -95,15 +94,15 @@ import kotlin.math.roundToInt
 @Composable
 fun ClosetScreen() {
     val context = LocalContext.current
-    val database = AppDatabase.getDatabase(context)
 
-    // ── Khởi tạo Repositories & ViewModels ──────────────────────
-    val clothingRepo = ClothingRepository(database.clothingDao())
+    // ── Khởi tạo Repositories & ViewModels (dùng RetrofitClient thay AppDatabase) ─
+    val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
+    val clothingRepo = ClothingRepository(apiService, context)
     val clothingVM: ClothingViewModel = viewModel(
         factory = ClothingViewModelFactory(clothingRepo)
     )
 
-    val outfitRepo = OutfitRepository(database.outfitDao())
+    val outfitRepo = OutfitRepository(apiService)
     val outfitVM: OutfitViewModel = viewModel(
         factory = OutfitViewModelFactory(outfitRepo)
     )
@@ -1389,16 +1388,32 @@ private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     return remember(item.imageOriginal, item.imageNoBg) {
         fun resolveData(path: String): Any? {
             if (path.isBlank()) return null
+
+            // ── HTTP/HTTPS URL (ảnh từ server) ────────────────
+            if (path.startsWith("http://") || path.startsWith("https://")) {
+                return path // Coil nhận String URL trực tiếp
+            }
+
+            // ── content:// URI (từ camera/gallery) ────────────
             if (path.startsWith("content://") || path.startsWith("file://")) {
                 return Uri.parse(path)
             }
+
+            // ── Đường dẫn file tuyệt đối (vd: /data/.../abc.jpg) ─
             val file = File(path)
-            if (file.isAbsolute) return file
+            if (file.isAbsolute && file.exists()) return file
+
+            // ── Đường dẫn tương đối từ filesDir ─────────────────
             val internalFile = File(context.filesDir, path)
             if (internalFile.exists()) return internalFile
+
+            // ── File trong thư mục images/ ─────────────────────
             val imagesDir = File(context.filesDir, "images")
             val byName = File(imagesDir, File(path).name)
-            return if (byName.exists()) byName else internalFile
+            if (byName.exists()) return byName
+
+            // ── Fallback: trả về path gốc cho Coil tự xử lý ────
+            return path
         }
 
         val data = resolveData(item.imageOriginal) ?: resolveData(item.imageNoBg)

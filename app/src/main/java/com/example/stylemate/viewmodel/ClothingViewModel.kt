@@ -49,6 +49,12 @@ class ClothingViewModel(
     private val _selectedCategory = MutableStateFlow("All")
 
     /**
+     * 🔄 Trigger để force refresh danh sách items.
+     * Mỗi lần thêm/xoá item, ta tăng giá trị này lên → flatMapLatest được kích hoạt lại.
+     */
+    private val _refreshTrigger = MutableStateFlow(0L)
+
+    /**
      * Category đang được chọn — UI collect để highlight chip tương ứng.
      */
     val selectedCategory: StateFlow<String> = _selectedCategory
@@ -65,13 +71,15 @@ class ClothingViewModel(
      * - Giá trị khởi tạo: emptyList().
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val items: StateFlow<List<ClothingItemEntity>> = _selectedCategory
-        .flatMapLatest { category ->
+    val items: StateFlow<List<ClothingItemEntity>> = _refreshTrigger
+        .flatMapLatest { _ ->
+            _selectedCategory.value.let { category ->
             if (category == "All") {
                 repository.getAllItems()
             } else {
                 repository.getItemsByCategory(category)
             }
+        }
         }
         .stateIn(
             scope = viewModelScope,
@@ -187,7 +195,8 @@ class ClothingViewModel(
                 // ── Bước 5: Lưu vào database qua Repository ──────
                 repository.insertItem(newItem)
 
-                // UI sẽ tự động cập nhật nhờ items StateFlow phía trên!
+                // 🔄 Refresh danh sách để UI tự động cập nhật
+                _refreshTrigger.value = System.currentTimeMillis()
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi thêm item: ${e.message}", e)
@@ -208,6 +217,8 @@ class ClothingViewModel(
         viewModelScope.launch {
             try {
                 repository.deleteItem(item)
+                // 🔄 Refresh danh sách sau khi xoá
+                _refreshTrigger.value = System.currentTimeMillis()
                 Log.d(TAG, "🗑️ Đã xoá item: ${item.id}")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi xoá item: ${e.message}", e)

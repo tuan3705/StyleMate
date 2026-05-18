@@ -1,23 +1,17 @@
 package com.example.stylemate.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
 /**
- * 👔 OutfitEntity — Entity Room cho module Phối đồ (Outfit).
+ * 👔 OutfitEntity — Data class đại diện cho một bộ đồ (Outfit).
  *
- * Một Outfit (bộ đồ) gồm nhiều ClothingItem (quần, áo, giày, ...).
- * Quan hệ giữa Outfit và ClothingItem là N-N (Many-to-Many):
- *   - Một Outfit chứa nhiều ClothingItem.
- *   - Một ClothingItem có thể thuộc nhiều Outfit khác nhau.
+ * Trước đây là Entity Room, nay là POJO thuần.
+ *
+ * Một Outfit gồm nhiều ClothingItem (quan hệ N-N).
  *
  * @property id Mã định danh duy nhất (UUID string).
- * @property name Tên bộ đồ do người dùng đặt (vd: "Đi chơi cuối tuần").
- * @property createdAt Timestamp (epoch millis) lưu thời điểm tạo outfit — dùng cho sắp xếp.
+ * @property name Tên bộ đồ do người dùng đặt.
+ * @property createdAt Timestamp (epoch millis) thời điểm tạo.
  */
-@Entity(tableName = "outfits")
 data class OutfitEntity(
-    @PrimaryKey
     val id: String,
     val name: String,
     val createdAt: Long = System.currentTimeMillis()

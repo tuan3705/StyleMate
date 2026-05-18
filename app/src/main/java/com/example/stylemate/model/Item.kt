@@ -1,11 +1,12 @@
 package com.example.stylemate.model
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
-@Entity(tableName = "items")
+/**
+ * 📦 Item — Data class đại diện cho một món quần áo (legacy, giữ lại cho tương thích).
+ *
+ * Trước đây là Room Entity, nay là POJO thuần.
+ * Dùng bởi các màn hình cũ hoặc tính năng chưa migrate.
+ */
 data class Item(
-    @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val name: String,
     val category: String,

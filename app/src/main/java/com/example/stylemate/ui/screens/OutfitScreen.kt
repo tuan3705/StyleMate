@@ -3,9 +3,6 @@ package com.example.stylemate.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -36,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
@@ -69,11 +65,10 @@ import java.util.Locale
 @Composable
 fun OutfitScreen() {
     val context = LocalContext.current
-    val database = AppDatabase.getDatabase(context)
+    val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
 
-    // ── Khởi tạo Repositories & ViewModels ──────────────────────
-    val clothingRepo = ClothingRepository(database.clothingDao())
-    val outfitRepo = OutfitRepository(database.outfitDao())
+    val clothingRepo = ClothingRepository(apiService, context)
+    val outfitRepo = OutfitRepository(apiService)
     val viewModel: OutfitViewModel = viewModel(
         factory = OutfitViewModelFactory(outfitRepo)
     )

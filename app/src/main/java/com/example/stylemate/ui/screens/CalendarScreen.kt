@@ -57,7 +57,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.CalendarRepository
 import com.example.stylemate.repository.OutfitRepository
@@ -84,10 +83,10 @@ import java.util.TimeZone
 @Composable
 fun CalendarScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val database = AppDatabase.getDatabase(context)
+    val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
 
-    val calendarRepo = CalendarRepository(database.calendarEventDao())
-    val outfitRepo = OutfitRepository(database.outfitDao())
+    val calendarRepo = CalendarRepository(apiService)
+    val outfitRepo = OutfitRepository(apiService)
 
     val viewModel: CalendarViewModel = viewModel(
         factory = CalendarViewModelFactory(calendarRepo, outfitRepo)

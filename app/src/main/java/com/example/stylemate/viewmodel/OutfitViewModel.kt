@@ -11,9 +11,11 @@ import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.model.OutfitItemWithPosition
 import kotlin.math.min
 import com.example.stylemate.repository.OutfitRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -27,7 +29,7 @@ import java.util.UUID
  *   3. [isLoading] — Trạng thái loading khi lưu outfit.
  *
  * 🔄 Luồng dữ liệu:
- *   UI (Compose) ← collect StateFlow ← OutfitViewModel ← OutfitRepository ← OutfitDao ← SQLite
+ *   UI (Compose) ← collect StateFlow ← OutfitViewModel ← OutfitRepository ← Retrofit ← Backend API
  */
 class OutfitViewModel(
     private val repository: OutfitRepository
@@ -38,16 +40,34 @@ class OutfitViewModel(
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 🔄 Refresh Trigger
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Trigger de force refresh danh sach outfits.
+     * Sau khi tao/xoa outfit, tang gia tri nay -> flatMapLatest duoc kich hoat lai.
+     */
+    private val _refreshTrigger = MutableStateFlow(0L)
+
+    // ─────────────────────────────────────────────────────────────
     // 🔷 Reactive State: Danh sách Outfit
     // ─────────────────────────────────────────────────────────────
 
     /**
      * Danh sách tất cả Outfit (kèm ClothingItem) dưới dạng [StateFlow].
      *
-     * Nhờ [stateIn] với [SharingStarted.WhileSubscribed], Flow chỉ hoạt động
-     * khi có UI observer — tiết kiệm tài nguyên, tránh memory leak.
+     * Su dung [flatMapLatest] tren [_refreshTrigger] de:
+     *   - Lan dau subscribe -> goi API
+     *   - Sau khi tao/xoa outfit -> _refreshTrigger++ -> goi API lai
+     *
+     * Nho [stateIn] voi [SharingStarted.WhileSubscribed], Flow chi hoat dong
+     * khi co UI observer — tiet kiem tai nguyen, tranh memory leak.
      */
-    val outfits: StateFlow<List<OutfitWithClothingItems>> = repository.getAllOutfitsWithItems()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val outfits: StateFlow<List<OutfitWithClothingItems>> = _refreshTrigger
+        .flatMapLatest {
+            repository.getAllOutfitsWithItems()
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -224,6 +244,9 @@ class OutfitViewModel(
                 // ── Bước 4: Clear draft ──────────────────────────
                 clearDraft()
 
+                // 🔄 Refresh danh sach outfits
+                _refreshTrigger.value = System.currentTimeMillis()
+
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi lưu outfit: ${e.message}", e)
                 _errorMessage.value = "Không thể lưu outfit: ${e.message}"
@@ -314,6 +337,8 @@ class OutfitViewModel(
                 }
                 repository.insertOutfitClothingCrossRefs(crossRefs)
                 _editSaveSuccess.value = true
+                // 🔄 Refresh danh sach outfits
+                _refreshTrigger.value = System.currentTimeMillis()
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi lưu outfit edit: ${e.message}", e)
                 _errorMessage.value = "Không thể lưu outfit: ${e.message}"
@@ -343,6 +368,8 @@ class OutfitViewModel(
         viewModelScope.launch {
             try {
                 repository.deleteOutfit(outfit)
+                // 🔄 Refresh danh sach outfits
+                _refreshTrigger.value = System.currentTimeMillis()
                 Log.d(TAG, "🗑️ Đã xoá outfit: ${outfit.name}")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi xoá outfit: ${e.message}", e)

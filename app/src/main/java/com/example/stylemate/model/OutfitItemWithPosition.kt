@@ -1,13 +1,17 @@
 package com.example.stylemate.model
 
-import androidx.room.ColumnInfo
-import androidx.room.Embedded
-
+/**
+ * 📦 OutfitItemWithPosition — ClothingItem trong Outfit kèm vị trí.
+ *
+ * Trước đây dùng @Embedded + @ColumnInfo của Room,
+ * nay là POJO thuần.
+ *
+ * @property item ClothingItem entity.
+ * @property posX Vị trí X (0.0 → 1.0) trên canvas.
+ * @property posY Vị trí Y (0.0 → 1.0) trên canvas.
+ */
 data class OutfitItemWithPosition(
-    @Embedded
     val item: ClothingItemEntity,
-    @ColumnInfo(name = "posX")
     val posX: Float,
-    @ColumnInfo(name = "posY")
     val posY: Float
 )

@@ -22,7 +22,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.stylemate.model.AppDatabase
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
@@ -47,10 +46,10 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddItemScreen(navController: NavController) {
-    // ── Khởi tạo ViewModel ───────────────────────────────────────
+    // ── Khởi tạo ViewModel (dùng RetrofitClient thay AppDatabase) ─
     val context = LocalContext.current
-    val database = AppDatabase.getDatabase(context)
-    val repository = ClothingRepository(database.clothingDao())
+    val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
+    val repository = ClothingRepository(apiService, context)
     val viewModel: ClothingViewModel = viewModel(
         factory = ClothingViewModelFactory(repository)
     )
