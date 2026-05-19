@@ -5,8 +5,11 @@
  */
 const express = require('express');
 const router = express.Router();
-const { login, refresh, logout } = require('../controllers/authController');
+const { register, login, refresh, logout } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/authMiddleware');
+
+// POST /api/auth/register
+router.post('/register', register);
 
 // POST /api/auth/login
 router.post('/login', login);
@@ -18,4 +21,3 @@ router.post('/refresh', refresh);
 router.post('/logout', requireAuth, logout);
 
 module.exports = router;
-

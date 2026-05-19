@@ -1,5 +1,6 @@
 package com.example.stylemate.data.auth
 
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 
 object AuthTokenProvider {
@@ -26,5 +27,25 @@ object AuthTokenProvider {
                 .firstOrNull()
         }
     }
-}
 
+    fun updateAccessTokenBlocking(accessToken: String) {
+        val currentStorage = storage ?: return
+        runBlocking {
+            currentStorage.updateAccessToken(accessToken)
+        }
+    }
+
+    fun setSessionExpiredBlocking(expired: Boolean) {
+        val currentStorage = storage ?: return
+        runBlocking {
+            currentStorage.setSessionExpired(expired)
+        }
+    }
+
+    fun clearSessionBlocking() {
+        val currentStorage = storage ?: return
+        runBlocking {
+            currentStorage.clearSession()
+        }
+    }
+}

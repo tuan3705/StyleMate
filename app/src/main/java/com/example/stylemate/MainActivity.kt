@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.stylemate.ui.screens.MainScreen
+import com.example.stylemate.ui.navigation.AppNavigation
 import com.example.stylemate.ui.theme.StyleMateTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             StyleMateTheme {
-                MainScreen()
+                AppNavigation()
             }
         }
     }

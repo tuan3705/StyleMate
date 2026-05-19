@@ -43,3 +43,7 @@ data class SimpleMessageResponse(
     val message: String?
 )
 
+data class RegisterRequest(
+    val email: String,
+    val password: String
+)

@@ -30,13 +30,19 @@ class AuthRefreshInterceptor(
 
         val refreshToken = AuthTokenProvider.refreshTokenBlocking()
         if (refreshToken.isNullOrBlank()) {
+            AuthTokenProvider.setSessionExpiredBlocking(true)
+            AuthTokenProvider.clearSessionBlocking()
+            return response
+        }
+
+        val refreshedToken = tryRefreshToken(refreshToken)
+        if (refreshedToken.isNullOrBlank()) {
+            AuthTokenProvider.setSessionExpiredBlocking(true)
+            AuthTokenProvider.clearSessionBlocking()
             return response
         }
 
         response.close()
-
-        val refreshedToken = tryRefreshToken(refreshToken) ?: return response
-
         AuthTokenProvider.updateAccessTokenBlocking(refreshedToken)
 
         val newRequest = request.newBuilder()
@@ -74,4 +80,3 @@ class AuthRefreshInterceptor(
         const val RETRY_HEADER_VALUE = "1"
     }
 }
-

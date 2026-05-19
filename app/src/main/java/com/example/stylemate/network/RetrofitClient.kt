@@ -1,6 +1,9 @@
 package com.example.stylemate.network
 
 import com.example.stylemate.BuildConfig
+import com.example.stylemate.data.auth.AuthTokenProvider
+import com.example.stylemate.data.auth.AuthRefreshInterceptor
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -57,10 +60,26 @@ object RetrofitClient {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
+    private val authInterceptor = Interceptor { chain ->
+        val token = AuthTokenProvider.accessTokenBlocking()
+        val request = if (!token.isNullOrBlank()) {
+            chain.request().newBuilder()
+                .addHeader("Authorization", "Bearer $token")
+                .build()
+        } else {
+            chain.request()
+        }
+        chain.proceed(request)
+    }
+
+    private val refreshInterceptor = AuthRefreshInterceptor(STYLEMATE_BASE_URL)
+
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .addInterceptor(authInterceptor)
+            .addInterceptor(refreshInterceptor)
             .addInterceptor(loggingInterceptor)
             .build()
     }

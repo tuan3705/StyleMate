@@ -1,26 +1,12 @@
 import java.util.Properties
-import java.io.FileReader
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// 📄 Đọc file local.properties de lay bien moi truong
-// ═══════════════════════════════════════════════════════════════════
-val localProperties = Properties()
-val localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    FileReader(localPropertiesFile).use { reader ->
-        localProperties.load(reader)
-    }
-}
-
-// Lấy giá trị từ local.properties, fallback về giá trị mặc định (cho lần build đầu)
-val stylemateBaseUrl: String = localProperties.getProperty("STYLEMATE_BASE_URL", "http://10.0.2.2:3000/")
 
 android {
     namespace = "com.example.stylemate"
@@ -35,19 +21,16 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // ═══════════════════════════════════════════════════════════════
-        // 🏗️ BuildConfig fields — giá trị lấy từ local.properties
-        // ═══════════════════════════════════════════════════════════════
-        //
-        // STYLEMATE_BASE_URL: URL của Backend Node.js
-        //   - Emulator:        http://10.0.2.2:3000/
-        //   - Thiết bị thật:   http://<IP_WiFi_máy_tính>:3000/
-        //
-        // ⚠️ WEATHER_API_KEY không cần ở Android nữa!
-        //    Android gọi Backend proxy /api/weather/forecast
-        //    Backend mới giữ key (trong .env)
-        // ─────────────────────────────────────────────────────────────
-        buildConfigField("String", "STYLEMATE_BASE_URL", "\"${stylemateBaseUrl}\"")
+        val localProperties = Properties().apply {
+            val localPropsFile = rootProject.file("local.properties")
+            if (localPropsFile.exists()) {
+                localPropsFile.inputStream().use { load(it) }
+            }
+        }
+        val stylemateBaseUrl = localProperties.getProperty("STYLEMATE_BASE_URL")
+            ?: "http://10.0.2.2:3000/"
+
+        buildConfigField("String", "STYLEMATE_BASE_URL", "\"$stylemateBaseUrl\"")
     }
 
     buildTypes {
@@ -63,15 +46,12 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 
@@ -94,8 +74,14 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.gson)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.coil.compose)
+
+    implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.compose.material)
+    ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

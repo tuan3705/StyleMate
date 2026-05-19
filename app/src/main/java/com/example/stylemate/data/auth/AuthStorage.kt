@@ -3,6 +3,7 @@ package com.example.stylemate.data.auth
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -22,6 +23,7 @@ class AuthStorage(private val context: Context) {
         val refreshToken = stringPreferencesKey("refresh_token")
         val userId = stringPreferencesKey("user_id")
         val email = stringPreferencesKey("user_email")
+        val sessionExpired = booleanPreferencesKey("session_expired")
     }
 
     val accessTokenFlow: Flow<String?> = context.authDataStore.data.map { prefs ->
@@ -36,6 +38,10 @@ class AuthStorage(private val context: Context) {
         prefs[Keys.email]
     }
 
+    val sessionExpiredFlow: Flow<Boolean> = context.authDataStore.data.map { prefs ->
+        prefs[Keys.sessionExpired] ?: false
+    }
+
     suspend fun saveSession(
         accessToken: String,
         refreshToken: String,
@@ -47,6 +53,7 @@ class AuthStorage(private val context: Context) {
             prefs[Keys.refreshToken] = refreshToken
             prefs[Keys.userId] = userId
             prefs[Keys.email] = email
+            prefs[Keys.sessionExpired] = false
         }
     }
 
@@ -56,13 +63,19 @@ class AuthStorage(private val context: Context) {
         }
     }
 
+    suspend fun setSessionExpired(expired: Boolean) {
+        context.authDataStore.edit { prefs ->
+            prefs[Keys.sessionExpired] = expired
+        }
+    }
+
     suspend fun clearSession() {
         context.authDataStore.edit { prefs ->
             prefs.remove(Keys.accessToken)
             prefs.remove(Keys.refreshToken)
             prefs.remove(Keys.userId)
             prefs.remove(Keys.email)
+            prefs[Keys.sessionExpired] = false
         }
     }
 }
-

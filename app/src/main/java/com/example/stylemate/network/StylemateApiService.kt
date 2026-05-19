@@ -297,4 +297,38 @@ interface StylemateApiService {
         @Query("lat") lat: Double,
         @Query("lon") lon: Double
     ): Response<com.example.stylemate.model.weather.WeatherApiResponse>
+
+    // ═════════════════════════════════════════════════════════════
+    // 🔐 AUTH — /api/auth
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/auth/register
+     */
+    @POST("api/auth/register")
+    suspend fun register(
+        @Body request: RegisterRequest
+    ): Response<AuthResponse<AuthLoginData>>
+
+    /**
+     * POST /api/auth/login
+     */
+    @POST("api/auth/login")
+    suspend fun login(
+        @Body request: LoginRequest
+    ): Response<AuthResponse<AuthLoginData>>
+
+    /**
+     * POST /api/auth/refresh
+     */
+    @POST("api/auth/refresh")
+    suspend fun refresh(
+        @Body request: RefreshRequest
+    ): Response<AuthResponse<RefreshData>>
+
+    /**
+     * POST /api/auth/logout
+     */
+    @POST("api/auth/logout")
+    suspend fun logout(): Response<SimpleMessageResponse>
 }

@@ -31,6 +31,19 @@ class AuthViewModel(
                 )
             }
         }
+
+        viewModelScope.launch {
+            repository.sessionExpiredFlow.collect { expired ->
+                if (expired) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isLoggedIn = false,
+                        errorMessage = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+                    )
+                    repository.clearSessionExpired()
+                }
+            }
+        }
     }
 
     fun login(email: String, password: String) {
@@ -60,6 +73,22 @@ class AuthViewModel(
     fun clearError() {
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
+
+    fun register(email: String, password: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            val result = repository.register(email, password)
+            _uiState.value = if (result.isSuccess) {
+                _uiState.value.copy(isLoading = false, isLoggedIn = true, errorMessage = null)
+            } else {
+                _uiState.value.copy(
+                    isLoading = false,
+                    isLoggedIn = false,
+                    errorMessage = result.exceptionOrNull()?.message
+                )
+            }
+        }
+    }
 }
 
 class AuthViewModelFactory(
@@ -74,4 +103,3 @@ class AuthViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
-

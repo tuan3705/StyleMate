@@ -3,10 +3,11 @@ package com.example.stylemate.repository
 import com.example.stylemate.data.auth.AuthStorage
 import com.example.stylemate.data.auth.AuthValidator
 import com.example.stylemate.network.AuthLoginData
-import com.example.stylemate.network.AuthResponse
 import com.example.stylemate.network.LoginRequest
 import com.example.stylemate.network.RefreshRequest
+import com.example.stylemate.network.RegisterRequest
 import com.example.stylemate.network.StylemateApiService
+import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -19,6 +20,18 @@ class AuthRepository(
 
     val isLoggedInFlow: Flow<Boolean> = authStorage.accessTokenFlow
         .map { !it.isNullOrBlank() }
+
+    val sessionExpiredFlow: Flow<Boolean> = authStorage.sessionExpiredFlow
+
+    private fun parseErrorMessage(errorBody: okhttp3.ResponseBody?): String? {
+        val raw = errorBody?.string() ?: return null
+        return try {
+            val json = JsonParser.parseString(raw).asJsonObject
+            json.get("message")?.asString
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     suspend fun login(email: String, password: String): Result<AuthLoginData> {
         if (!AuthValidator.isValidEmail(email)) {
@@ -46,12 +59,54 @@ class AuthRepository(
                         Result.failure(IllegalStateException("Response rỗng"))
                     }
                 } else {
-                    Result.failure(IllegalStateException("Đăng nhập thất bại: ${response.code()}"))
+                    val message = parseErrorMessage(response.errorBody())
+                        ?: "Đăng nhập thất bại: ${response.code()}"
+                    Result.failure(IllegalStateException(message))
                 }
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+    }
+
+    suspend fun register(email: String, password: String): Result<AuthLoginData> {
+        if (!AuthValidator.isValidEmail(email)) {
+            return Result.failure(IllegalArgumentException("Email không hợp lệ"))
+        }
+        if (!AuthValidator.isValidPassword(password)) {
+            return Result.failure(IllegalArgumentException("Mật khẩu tối thiểu 6 ký tự"))
+        }
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.register(RegisterRequest(email.trim(), password))
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    val data = body?.data
+                    if (body != null && data != null) {
+                        authStorage.saveSession(
+                            accessToken = data.accessToken,
+                            refreshToken = data.refreshToken,
+                            userId = data.user.id,
+                            email = data.user.email
+                        )
+                        Result.success(data)
+                    } else {
+                        Result.failure(IllegalStateException("Response rỗng"))
+                    }
+                } else {
+                    val message = parseErrorMessage(response.errorBody())
+                        ?: "Đăng ký thất bại: ${response.code()}"
+                    Result.failure(IllegalStateException(message))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun clearSessionExpired() {
+        authStorage.setSessionExpired(false)
     }
 
     suspend fun refreshAccessToken(refreshToken: String): Result<String> {
@@ -87,4 +142,3 @@ class AuthRepository(
         }
     }
 }
-

@@ -29,16 +29,21 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.stylemate.viewmodel.AuthViewModel
+import androidx.compose.material3.TextButton
 
 @Composable
 fun LoginScreen(
     uiState: AuthViewModel.AuthUiState,
     onLogin: (String, String) -> Unit,
+    onRegister: (String, String) -> Unit,
     onClearError: () -> Unit
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var isRegisterMode by rememberSaveable { mutableStateOf(false) }
+    var localError by rememberSaveable { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -48,7 +53,7 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "StyleMate Login",
+            text = if (isRegisterMode) "StyleMate Sign Up" else "StyleMate Login",
             style = MaterialTheme.typography.headlineMedium
         )
 
@@ -70,6 +75,7 @@ fun LoginScreen(
             value = password,
             onValueChange = {
                 password = it
+                localError = null
                 onClearError()
             },
             label = { Text("Password") },
@@ -91,7 +97,32 @@ fun LoginScreen(
             }
         )
 
-        if (!uiState.errorMessage.isNullOrBlank()) {
+        if (isRegisterMode) {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = {
+                    confirmPassword = it
+                    localError = null
+                    onClearError()
+                },
+                label = { Text("Confirm Password") },
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = if (passwordVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                }
+            )
+        }
+
+        if (!localError.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = localError ?: "",
+                color = MaterialTheme.colorScheme.error
+            )
+        } else if (!uiState.errorMessage.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = uiState.errorMessage,
@@ -102,7 +133,17 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         Button(
-            onClick = { onLogin(email, password) },
+            onClick = {
+                if (isRegisterMode) {
+                    if (password != confirmPassword) {
+                        localError = "Mật khẩu xác nhận không khớp"
+                        return@Button
+                    }
+                    onRegister(email, password)
+                } else {
+                    onLogin(email, password)
+                }
+            },
             enabled = !uiState.isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -112,9 +153,26 @@ fun LoginScreen(
                     modifier = Modifier.height(18.dp)
                 )
             } else {
-                Text("Đăng nhập")
+                Text(if (isRegisterMode) "Đăng ký" else "Đăng nhập")
             }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(
+            onClick = {
+                isRegisterMode = !isRegisterMode
+                localError = null
+                onClearError()
+            }
+        ) {
+            Text(
+                if (isRegisterMode) {
+                    "Đã có tài khoản? Đăng nhập"
+                } else {
+                    "Chưa có tài khoản? Đăng ký"
+                }
+            )
         }
     }
 }
-
