@@ -215,3 +215,25 @@ data class ApiSingleResponse<T>(
     val message: String?,
     val data: T
 )
+
+// ═══════════════════════════════════════════════════════════════
+// 🔔 FCM TOKEN
+// ═══════════════════════════════════════════════════════════════
+
+data class FcmTokenRequest(
+    val userId: String,
+    val fcmToken: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
+
+data class UserDeviceDto(
+    @SerializedName("_id")
+    val id: String,
+    val userId: String,
+    val fcmToken: String,
+    val latitude: Double?,
+    val longitude: Double?,
+    val createdAt: Long,
+    val updatedAt: Long
+)

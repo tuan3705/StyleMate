@@ -11,6 +11,11 @@ const clothingItemSchema = new mongoose.Schema({
     type: String,
     required: [true, 'ID là bắt buộc (UUID do Client sinh)']
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'userId là bắt buộc']
+  },
   imageOriginal: {
     type: String,
     default: ''
@@ -71,6 +76,10 @@ const clothingItemSchema = new mongoose.Schema({
   _id: false,        // Không dùng ObjectId tự động
   timestamps: false  // Tự quản lý createdAt
 });
+
+// Index để lọc theo userId nhanh hơn
+clothingItemSchema.index({ userId: 1, category: 1, createdAt: -1 });
+clothingItemSchema.index({ userId: 1, createdAt: -1 });
 
 // Index để lọc theo category nhanh hơn
 clothingItemSchema.index({ category: 1, createdAt: -1 });

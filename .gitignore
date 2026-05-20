@@ -39,3 +39,5 @@ stylemate-backend/uploads/*
 
 *.log
 *.tmp
+
+/app/google-services.json

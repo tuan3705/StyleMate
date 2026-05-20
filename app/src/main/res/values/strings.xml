@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">StyleMate</string>
+    <string name="weather_channel_name">Weather updates</string>
+    <string name="weather_channel_description">Daily weather notification</string>
 </resources>

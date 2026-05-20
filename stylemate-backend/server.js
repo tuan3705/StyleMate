@@ -43,6 +43,7 @@ const connectDatabase = require('./config/database');
 
 // Routes
 const mountRoutes = require('./routes/index');
+const { startScheduler } = require('./cron/scheduler');
 
 // Middleware xử lý lỗi
 const {
@@ -128,6 +129,8 @@ const startServer = async () => {
       console.log(`║  User/FCM:   http://localhost:${PORT}/api/user/fcm-token`);
       console.log('╚═══════════════════════════════════════════════╝');
     });
+
+    startScheduler();
   } catch (error) {
     console.error('❌ Lỗi khởi động server:', error.message);
     process.exit(1);

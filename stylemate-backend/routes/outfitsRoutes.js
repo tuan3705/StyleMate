@@ -15,6 +15,10 @@ const {
   deleteOutfit,
   getOutfitsContainingItem
 } = require('../controllers/outfitsController');
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// Bảo vệ toàn bộ route phối đồ
+router.use(requireAuth);
 
 // GET /api/outfits?populate=true — Lấy danh sách (có thể populate ClothingItem)
 router.get('/', getAllOutfits);

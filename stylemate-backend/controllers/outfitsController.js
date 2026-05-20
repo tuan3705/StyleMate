@@ -24,12 +24,14 @@ const { AppError } = require('../middleware/errorHandler');
  */
 const getAllOutfits = asyncHandler(async (req, res) => {
   const { populate } = req.query;
+  const currentUserId = req.user._id;
 
   let outfits;
 
   if (populate === 'true') {
     // Aggregate để join với ClothingItem collection
     outfits = await Outfit.aggregate([
+      { $match: { userId: currentUserId } },
       { $sort: { createdAt: -1 } },
       {
         $lookup: {
@@ -70,7 +72,7 @@ const getAllOutfits = asyncHandler(async (req, res) => {
       { $project: { populatedClothingItems: 0 } }
     ]);
   } else {
-    outfits = await Outfit.find().sort({ createdAt: -1 });
+    outfits = await Outfit.find({ userId: currentUserId }).sort({ createdAt: -1 });
   }
 
   res.status(200).json({
@@ -90,8 +92,9 @@ const getAllOutfits = asyncHandler(async (req, res) => {
  */
 const getOutfitById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
-  const outfit = await Outfit.findById(id);
+  const outfit = await Outfit.findOne({ _id: id, userId: currentUserId });
 
   if (!outfit) {
     return next(new AppError(`Không tìm thấy Outfit với ID: ${id}`, 404));
@@ -118,6 +121,7 @@ const getOutfitById = asyncHandler(async (req, res, next) => {
  */
 const createOutfit = asyncHandler(async (req, res) => {
   const { _id, name, clothingItems, createdAt } = req.body;
+  const currentUserId = req.user._id;
 
   // Validation
   if (!_id) {
@@ -145,6 +149,7 @@ const createOutfit = asyncHandler(async (req, res) => {
 
   const newOutfit = await Outfit.create({
     _id,
+    userId: currentUserId,
     name: name.trim(),
     clothingItems: normalizedItems,
     createdAt: createdAt || Date.now()
@@ -167,6 +172,7 @@ const createOutfit = asyncHandler(async (req, res) => {
  */
 const updateOutfit = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
   const updateData = {};
 
@@ -194,10 +200,14 @@ const updateOutfit = asyncHandler(async (req, res, next) => {
     }));
   }
 
-  const updatedOutfit = await Outfit.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true
-  });
+  const updatedOutfit = await Outfit.findOneAndUpdate(
+    { _id: id, userId: currentUserId },
+    updateData,
+    {
+      new: true,
+      runValidators: true
+    }
+  );
 
   if (!updatedOutfit) {
     return next(new AppError(`Không tìm thấy Outfit với ID: ${id}`, 404));
@@ -220,15 +230,16 @@ const updateOutfit = asyncHandler(async (req, res, next) => {
  */
 const deleteOutfit = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
-  const deletedOutfit = await Outfit.findByIdAndDelete(id);
+  const deletedOutfit = await Outfit.findOneAndDelete({ _id: id, userId: currentUserId });
 
   if (!deletedOutfit) {
     return next(new AppError(`Không tìm thấy Outfit với ID: ${id}`, 404));
   }
 
   // 🗑️ CASCADE: Xoá tất cả CalendarEvent liên quan đến outfit này
-  const deleteResult = await CalendarEvent.deleteMany({ outfitId: id });
+  const deleteResult = await CalendarEvent.deleteMany({ outfitId: id, userId: currentUserId });
 
   res.status(200).json({
     success: true,
@@ -247,8 +258,10 @@ const deleteOutfit = asyncHandler(async (req, res, next) => {
  */
 const getOutfitsContainingItem = asyncHandler(async (req, res) => {
   const { clothingItemId } = req.params;
+  const currentUserId = req.user._id;
 
   const outfits = await Outfit.find({
+    userId: currentUserId,
     'clothingItems.clothingItemId': clothingItemId
   }).sort({ createdAt: -1 });
 

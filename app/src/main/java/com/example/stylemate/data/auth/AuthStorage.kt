@@ -42,6 +42,10 @@ class AuthStorage(private val context: Context) {
         prefs[Keys.sessionExpired] ?: false
     }
 
+    val userIdFlow: Flow<String?> = context.authDataStore.data.map { prefs ->
+        prefs[Keys.userId]
+    }
+
     suspend fun saveSession(
         accessToken: String,
         refreshToken: String,

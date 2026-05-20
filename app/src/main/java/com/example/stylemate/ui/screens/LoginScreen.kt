@@ -45,6 +45,10 @@ fun LoginScreen(
     var isRegisterMode by rememberSaveable { mutableStateOf(false) }
     var localError by rememberSaveable { mutableStateOf<String?>(null) }
 
+    val isSubmitting = uiState.isLoading
+    val passwordMismatch = isRegisterMode && confirmPassword.isNotBlank() && confirmPassword != password
+    val isFormValid = email.isNotBlank() && password.isNotBlank() && (!isRegisterMode || confirmPassword.isNotBlank()) && !passwordMismatch
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,7 +70,8 @@ fun LoginScreen(
                 onClearError()
             },
             label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isSubmitting
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -94,7 +99,8 @@ fun LoginScreen(
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(icon, contentDescription = "Toggle password")
                 }
-            }
+            },
+            enabled = !isSubmitting
         )
 
         if (isRegisterMode) {
@@ -112,20 +118,19 @@ fun LoginScreen(
                     VisualTransformation.None
                 } else {
                     PasswordVisualTransformation()
-                }
+                },
+                enabled = !isSubmitting
             )
         }
 
-        if (!localError.isNullOrBlank()) {
+        val errorText = localError
+            ?: if (passwordMismatch) "Mật khẩu xác nhận không khớp" else null
+            ?: uiState.errorMessage
+
+        if (!errorText.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = localError ?: "",
-                color = MaterialTheme.colorScheme.error
-            )
-        } else if (!uiState.errorMessage.isNullOrBlank()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = uiState.errorMessage,
+                text = errorText,
                 color = MaterialTheme.colorScheme.error
             )
         }
@@ -135,7 +140,7 @@ fun LoginScreen(
         Button(
             onClick = {
                 if (isRegisterMode) {
-                    if (password != confirmPassword) {
+                    if (passwordMismatch) {
                         localError = "Mật khẩu xác nhận không khớp"
                         return@Button
                     }
@@ -144,10 +149,10 @@ fun LoginScreen(
                     onLogin(email, password)
                 }
             },
-            enabled = !uiState.isLoading,
+            enabled = !isSubmitting && isFormValid,
             modifier = Modifier.fillMaxWidth()
         ) {
-            if (uiState.isLoading) {
+            if (isSubmitting) {
                 CircularProgressIndicator(
                     strokeWidth = 2.dp,
                     modifier = Modifier.height(18.dp)
@@ -164,7 +169,8 @@ fun LoginScreen(
                 isRegisterMode = !isRegisterMode
                 localError = null
                 onClearError()
-            }
+            },
+            enabled = !isSubmitting
         ) {
             Text(
                 if (isRegisterMode) {

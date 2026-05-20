@@ -57,6 +57,25 @@ class CalendarRepository(private val apiService: StylemateApiService) {
         )
     }
 
+    private fun parseErrorMessage(errorBody: okhttp3.ResponseBody?): String? {
+        val raw = errorBody?.string() ?: return null
+        return try {
+            val json = com.google.gson.JsonParser.parseString(raw).asJsonObject
+            json.get("message")?.asString
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun mapNetworkError(exception: Exception): String? {
+        return when (exception) {
+            is java.net.SocketTimeoutException -> "Kết nối bị timeout. Vui lòng thử lại."
+            is java.net.UnknownHostException, is java.net.ConnectException -> "Không thể kết nối đến máy chủ. Kiểm tra mạng hoặc địa chỉ server."
+            is java.io.IOException -> "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại."
+            else -> null
+        }
+    }
+
     // ═════════════════════════════════════════════════════════════
     // 📋 Đọc (Read) — Reactive với Flow
     // ═════════════════════════════════════════════════════════════
@@ -213,8 +232,18 @@ class CalendarRepository(private val apiService: StylemateApiService) {
      * @param event CalendarEventEntity cần lưu.
      */
     suspend fun assignOutfitToDate(event: CalendarEventEntity) = withContext(Dispatchers.IO) {
-        val dto = event.toDto()
-        apiService.createCalendarEvent(dto)
+        try {
+            val dto = event.toDto()
+            val response = apiService.createCalendarEvent(dto)
+            if (!response.isSuccessful) {
+                val message = parseErrorMessage(response.errorBody())
+                    ?: "Gán bộ đồ thất bại: ${response.code()}"
+                throw IllegalStateException(message)
+            }
+        } catch (e: Exception) {
+            val message = mapNetworkError(e) ?: (e.message ?: "Gán bộ đồ thất bại")
+            throw IllegalStateException(message)
+        }
     }
 
     /**
@@ -227,7 +256,17 @@ class CalendarRepository(private val apiService: StylemateApiService) {
      * @param event Entity cần xoá.
      */
     suspend fun removeEvent(event: CalendarEventEntity) = withContext(Dispatchers.IO) {
-        apiService.deleteCalendarEvent(event.id)
+        try {
+            val response = apiService.deleteCalendarEvent(event.id)
+            if (!response.isSuccessful) {
+                val message = parseErrorMessage(response.errorBody())
+                    ?: "Xoá lịch thất bại: ${response.code()}"
+                throw IllegalStateException(message)
+            }
+        } catch (e: Exception) {
+            val message = mapNetworkError(e) ?: (e.message ?: "Xoá lịch thất bại")
+            throw IllegalStateException(message)
+        }
     }
 
     /**
@@ -240,7 +279,17 @@ class CalendarRepository(private val apiService: StylemateApiService) {
      * @param date Epoch midnight của ngày cần xoá.
      */
     suspend fun removeEventByDate(date: Long) = withContext(Dispatchers.IO) {
-        apiService.deleteCalendarEventByDate(date)
+        try {
+            val response = apiService.deleteCalendarEventByDate(date)
+            if (!response.isSuccessful) {
+                val message = parseErrorMessage(response.errorBody())
+                    ?: "Xoá lịch thất bại: ${response.code()}"
+                throw IllegalStateException(message)
+            }
+        } catch (e: Exception) {
+            val message = mapNetworkError(e) ?: (e.message ?: "Xoá lịch thất bại")
+            throw IllegalStateException(message)
+        }
     }
 
 

@@ -21,9 +21,10 @@ const { AppError } = require('../middleware/errorHandler');
  */
 const getAllClothes = asyncHandler(async (req, res) => {
   const { category, sort } = req.query;
+  const currentUserId = req.user._id;
 
   // Xây dựng filter
-  const filter = {};
+  const filter = { userId: currentUserId };
   if (category && category !== 'All') {
     filter.category = category;
   }
@@ -61,8 +62,9 @@ const getAllClothes = asyncHandler(async (req, res) => {
  */
 const getClothingItemById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
-  const item = await ClothingItem.findById(id);
+  const item = await ClothingItem.findOne({ _id: id, userId: currentUserId });
 
   if (!item) {
     return next(new AppError(`Không tìm thấy ClothingItem với ID: ${id}`, 404));
@@ -101,6 +103,8 @@ const createClothingItem = asyncHandler(async (req, res) => {
     createdAt
   } = req.body;
 
+  const currentUserId = req.user._id;
+
   // Kiểm tra ID bắt buộc
   if (!_id) {
     return res.status(400).json({
@@ -111,6 +115,12 @@ const createClothingItem = asyncHandler(async (req, res) => {
 
   // Kiểm tra trùng ID
   const existingItem = await ClothingItem.findById(_id);
+  if (existingItem && existingItem.userId.toString() !== currentUserId.toString()) {
+    return res.status(409).json({
+      success: false,
+      message: 'ID item đã tồn tại cho user khác'
+    });
+  }
   if (existingItem) {
     // Nếu đã tồn tại → upsert (REPLACE)
     const updatedItem = await ClothingItem.findByIdAndUpdate(
@@ -143,6 +153,7 @@ const createClothingItem = asyncHandler(async (req, res) => {
   // Tạo mới
   const newItem = await ClothingItem.create({
     _id,
+    userId: currentUserId,
     imageOriginal: imageOriginal || '',
     imageNoBg: imageNoBg || '',
     category: category || 'Tops',
@@ -175,6 +186,7 @@ const createClothingItem = asyncHandler(async (req, res) => {
  */
 const updateClothingItem = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
   const updateData = {};
   const allowedFields = [
@@ -190,10 +202,14 @@ const updateClothingItem = asyncHandler(async (req, res, next) => {
     }
   });
 
-  const updatedItem = await ClothingItem.findByIdAndUpdate(id, updateData, {
-    new: true,           // Trả về document đã cập nhật
-    runValidators: true  // Kiểm tra validation
-  });
+  const updatedItem = await ClothingItem.findOneAndUpdate(
+    { _id: id, userId: currentUserId },
+    updateData,
+    {
+      new: true,           // Trả về document đã cập nhật
+      runValidators: true  // Kiểm tra validation
+    }
+  );
 
   if (!updatedItem) {
     return next(new AppError(`Không tìm thấy ClothingItem với ID: ${id}`, 404));
@@ -215,8 +231,9 @@ const updateClothingItem = asyncHandler(async (req, res, next) => {
  */
 const deleteClothingItem = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
-  const deletedItem = await ClothingItem.findByIdAndDelete(id);
+  const deletedItem = await ClothingItem.findOneAndDelete({ _id: id, userId: currentUserId });
 
   if (!deletedItem) {
     return next(new AppError(`Không tìm thấy ClothingItem với ID: ${id}`, 404));

@@ -12,6 +12,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.io.IOException
 
 class AuthRepository(
     private val apiService: StylemateApiService,
@@ -30,6 +34,15 @@ class AuthRepository(
             json.get("message")?.asString
         } catch (_: Exception) {
             null
+        }
+    }
+
+    private fun mapNetworkError(exception: Exception): String? {
+        return when (exception) {
+            is SocketTimeoutException -> "Kết nối bị timeout. Vui lòng thử lại."
+            is UnknownHostException, is ConnectException -> "Không thể kết nối đến máy chủ. Kiểm tra mạng hoặc địa chỉ server."
+            is IOException -> "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại."
+            else -> null
         }
     }
 
@@ -64,7 +77,8 @@ class AuthRepository(
                     Result.failure(IllegalStateException(message))
                 }
             } catch (e: Exception) {
-                Result.failure(e)
+                val message = mapNetworkError(e) ?: (e.message ?: "Đăng nhập thất bại")
+                Result.failure(IllegalStateException(message))
             }
         }
     }
@@ -100,7 +114,8 @@ class AuthRepository(
                     Result.failure(IllegalStateException(message))
                 }
             } catch (e: Exception) {
-                Result.failure(e)
+                val message = mapNetworkError(e) ?: (e.message ?: "Đăng ký thất bại")
+                Result.failure(IllegalStateException(message))
             }
         }
     }

@@ -18,6 +18,10 @@ const {
   upload,
   uploadImage
 } = require('../controllers/uploadController');
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// Bảo vệ toàn bộ route quần áo
+router.use(requireAuth);
 
 // GET /api/clothes?category=Tops — Lấy danh sách (có lọc)
 router.get('/', getAllClothes);

@@ -36,6 +36,11 @@ const outfitSchema = new mongoose.Schema({
     type: String,
     required: [true, 'ID là bắt buộc (UUID do Client sinh)']
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'userId là bắt buộc']
+  },
   name: {
     type: String,
     required: [true, 'Tên bộ đồ là bắt buộc'],
@@ -55,6 +60,7 @@ const outfitSchema = new mongoose.Schema({
   timestamps: false
 });
 
+outfitSchema.index({ userId: 1, createdAt: -1 });
 outfitSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Outfit', outfitSchema);

@@ -4,10 +4,11 @@
  * Xử lý tất cả logic CRUD cho CalendarEvent.
  * 
  * ⚠️ date phải là epoch midnight (00:00 UTC) do Client gửi lên.
- * UNIQUE constraint trên date → mỗi ngày chỉ 1 outfit.
+ * UNIQUE constraint theo userId + date → mỗi ngày chỉ 1 outfit cho mỗi user.
  * Dùng upsert để REPLACE nếu đã tồn tại sự kiện cho ngày đó.
  */
 const CalendarEvent = require('../models/CalendarEvent');
+const Outfit = require('../models/Outfit');
 const asyncHandler = require('../middleware/asyncHandler');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -25,8 +26,9 @@ const { AppError } = require('../middleware/errorHandler');
  */
 const getCalendarEvents = asyncHandler(async (req, res) => {
   const { date, from, to } = req.query;
+  const currentUserId = req.user._id;
 
-  let filter = {};
+  let filter = { userId: currentUserId };
 
   if (date) {
     // Lấy sự kiện của 1 ngày cụ thể
@@ -70,8 +72,9 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
  */
 const getCalendarEventById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
-  const event = await CalendarEvent.findById(id);
+  const event = await CalendarEvent.findOne({ _id: id, userId: currentUserId });
 
   if (!event) {
     return next(new AppError(`Không tìm thấy CalendarEvent với ID: ${id}`, 404));
@@ -103,6 +106,7 @@ const getCalendarEventById = asyncHandler(async (req, res, next) => {
  */
 const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
   const { _id, date, outfitId } = req.body;
+  const currentUserId = req.user._id;
 
   // Validation
   if (!_id) {
@@ -132,8 +136,16 @@ const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
     });
   }
 
+  const ownedOutfit = await Outfit.findOne({ _id: outfitId, userId: currentUserId });
+  if (!ownedOutfit) {
+    return res.status(404).json({
+      success: false,
+      message: 'Outfit không tồn tại hoặc không thuộc về người dùng'
+    });
+  }
+
   // Kiểm tra ngày đó đã có sự kiện chưa
-  const existingEvent = await CalendarEvent.findOne({ date: dateNum });
+  const existingEvent = await CalendarEvent.findOne({ userId: currentUserId, date: dateNum });
 
   if (existingEvent) {
     // Đã có sự kiện → UPDATE/Cập nhật outfitId
@@ -153,6 +165,7 @@ const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
   // Chưa có → Tạo mới
   const newEvent = await CalendarEvent.create({
     _id,
+    userId: currentUserId,
     date: dateNum,
     outfitId,
     createdAt: Date.now()
@@ -176,6 +189,7 @@ const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
 const updateCalendarEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { outfitId, date } = req.body;
+  const currentUserId = req.user._id;
 
   const updateData = {};
   if (outfitId !== undefined) updateData.outfitId = outfitId;
@@ -190,10 +204,14 @@ const updateCalendarEvent = asyncHandler(async (req, res, next) => {
     updateData.date = dateNum;
   }
 
-  const updatedEvent = await CalendarEvent.findByIdAndUpdate(id, updateData, {
-    new: true,
-    runValidators: true
-  });
+  const updatedEvent = await CalendarEvent.findOneAndUpdate(
+    { _id: id, userId: currentUserId },
+    updateData,
+    {
+      new: true,
+      runValidators: true
+    }
+  );
 
   if (!updatedEvent) {
     return next(new AppError(`Không tìm thấy CalendarEvent với ID: ${id}`, 404));
@@ -215,8 +233,9 @@ const updateCalendarEvent = asyncHandler(async (req, res, next) => {
  */
 const deleteCalendarEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
+  const currentUserId = req.user._id;
 
-  const deletedEvent = await CalendarEvent.findByIdAndDelete(id);
+  const deletedEvent = await CalendarEvent.findOneAndDelete({ _id: id, userId: currentUserId });
 
   if (!deletedEvent) {
     return next(new AppError(`Không tìm thấy CalendarEvent với ID: ${id}`, 404));
@@ -239,6 +258,7 @@ const deleteCalendarEvent = asyncHandler(async (req, res, next) => {
  */
 const deleteCalendarEventByDate = asyncHandler(async (req, res, next) => {
   const { date } = req.params;
+  const currentUserId = req.user._id;
   const dateNum = Number(date);
 
   if (isNaN(dateNum)) {
@@ -248,7 +268,7 @@ const deleteCalendarEventByDate = asyncHandler(async (req, res, next) => {
     });
   }
 
-  const deletedEvent = await CalendarEvent.findOneAndDelete({ date: dateNum });
+  const deletedEvent = await CalendarEvent.findOneAndDelete({ userId: currentUserId, date: dateNum });
 
   if (!deletedEvent) {
     return next(new AppError(`Không tìm thấy sự kiện cho ngày: ${dateNum}`, 404));

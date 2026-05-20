@@ -15,6 +15,10 @@ const {
   deleteCalendarEvent,
   deleteCalendarEventByDate
 } = require('../controllers/calendarController');
+const { requireAuth } = require('../middleware/authMiddleware');
+
+// Bảo vệ toàn bộ route lịch
+router.use(requireAuth);
 
 // GET /api/calendar?date=...&from=...&to=... — Lấy sự kiện (theo ngày hoặc khoảng)
 router.get('/', getCalendarEvents);

@@ -331,4 +331,16 @@ interface StylemateApiService {
      */
     @POST("api/auth/logout")
     suspend fun logout(): Response<SimpleMessageResponse>
+
+    // ═════════════════════════════════════════════════════════════
+    // 📱 USER / FCM TOKEN
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/user/fcm-token
+     */
+    @POST("api/user/fcm-token")
+    suspend fun saveFcmToken(
+        @Body request: FcmTokenRequest
+    ): Response<ApiSingleResponse<UserDeviceDto>>
 }
