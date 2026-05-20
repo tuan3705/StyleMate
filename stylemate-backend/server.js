@@ -35,6 +35,16 @@ const dotenv = require('dotenv');
 // Load biến môi trường từ file .env
 dotenv.config();
 
+// ═══════════════════════════════════════════════════════════════
+// 📁 Tự động tạo thư mục uploads/ nếu chưa có
+// ═══════════════════════════════════════════════════════════════
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('📁 Đã tạo thư mục uploads/');
+}
+
 // Khởi tạo Express app
 const app = express();
 

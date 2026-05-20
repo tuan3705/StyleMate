@@ -1,28 +1,16 @@
+#Them nhung dong sau vao cuoi local.properties
 # ═══════════════════════════════════════════════════════════════
-# 📄 local.properties.example — TEMPLATE, khong chua du lieu ca nhan
+# 🚀 STYLEMATE BACKEND URL CONFIGURATION
 # ═══════════════════════════════════════════════════════════════
 #
-# Cach dung:
-#   1. Copy file nay thanh local.properties (cung thu muc)
-#   2. Dien IP WiFi may tinh vao STYLEMATE_BASE_URL
-#   3. Build lai app (Build -> Rebuild Project)
+#   Bước 1: Chạy backend Node.js trước (npm run dev)
+#   Bước 2: Mở Terminal mới, chạy lệnh Proxy dưới đây:
 #
+#   👉 Dùng Localtunnel (Miễn phí, không cần cài đặt):
+#      npx localtunnel --port 3000 --subdomain stylemate
+#
+#    => Copy url roi insert vào STYLEMATE_BASE_URL bên dưới
 # ═══════════════════════════════════════════════════════════════
 
-
-# ═══════════════════════════════════════════════════════════════
-# 🌐 Stylemate Backend URL (bat buoc)
-# ═══════════════════════════════════════════════════════════════
-#
-# DIEN IP WIFI CUA MAY TINH VAO DAY (giu nguyen cong 3000)
-#
-#   - Android Emulator: http://10.0.2.2:3000/
-#   - Dien thoai that:  http://<IP_WiFi_may_tinh>:3000/
-#
-# 💡 Cach lay IP WiFi:
-#   Ubuntu/Linux: hostname -I
-#   Windows:      ipconfig (tim IPv4 Address)
-#   macOS:        ifconfig | grep inet
-# ═══════════════════════════════════════════════════════════════
-STYLEMATE_BASE_URL=
-
+# Khi dùng Emulator, bạn có thể comment dòng dưới để Gradle tự dùng: http://10.0.2.2:3000/
+STYLEMATE_BASE_URL=https://stylemate.loca.lt

@@ -29,6 +29,7 @@ android {
             }
         }
         val stylemateBaseUrl = localProperties.getProperty("STYLEMATE_BASE_URL")
+            ?.takeIf { it.isNotBlank() }
             ?: "http://10.0.2.2:3000/"
 
         buildConfigField("String", "STYLEMATE_BASE_URL", "\"$stylemateBaseUrl\"")
@@ -54,6 +55,7 @@ android {
         compose = true
         buildConfig = true
     }
+    buildToolsVersion = "34.0.0"
 }
 
 dependencies {
