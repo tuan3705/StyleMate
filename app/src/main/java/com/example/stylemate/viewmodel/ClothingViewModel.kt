@@ -6,8 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.repository.ClothingRepository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,8 +35,6 @@ class ClothingViewModel(
 
     companion object {
         private const val TAG = "ClothingViewModel"
-        // Thời gian giả lập xử lý tách nền (ms)
-        private const val MOCK_BG_REMOVAL_DELAY_MS = 2000L
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -156,23 +152,15 @@ class ClothingViewModel(
 
                 Log.d(TAG, "📸 Bắt đầu xử lý ảnh: ${imageFile.name}")
 
-                // ── Bước 2: Giả lập tách nền (mock API call) ────
-                // 💡 Mô phỏng thời gian gọi API dịch vụ tách nền bên thứ ba
-                // (remove.bg, Adobe API, hoặc model ML local).
-                // Trong thực tế, đây sẽ là network call hoặc xử lý bitmap.
-                withContext(Dispatchers.Default) {
-                    delay(MOCK_BG_REMOVAL_DELAY_MS)
+                // ── Bước 2: Gọi remove.bg để xoá nền ────────────
+                val (noBgFile, removeBgError) = repository.removeBackground(imageFile)
+                if (removeBgError != null) {
+                    Log.w(TAG, "⚠️ $removeBgError")
+                    _errorMessage.value = removeBgError
                 }
+                val noBgPath = noBgFile?.absolutePath ?: imageFile.absolutePath
 
-                // ── Bước 3: Tạo đường dẫn ảnh đã tách nền (fake) ─
-                // 💡 Trong thực tế, ảnh không nền sẽ được lưu từ API response.
-                // Ở đây ta tạo một đường dẫn fake để minh hoạ luồng xử lý.
-                val noBgPath = imageFile.absolutePath.replace(
-                    imageFile.name,
-                    "no_bg_${imageFile.name}"
-                )
-
-                // ── Bước 4: Tạo entity mới với đầy đủ thông tin ───
+                // ── Bước 3: Tạo entity mới với đầy đủ thông tin ───
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),
                     imageOriginal = imageFile.absolutePath,
@@ -192,7 +180,7 @@ class ClothingViewModel(
 
                 Log.d(TAG, "✅ Tách nền hoàn tất. ID: ${newItem.id}, Tên: ${newItem.name}")
 
-                // ── Bước 5: Lưu vào database qua Repository ──────
+                // ── Bước 4: Lưu vào database qua Repository ──────
                 repository.insertItem(newItem)
 
                 // 🔄 Refresh danh sách để UI tự động cập nhật
@@ -203,6 +191,51 @@ class ClothingViewModel(
                 _errorMessage.value = "Không thể thêm item: ${e.message}"
             } finally {
                 // ── Bước 6: Tắt loading ──────────────────────────
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * ✏️ Cập nhật một item (có thể đổi ảnh).
+     *
+     * @param originalItem Item gốc (để giữ ảnh cũ nếu không đổi).
+     * @param updatedItem Item đã chỉnh sửa thông tin.
+     * @param newImageFile Ảnh mới nếu người dùng chọn lại (null = giữ ảnh cũ).
+     */
+    fun updateClothingItem(
+        originalItem: ClothingItemEntity,
+        updatedItem: ClothingItemEntity,
+        newImageFile: File?
+    ) {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                _errorMessage.value = null
+
+                val finalItem = if (newImageFile != null) {
+                    val (noBgFile, removeBgError) = repository.removeBackground(newImageFile)
+                    if (removeBgError != null) {
+                        Log.w(TAG, "⚠️ $removeBgError")
+                        _errorMessage.value = removeBgError
+                    }
+                    updatedItem.copy(
+                        imageOriginal = newImageFile.absolutePath,
+                        imageNoBg = noBgFile?.absolutePath ?: newImageFile.absolutePath
+                    )
+                } else {
+                    updatedItem.copy(
+                        imageOriginal = originalItem.imageOriginal,
+                        imageNoBg = originalItem.imageNoBg
+                    )
+                }
+
+                repository.updateItem(finalItem)
+                _refreshTrigger.value = System.currentTimeMillis()
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Lỗi khi cập nhật item: ${e.message}", e)
+                _errorMessage.value = "Không thể cập nhật item: ${e.message}"
+            } finally {
                 _isLoading.value = false
             }
         }
@@ -255,6 +288,15 @@ class ClothingViewModel(
      */
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    /**
+     * 🔄 Force refresh danh sách items từ API.
+     *
+     * Dùng khi có thao tác update item từ màn hình khác.
+     */
+    fun refreshItems() {
+        _refreshTrigger.value = System.currentTimeMillis()
     }
 
     fun updateItemCanvasPosition(itemId: String, posX: Float, posY: Float) {
