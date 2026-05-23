@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -88,6 +89,7 @@ fun EditItemScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val relevantCardWidth = (LocalConfiguration.current.screenWidthDp * (2f / 3f)).dp
 
     val imagePickerState = rememberImagePickerState(
         onError = { message ->
@@ -187,7 +189,7 @@ fun EditItemScreen(
                         RelevantOutfitPreviewCard(
                             outfitWithItems = outfit,
                             outfitRepo = outfitRepo,
-                            modifier = Modifier.width(300.dp)
+                            modifier = Modifier.width(relevantCardWidth)
                         )
                     }
                 }
@@ -463,14 +465,10 @@ private fun RelevantOutfitPreviewCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            BoxWithConstraints {
-                val scale = 2f / 3f
-                val previewWidth = maxWidth * scale
-                RelevantOutfitCanvasPreview(
-                    items = previewPlacements,
-                    modifier = Modifier.width(previewWidth)
-                )
-            }
+            RelevantOutfitCanvasPreview(
+                items = previewPlacements,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
