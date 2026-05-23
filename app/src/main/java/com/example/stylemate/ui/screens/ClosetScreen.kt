@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -492,38 +493,42 @@ private fun ItemsTabContent(
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.TopCenter
         ) {
-            when {
-                isLoading -> CircularProgressIndicator()
-                items.isEmpty() -> {
-                    val isSearching = searchQuery.isNotBlank()
-                    val emptyMessage = if (isSearching) {
-                        "Không tìm thấy món đồ phù hợp"
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                LazyVerticalGrid(
+                    state = gridState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(nestedScrollConnection),
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (items.isEmpty()) {
+                        val isSearching = searchQuery.isNotBlank()
+                        val emptyMessage = if (isSearching) {
+                            "Không tìm thấy món đồ phù hợp"
+                        } else {
+                            "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!"
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = emptyMessage,
+                                    color = Color.Gray,
+                                    fontSize = 16.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
                     } else {
-                        "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!"
-                    }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = emptyMessage,
-                            color = Color.Gray,
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-                else -> {
-                    LazyVerticalGrid(
-                        state = gridState,
-                        modifier = Modifier.nestedScroll(nestedScrollConnection),
-                        columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
                         items(items, key = { it.id }) { clothingItem ->
                             ClothingItemCard(
                                 item = clothingItem,
