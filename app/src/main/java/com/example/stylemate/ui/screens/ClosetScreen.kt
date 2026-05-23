@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.layout.ContentScale
-import android.net.Uri
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,6 +63,7 @@ import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
+import com.example.stylemate.ui.common.resolveImageData
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import com.example.stylemate.viewmodel.OutfitViewModel
@@ -1404,37 +1404,8 @@ fun ClothingItemCard(
 private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
-        fun resolveData(path: String): Any? {
-            if (path.isBlank()) return null
-
-            // ── HTTP/HTTPS URL (ảnh từ server) ────────────────
-            if (path.startsWith("http://") || path.startsWith("https://")) {
-                return path // Coil nhận String URL trực tiếp
-            }
-
-            // ── content:// URI (từ camera/gallery) ────────────
-            if (path.startsWith("content://") || path.startsWith("file://")) {
-                return Uri.parse(path)
-            }
-
-            // ── Đường dẫn file tuyệt đối (vd: /data/.../abc.jpg) ─
-            val file = File(path)
-            if (file.isAbsolute && file.exists()) return file
-
-            // ── Đường dẫn tương đối từ filesDir ─────────────────
-            val internalFile = File(context.filesDir, path)
-            if (internalFile.exists()) return internalFile
-
-            // ── File trong thư mục images/ ─────────────────────
-            val imagesDir = File(context.filesDir, "images")
-            val byName = File(imagesDir, File(path).name)
-            if (byName.exists()) return byName
-
-            // ── Fallback: trả về path gốc cho Coil tự xử lý ────
-            return path
-        }
-
-        val data = resolveData(item.imageOriginal) ?: resolveData(item.imageNoBg)
+        val data = resolveImageData(context, item.imageOriginal)
+            ?: resolveImageData(context, item.imageNoBg)
         data?.let {
             ImageRequest.Builder(context)
                 .data(it)

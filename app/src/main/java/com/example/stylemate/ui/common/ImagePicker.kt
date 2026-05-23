@@ -8,17 +8,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,16 +29,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.stylemate.data.local.ImageStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
+import kotlin.math.min
 
 class ImagePickerState internal constructor(
     val imagePath: State<String?>,
@@ -162,18 +167,35 @@ fun ImagePickerSection(
         }
     }
 
-    if (showPreview && imagePath != null) {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val maxPreviewSize = (min(configuration.screenWidthDp, configuration.screenHeightDp) * 0.4f).dp
+    val imageRequest = remember(imagePath, context) {
+        imagePath
+            ?.takeIf { it.isNotBlank() }
+            ?.let { path -> resolveImageData(context, path) }
+            ?.let { data ->
+                ImageRequest.Builder(context)
+                    .data(data)
+                    .crossfade(true)
+                    .build()
+            }
+    }
+
+    if (showPreview && imageRequest != null) {
         Spacer(Modifier.height(8.dp))
-        Card(
+        Box(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Image selected: ${imagePath.substringAfterLast("/")}",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                style = MaterialTheme.typography.bodySmall
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = "Selected image",
+                modifier = Modifier.sizeIn(
+                    maxWidth = maxPreviewSize,
+                    maxHeight = maxPreviewSize
+                ),
+                contentScale = ContentScale.Fit
             )
         }
     }
