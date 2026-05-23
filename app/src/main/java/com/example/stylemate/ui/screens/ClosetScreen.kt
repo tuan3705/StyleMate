@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.layout.ContentScale
-import android.net.Uri
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,11 +63,13 @@ import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
+import com.example.stylemate.ui.common.resolveImageData
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import com.example.stylemate.viewmodel.OutfitViewModel
 import com.example.stylemate.viewmodel.OutfitViewModelFactory
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -92,7 +93,11 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClosetScreen() {
+fun ClosetScreen(
+    onEditItem: (String) -> Unit,
+    refreshSignal: StateFlow<Boolean>,
+    onRefreshConsumed: () -> Unit
+) {
     val context = LocalContext.current
 
     // ── Khởi tạo Repositories & ViewModels (dùng RetrofitClient thay AppDatabase) ─
@@ -151,11 +156,19 @@ fun ClosetScreen() {
         }
     }
 
+    val refreshRequested by refreshSignal.collectAsStateWithLifecycle()
+
     LaunchedEffect(editSaveSuccess) {
         if (editSaveSuccess) {
             showOutfitEditor = false
             showAddItemsSheet = false
             outfitVM.clearEditSaveSuccess()
+        }
+    }
+    LaunchedEffect(refreshRequested) {
+        if (refreshRequested) {
+            clothingVM.refreshItems()
+            onRefreshConsumed()
         }
     }
 
@@ -227,13 +240,14 @@ fun ClosetScreen() {
             // TAB 0: MÓN ĐỒ (Giữ nguyên logic cũ)
             // ═══════════════════════════════════════════════════════
             if (selectedTab == 0) {
-                ItemsTabContent(
-                    clothingVM = clothingVM,
-                    selectedCategory = selectedCategory,
-                    items = items,
-                    isLoading = isItemsLoading,
-                    allCategories = allCategories
-                )
+            ItemsTabContent(
+                clothingVM = clothingVM,
+                selectedCategory = selectedCategory,
+                items = items,
+                isLoading = isItemsLoading,
+                allCategories = allCategories,
+                onItemClick = { itemId -> onEditItem(itemId) }
+            )
             }
             // ═══════════════════════════════════════════════════════
             // TAB 1: BỘ ĐỒ
@@ -346,7 +360,8 @@ private fun ItemsTabContent(
     selectedCategory: String,
     items: List<ClothingItemEntity>,
     isLoading: Boolean,
-    allCategories: List<String>
+    allCategories: List<String>,
+    onItemClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Category Filter Buttons ──────────────────────────────
@@ -392,21 +407,22 @@ private fun ItemsTabContent(
                         )
                     }
                 }
-            else -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(items, key = { it.id }) { clothingItem ->
-                        ClothingItemCard(
-                            item = clothingItem,
-                            onDelete = { clothingVM.deleteClothingItem(clothingItem) }
-                        )
+                else -> {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        contentPadding = PaddingValues(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(items, key = { it.id }) { clothingItem ->
+                            ClothingItemCard(
+                                item = clothingItem,
+                                onClick = { onItemClick(clothingItem.id) },
+                                onDelete = { clothingVM.deleteClothingItem(clothingItem) }
+                            )
+                        }
                     }
                 }
-            }
             }
         }
     }
@@ -1282,13 +1298,15 @@ private fun SelectableItemCard(
 @Composable
 fun ClothingItemCard(
     item: ClothingItemEntity,
+    onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     val imageModel = rememberItemImageModel(item)
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp),
+            .height(180.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -1386,37 +1404,8 @@ fun ClothingItemCard(
 private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
-        fun resolveData(path: String): Any? {
-            if (path.isBlank()) return null
-
-            // ── HTTP/HTTPS URL (ảnh từ server) ────────────────
-            if (path.startsWith("http://") || path.startsWith("https://")) {
-                return path // Coil nhận String URL trực tiếp
-            }
-
-            // ── content:// URI (từ camera/gallery) ────────────
-            if (path.startsWith("content://") || path.startsWith("file://")) {
-                return Uri.parse(path)
-            }
-
-            // ── Đường dẫn file tuyệt đối (vd: /data/.../abc.jpg) ─
-            val file = File(path)
-            if (file.isAbsolute && file.exists()) return file
-
-            // ── Đường dẫn tương đối từ filesDir ─────────────────
-            val internalFile = File(context.filesDir, path)
-            if (internalFile.exists()) return internalFile
-
-            // ── File trong thư mục images/ ─────────────────────
-            val imagesDir = File(context.filesDir, "images")
-            val byName = File(imagesDir, File(path).name)
-            if (byName.exists()) return byName
-
-            // ── Fallback: trả về path gốc cho Coil tự xử lý ────
-            return path
-        }
-
-        val data = resolveData(item.imageOriginal) ?: resolveData(item.imageNoBg)
+        val data = resolveImageData(context, item.imageOriginal)
+            ?: resolveImageData(context, item.imageNoBg)
         data?.let {
             ImageRequest.Builder(context)
                 .data(it)

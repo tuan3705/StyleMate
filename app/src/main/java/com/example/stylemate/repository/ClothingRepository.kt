@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.network.ClothingItemDto
+import com.example.stylemate.network.RemoveBgClient
 import com.example.stylemate.network.RetrofitClient
 import com.example.stylemate.network.StylemateApiService
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +43,8 @@ class ClothingRepository(
     private val apiService: StylemateApiService,
     private val context: Context
 ) {
+
+    private val removeBgClient = RemoveBgClient(context)
 
     companion object {
         private const val TAG = "ClothingRepository"
@@ -252,6 +255,17 @@ class ClothingRepository(
     // ═════════════════════════════════════════════════════════════
 
     /**
+     * Gọi remove.bg để xoá nền ảnh.
+     *
+     * @return Pair<File?, String?>:
+     *   - File? ảnh PNG đã tách nền (null nếu thất bại)
+     *   - String? thông báo lỗi (null nếu thành công)
+     */
+    suspend fun removeBackground(imageFile: File): Pair<File?, String?> {
+        return removeBgClient.removeBackground(imageFile)
+    }
+
+    /**
      * Upload một file ảnh local lên server.
      *
      * @param localPath Đường dẫn file local (vd: /data/user/0/.../abc.jpg)
@@ -362,6 +376,45 @@ class ClothingRepository(
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ insertItem() lỗi: ${e.message}", e)
+        }
+    }
+
+    /**
+     * ✏️ Cập nhật một item.
+     *
+     * ✅ Giữ đúng tên: updateItem(item: ClothingItemEntity)
+     * Tự động upload ảnh local trước khi update.
+     */
+    suspend fun updateItem(item: ClothingItemEntity) = withContext(Dispatchers.IO) {
+        try {
+            val uploadOriginal = uploadImageToServer(item.imageOriginal)
+            val uploadNoBg = if (item.imageNoBg.isNotBlank() && item.imageNoBg != item.imageOriginal) {
+                uploadImageToServer(item.imageNoBg)
+            } else {
+                uploadOriginal
+            }
+
+            val updateMap = mapOf<String, Any>(
+                "imageOriginal" to uploadOriginal,
+                "imageNoBg" to uploadNoBg,
+                "category" to item.category,
+                "color" to item.color,
+                "name" to item.name,
+                "season" to item.season,
+                "occasion" to item.occasion,
+                "brand" to item.brand,
+                "purchaseDate" to item.purchaseDate,
+                "price" to item.price,
+                "canvasPosX" to item.canvasPosX,
+                "canvasPosY" to item.canvasPosY
+            )
+
+            val response = apiService.updateClothingItem(item.id, updateMap)
+            if (!response.isSuccessful) {
+                Log.w(TAG, "⚠️ updateItem() thất bại: HTTP ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ updateItem() lỗi: ${e.message}", e)
         }
     }
 

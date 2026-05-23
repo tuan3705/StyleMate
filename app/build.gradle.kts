@@ -33,6 +33,9 @@ android {
             ?: "http://10.0.2.2:3000/"
 
         buildConfigField("String", "STYLEMATE_BASE_URL", "\"$stylemateBaseUrl\"")
+
+        val removeBgApiKey = localProperties.getProperty("REMOVE_BG_API_KEY") ?: ""
+        buildConfigField("String", "REMOVE_BG_API_KEY", "\"$removeBgApiKey\"")
     }
 
     buildTypes {
