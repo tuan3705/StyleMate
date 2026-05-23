@@ -1,18 +1,25 @@
 package com.example.stylemate.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -25,27 +32,41 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.stylemate.model.ClothingItemEntity
+import com.example.stylemate.model.OutfitItemWithPosition
+import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
+import com.example.stylemate.ui.common.resolveImageData
 import com.example.stylemate.viewmodel.ItemEditViewModel
 import com.example.stylemate.viewmodel.ItemEditViewModelFactory
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -156,22 +177,11 @@ fun EditItemScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     items(relevantOutfits, key = { it.outfit.id }) { outfit ->
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = outfit.outfit.name,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "${outfit.clothingItems.size} items",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        RelevantOutfitPreviewCard(
+                            outfitWithItems = outfit,
+                            outfitRepo = outfitRepo,
+                            modifier = Modifier.width(300.dp)
+                        )
                     }
                 }
             }
@@ -387,4 +397,211 @@ fun EditItemScreen(
             DatePicker(state = datePickerState)
         }
     }
+}
+
+private data class OutfitPreviewItem(
+    val item: ClothingItemEntity,
+    val posX: Float,
+    val posY: Float
+)
+
+@Composable
+private fun RelevantOutfitPreviewCard(
+    outfitWithItems: OutfitWithClothingItems,
+    outfitRepo: OutfitRepository,
+    modifier: Modifier = Modifier
+) {
+    val outfit = outfitWithItems.outfit
+    val items = outfitWithItems.clothingItems
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+    val formattedDate = remember(outfit.createdAt) {
+        dateFormat.format(Date(outfit.createdAt))
+    }
+    val itemsWithPosition by produceState(
+        initialValue = emptyList<OutfitItemWithPosition>(),
+        key1 = outfit.id
+    ) {
+        value = outfitRepo.getOutfitItemsWithPosition(outfit.id)
+    }
+    val previewPlacements = remember(itemsWithPosition) {
+        mapOutfitPreviewPositions(itemsWithPosition)
+    }
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = getCategoryIcon(items.firstOrNull()?.category ?: "Other"),
+                            fontSize = 20.sp
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = outfit.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "📅 $formattedDate · ${items.size} món",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            BoxWithConstraints {
+                val scale = 2f / 3f
+                val previewWidth = maxWidth * scale
+                RelevantOutfitCanvasPreview(
+                    items = previewPlacements,
+                    modifier = Modifier.width(previewWidth)
+                )
+            }
+        }
+    }
+}
+
+private fun mapOutfitPreviewPositions(
+    items: List<OutfitItemWithPosition>
+): List<OutfitPreviewItem> {
+    if (items.isEmpty()) return emptyList()
+    val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
+    return if (hasCustomPos) {
+        items.map { OutfitPreviewItem(it.item, it.posX, it.posY) }
+    } else {
+        items.mapIndexed { index, entry ->
+            val (x, y) = defaultOutfitGridPosition(index)
+            OutfitPreviewItem(entry.item, x, y)
+        }
+    }
+}
+
+private fun defaultOutfitGridPosition(index: Int): Pair<Float, Float> {
+    val col = index % 2
+    val row = index / 2
+    val x = if (col == 0) 0.1f else 0.55f
+    val y = (0.1f + row * 0.25f).coerceAtMost(0.8f)
+    return x to y
+}
+
+@Composable
+private fun RelevantOutfitCanvasPreview(
+    items: List<OutfitPreviewItem>,
+    modifier: Modifier = Modifier
+) {
+    val scale = 2f / 3f
+    val itemSize = (72f * scale).dp
+    val density = LocalDensity.current
+    val itemSizePx = with(density) { itemSize.toPx() }
+
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F2EA))
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height((220f * scale).dp)
+        ) {
+            if (items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Chưa có món đồ nào",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                return@BoxWithConstraints
+            }
+
+            val canvasWidth = constraints.maxWidth.toFloat()
+            val canvasHeight = constraints.maxHeight.toFloat()
+            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
+            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
+
+            items.forEach { placement ->
+                val imageRequest = rememberOutfitItemImageRequest(placement.item)
+                val offsetX = (placement.posX * maxX).roundToInt()
+                val offsetY = (placement.posY * maxY).roundToInt()
+
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(offsetX, offsetY) }
+                        .size(itemSize)
+                ) {
+                    if (imageRequest != null) {
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription = placement.item.name.ifBlank { placement.item.category },
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(getCategoryColor(placement.item.category).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = getCategoryIcon(placement.item.category), fontSize = 24.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun rememberOutfitItemImageRequest(item: ClothingItemEntity): ImageRequest? {
+    val context = LocalContext.current
+    return remember(item.imageOriginal, item.imageNoBg) {
+        val data = resolveImageData(context, item.imageOriginal)
+            ?: resolveImageData(context, item.imageNoBg)
+        data?.let {
+            ImageRequest.Builder(context)
+                .data(it)
+                .crossfade(true)
+                .build()
+        }
+    }
+}
+
+private fun getCategoryColor(category: String): Color = when (category) {
+    "Tops" -> Color(0xFF42A5F5)
+    "Bottoms" -> Color(0xFF66BB6A)
+    "Dresses" -> Color(0xFFEC407A)
+    "Footwear" -> Color(0xFF8D6E63)
+    "Bags" -> Color(0xFFAB47BC)
+    "Accessories" -> Color(0xFFFFA726)
+    "Jewelry" -> Color(0xFFD4E157)
+    else -> Color(0xFFBDBDBD)
+}
+
+private fun getCategoryIcon(category: String): String = when (category) {
+    "Tops" -> "👕"
+    "Bottoms" -> "👖"
+    "Dresses" -> "👗"
+    "Footwear" -> "👟"
+    "Bags" -> "👜"
+    "Accessories" -> "⌚"
+    "Jewelry" -> "💍"
+    else -> "🧥"
 }

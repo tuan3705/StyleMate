@@ -44,7 +44,6 @@ import com.example.stylemate.data.local.ImageStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
-import kotlin.math.min
 
 class ImagePickerState internal constructor(
     val imagePath: State<String?>,
@@ -169,7 +168,9 @@ fun ImagePickerSection(
 
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val maxPreviewSize = (min(configuration.screenWidthDp, configuration.screenHeightDp) * 0.4f).dp
+    val screenHeightDp = configuration.screenHeightDp
+    val minPreviewSize = (screenHeightDp * 0.3f).dp
+    val maxPreviewSize = (screenHeightDp * 0.4f).dp
     val imageRequest = remember(imagePath, context) {
         imagePath
             ?.takeIf { it.isNotBlank() }
@@ -192,6 +193,8 @@ fun ImagePickerSection(
                 model = imageRequest,
                 contentDescription = "Selected image",
                 modifier = Modifier.sizeIn(
+                    minWidth = minPreviewSize,
+                    minHeight = minPreviewSize,
                     maxWidth = maxPreviewSize,
                     maxHeight = maxPreviewSize
                 ),
