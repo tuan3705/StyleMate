@@ -164,6 +164,13 @@ fun EditItemScreen(
                 return@Column
             }
 
+            ImagePickerSection(
+                title = "Item Image",
+                imagePath = pickedImagePath ?: uiState.imageOriginal,
+                onCameraClick = imagePickerState.onCameraClick,
+                onGalleryClick = imagePickerState.onGalleryClick
+            )
+
             Text("Relevant Outfits", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (relevantOutfits.isEmpty()) {
                 Text(
@@ -187,15 +194,6 @@ fun EditItemScreen(
             }
 
             HorizontalDivider()
-
-            Text("Item Details", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-            ImagePickerSection(
-                title = "Item Image",
-                imagePath = pickedImagePath ?: uiState.imageOriginal,
-                onCameraClick = imagePickerState.onCameraClick,
-                onGalleryClick = imagePickerState.onGalleryClick
-            )
 
             Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             ExposedDropdownMenuBox(
