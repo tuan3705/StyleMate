@@ -1,5 +1,10 @@
 package com.example.stylemate.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,8 +15,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,6 +29,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.consumePositionChange
 import androidx.compose.ui.draw.alpha
@@ -36,8 +46,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -114,7 +126,8 @@ fun ClosetScreen(
 
     // ── Collect StateFlows (Items) ──────────────────────────────
     val selectedCategory by clothingVM.selectedCategory.collectAsStateWithLifecycle()
-    val items by clothingVM.items.collectAsStateWithLifecycle()
+    val filteredItems by clothingVM.filteredItems.collectAsStateWithLifecycle()
+    val searchQuery by clothingVM.searchQuery.collectAsStateWithLifecycle()
     val isItemsLoading by clothingVM.isLoading.collectAsStateWithLifecycle()
     val errorMessage by clothingVM.errorMessage.collectAsStateWithLifecycle()
     val allClosetItems by clothingRepo.getAllItems().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -133,6 +146,8 @@ fun ClosetScreen(
     var showCreateOutfitSheet by remember { mutableStateOf(false) } // Tạo outfit
     var showOutfitEditor by remember { mutableStateOf(false) }
     var showAddItemsSheet by remember { mutableStateOf(false) }
+    var showSearchBar by rememberSaveable { mutableStateOf(false) }
+    val itemsGridState = rememberLazyGridState()
     // Mỗi BottomSheet có sheetState riêng để vuốt mượt, không conflict
     val quickAddSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val createOutfitSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -141,6 +156,28 @@ fun ClosetScreen(
 
     val allCategories = listOf(Categories.ALL) + Categories.list
     val tabs = listOf("Món đồ", "Bộ đồ")
+    val isItemsAtTop by remember {
+        derivedStateOf {
+            itemsGridState.firstVisibleItemIndex == 0 &&
+                itemsGridState.firstVisibleItemScrollOffset == 0
+        }
+    }
+    val itemsScrollConnection = remember(itemsGridState, selectedTab) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (selectedTab != 0) return Offset.Zero
+                if (!isItemsAtTop) {
+                    showSearchBar = false
+                    return Offset.Zero
+                }
+                when {
+                    available.y > 0 -> showSearchBar = true
+                    available.y < 0 -> showSearchBar = false
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     // ── Snackbar error ──────────────────────────────────────────
     LaunchedEffect(errorMessage) {
@@ -153,6 +190,11 @@ fun ClosetScreen(
         outfitError?.let { msg ->
             snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
             outfitVM.clearError()
+        }
+    }
+    LaunchedEffect(isItemsAtTop, selectedTab) {
+        if (selectedTab != 0 || !isItemsAtTop) {
+            showSearchBar = false
         }
     }
 
@@ -214,6 +256,22 @@ fun ClosetScreen(
                 }
             }
 
+            AnimatedVisibility(
+                visible = selectedTab == 0 && showSearchBar,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.height(8.dp))
+                    ClosetSearchBar(
+                        query = searchQuery,
+                        onQueryChange = clothingVM::updateSearchQuery,
+                        onClearQuery = clothingVM::clearSearchQuery
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+
             // ── TabRow ──────────────────────────────────────────
             TabRow(
                 selectedTabIndex = selectedTab,
@@ -243,9 +301,12 @@ fun ClosetScreen(
             ItemsTabContent(
                 clothingVM = clothingVM,
                 selectedCategory = selectedCategory,
-                items = items,
+                items = filteredItems,
+                searchQuery = searchQuery,
                 isLoading = isItemsLoading,
                 allCategories = allCategories,
+                gridState = itemsGridState,
+                nestedScrollConnection = itemsScrollConnection,
                 onItemClick = { itemId -> onEditItem(itemId) }
             )
             }
@@ -350,6 +411,44 @@ fun ClosetScreen(
     }
 }
 
+@Composable
+private fun ClosetSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        placeholder = { Text("Tìm món đồ") },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = "Search")
+        },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(
+                    onClick = {
+                        onClearQuery()
+                        focusManager.clearFocus()
+                    }
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { focusManager.clearFocus() }
+        )
+    )
+}
+
 // ═════════════════════════════════════════════════════════════════
 // 🔷 TAB 0: ItemsTabContent (Canvas view)
 // ═════════════════════════════════════════════════════════════════
@@ -359,8 +458,11 @@ private fun ItemsTabContent(
     clothingVM: ClothingViewModel,
     selectedCategory: String,
     items: List<ClothingItemEntity>,
+    searchQuery: String,
     isLoading: Boolean,
     allCategories: List<String>,
+    gridState: LazyGridState,
+    nestedScrollConnection: NestedScrollConnection,
     onItemClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -393,6 +495,12 @@ private fun ItemsTabContent(
             when {
                 isLoading -> CircularProgressIndicator()
                 items.isEmpty() -> {
+                    val isSearching = searchQuery.isNotBlank()
+                    val emptyMessage = if (isSearching) {
+                        "Không tìm thấy món đồ phù hợp"
+                    } else {
+                        "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!"
+                    }
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -400,7 +508,7 @@ private fun ItemsTabContent(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!",
+                            text = emptyMessage,
                             color = Color.Gray,
                             fontSize = 16.sp,
                             textAlign = TextAlign.Center
@@ -409,6 +517,8 @@ private fun ItemsTabContent(
                 }
                 else -> {
                     LazyVerticalGrid(
+                        state = gridState,
+                        modifier = Modifier.nestedScroll(nestedScrollConnection),
                         columns = GridCells.Fixed(2),
                         contentPadding = PaddingValues(4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),

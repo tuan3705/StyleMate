@@ -7,13 +7,19 @@ import androidx.lifecycle.viewModelScope
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.repository.ClothingRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,6 +86,41 @@ class ClothingViewModel(
                 repository.getItemsByCategory(category)
             }
         }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
+    // ──────────────────────────────────────────────────────────────
+    // 🔍 Search State: Tìm theo tên item
+    // ──────────────────────────────────────────────────────────────
+
+    private val _searchQuery = MutableStateFlow("")
+
+    /** Query hiện tại — UI dùng để bind vào search bar. */
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    private val debouncedSearchQuery = _searchQuery
+        .map { it.trim() }
+        .debounce(250)
+        .distinctUntilChanged()
+        .onStart { emit("") }
+
+    /**
+     * Danh sách items sau khi lọc theo category + search query.
+     */
+    val filteredItems: StateFlow<List<ClothingItemEntity>> = combine(
+        items,
+        debouncedSearchQuery
+    ) { currentItems, query ->
+        if (query.isBlank()) {
+            currentItems
+        } else {
+            currentItems.filter { it.name.contains(query, ignoreCase = true) }
+        }
+    }
+        .flowOn(Dispatchers.Default)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -284,6 +325,14 @@ class ClothingViewModel(
      */
     fun selectCategory(category: String) {
         _selectedCategory.value = category
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun clearSearchQuery() {
+        _searchQuery.value = ""
     }
 
     /**
