@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.repository.ClothingRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -42,7 +44,7 @@ class ClothingViewModel(
     // ──────────────────────────────────────────────────────────────
 
     /** Category đang được chọn để lọc. "All" = hiển thị tất cả. */
-    private val _selectedCategory = MutableStateFlow("All")
+    private val _selectedCategory = MutableStateFlow(Categories.ALL)
 
     /**
      * 🔄 Trigger để force refresh danh sách items.
@@ -67,15 +69,16 @@ class ClothingViewModel(
      * - Giá trị khởi tạo: emptyList().
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val items: StateFlow<List<ClothingItemEntity>> = _refreshTrigger
-        .flatMapLatest { _ ->
-            _selectedCategory.value.let { category ->
-            if (category == "All") {
+    val items: StateFlow<List<ClothingItemEntity>> = combine(
+        _selectedCategory,
+        _refreshTrigger
+    ) { category, _ -> category }
+        .flatMapLatest { category ->
+            if (category == Categories.ALL) {
                 repository.getAllItems()
             } else {
                 repository.getItemsByCategory(category)
             }
-        }
         }
         .stateIn(
             scope = viewModelScope,
@@ -268,7 +271,7 @@ class ClothingViewModel(
      * khi thêm/xoá item, Room tự động emit lại giá trị mới → UI cập nhật badge.
      */
     fun getItemCountByCategory(category: String): Flow<Int> {
-        return if (category == "All") {
+        return if (category == Categories.ALL) {
             repository.getTotalItemCount()
         } else {
             repository.getItemCountByCategory(category)
