@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.FilledTonalButton
@@ -48,13 +49,15 @@ import java.io.File
 class ImagePickerState internal constructor(
     val imagePath: State<String?>,
     val onCameraClick: () -> Unit,
-    val onGalleryClick: () -> Unit
+    val onGalleryClick: () -> Unit,
+    val onRemoveBackgroundClick: () -> Unit
 )
 
 @Composable
 fun rememberImagePickerState(
     context: Context = LocalContext.current,
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
+    onRemoveBackground: () -> Unit = {},
     onError: (String) -> Unit
 ): ImagePickerState {
     val imagePathState = remember { mutableStateOf<String?>(null) }
@@ -129,7 +132,8 @@ fun rememberImagePickerState(
     return ImagePickerState(
         imagePath = imagePathState,
         onCameraClick = onCameraClick,
-        onGalleryClick = onGalleryClick
+        onGalleryClick = onGalleryClick,
+        onRemoveBackgroundClick = onRemoveBackground
     )
 }
 
@@ -139,6 +143,7 @@ fun ImagePickerSection(
     imagePath: String?,
     onCameraClick: () -> Unit,
     onGalleryClick: () -> Unit,
+    onRemoveBgClick: () -> Unit,
     modifier: Modifier = Modifier,
     titleStyle: TextStyle = MaterialTheme.typography.titleMedium,
     showPreview: Boolean = true
@@ -150,7 +155,7 @@ fun ImagePickerSection(
     ) {
         FilledTonalButton(
             onClick = onCameraClick,
-            modifier = Modifier.height(48.dp)
+            modifier = Modifier.height(48.dp).weight(1f)
         ) {
             Icon(Icons.Default.PhotoCamera, contentDescription = null)
             Spacer(Modifier.width(8.dp))
@@ -158,7 +163,7 @@ fun ImagePickerSection(
         }
         FilledTonalButton(
             onClick = onGalleryClick,
-            modifier = Modifier.height(48.dp)
+            modifier = Modifier.height(48.dp).weight(1f)
         ) {
             Icon(Icons.Default.PhotoLibrary, contentDescription = null)
             Spacer(Modifier.width(8.dp))
@@ -171,6 +176,9 @@ fun ImagePickerSection(
     val screenHeightDp = configuration.screenHeightDp
     val minPreviewSize = (screenHeightDp * 0.3f).dp
     val maxPreviewSize = (screenHeightDp * 0.4f).dp
+    
+    val isImageSelected = !imagePath.isNullOrBlank()
+    
     val imageRequest = remember(imagePath, context) {
         imagePath
             ?.takeIf { it.isNotBlank() }
@@ -201,5 +209,21 @@ fun ImagePickerSection(
                 contentScale = ContentScale.Fit
             )
         }
+    }
+    
+    Spacer(Modifier.height(8.dp))
+    
+    // Nút Xoá nền ảnh
+    FilledTonalButton(
+        onClick = onRemoveBgClick,
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+        enabled = isImageSelected
+    ) {
+        Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null
+        )
+        Spacer(Modifier.width(8.dp))
+        Text("Remove Background")
     }
 }

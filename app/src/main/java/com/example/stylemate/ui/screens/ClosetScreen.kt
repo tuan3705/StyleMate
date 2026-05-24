@@ -1616,7 +1616,8 @@ fun NewClothingItemSheet(
             imagePath = imagePath,
             onCameraClick = imagePickerState.onCameraClick,
             onGalleryClick = imagePickerState.onGalleryClick,
-            titleStyle = MaterialTheme.typography.labelLarge
+            titleStyle = MaterialTheme.typography.labelLarge,
+            onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
         )
 
         Spacer(Modifier.height(12.dp))

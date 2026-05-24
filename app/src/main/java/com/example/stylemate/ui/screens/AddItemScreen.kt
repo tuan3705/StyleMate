@@ -54,6 +54,11 @@ fun AddItemScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     val imagePickerState = rememberImagePickerState(
+        onRemoveBackground = {
+            scope.launch { 
+                snackbarHostState.showSnackbar("Tính năng Xoá nền sẽ sớm ra mắt!") 
+            }
+        },
         onError = { message ->
             scope.launch { snackbarHostState.showSnackbar(message) }
         }
@@ -114,7 +119,8 @@ fun AddItemScreen(navController: NavController) {
                 title = "Item Image",
                 imagePath = imagePath,
                 onCameraClick = imagePickerState.onCameraClick,
-                onGalleryClick = imagePickerState.onGalleryClick
+                onGalleryClick = imagePickerState.onGalleryClick,
+                onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
             )
 
             HorizontalDivider()

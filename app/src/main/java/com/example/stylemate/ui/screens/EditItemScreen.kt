@@ -170,7 +170,8 @@ fun EditItemScreen(
                 title = "Item Image",
                 imagePath = pickedImagePath ?: uiState.imageOriginal,
                 onCameraClick = imagePickerState.onCameraClick,
-                onGalleryClick = imagePickerState.onGalleryClick
+                onGalleryClick = imagePickerState.onGalleryClick,
+                onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
             )
 
             Text("Relevant Outfits", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
