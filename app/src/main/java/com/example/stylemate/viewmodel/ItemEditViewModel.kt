@@ -22,10 +22,6 @@ import java.io.File
 
 /**
  * 🧩 ItemEditViewModel — ViewModel cho màn hình chỉnh sửa item.
- *
- * Tuân thủ MVVM:
- * - UI quan sát StateFlow [uiState] + [relevantOutfits]
- * - ViewModel xử lý async với viewModelScope
  */
 class ItemEditViewModel(
     private val clothingRepository: ClothingRepository,
@@ -157,13 +153,10 @@ class ItemEditViewModel(
 
                 val newImageFile = current.newImagePath?.let { File(it) }
                 val finalItem = if (newImageFile != null) {
-                    val (noBgFile, removeBgError) = clothingRepository.removeBackground(newImageFile)
-                    if (removeBgError != null) {
-                        _uiState.value = _uiState.value.copy(errorMessage = removeBgError)
-                    }
+                    val imagePath = newImageFile.absolutePath
                     baseItem.copy(
-                        imageOriginal = newImageFile.absolutePath,
-                        imageNoBg = noBgFile?.absolutePath ?: newImageFile.absolutePath
+                        imageOriginal = imagePath,
+                        imageNoBg = imagePath
                     )
                 } else {
                     baseItem.copy(
@@ -199,9 +192,6 @@ class ItemEditViewModel(
     }
 }
 
-/**
- * 🏭 ItemEditViewModelFactory — Factory để inject [ClothingRepository] + [OutfitRepository].
- */
 class ItemEditViewModelFactory(
     private val clothingRepository: ClothingRepository,
     private val outfitRepository: OutfitRepository

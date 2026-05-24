@@ -28,14 +28,6 @@ import java.util.UUID
 
 /**
  * 🧩 ClothingViewModel — ViewModel cho màn hình Quản lý tủ đồ.
- *
- * Tuân thủ kiến trúc MVVM:
- * - ViewModel giao tiếp với Repository (không gọi DAO trực tiếp).
- * - Dùng [StateFlow] để UI observe dữ liệu một cách reactive.
- * - Dùng [viewModelScope] + [Dispatchers.IO] để xử lý bất đồng bộ.
- *
- * 🔄 Luồng dữ liệu:
- *   UI (Compose) ← collect StateFlow ← ViewModel ← Repository ← Room DAO ← SQLite
  */
 class ClothingViewModel(
     private val repository: ClothingRepository
@@ -45,35 +37,11 @@ class ClothingViewModel(
         private const val TAG = "ClothingViewModel"
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 Reactive State: Danh sách items (có hỗ trợ lọc theo category)
-    // ──────────────────────────────────────────────────────────────
-
-    /** Category đang được chọn để lọc. "All" = hiển thị tất cả. */
     private val _selectedCategory = MutableStateFlow(Categories.ALL)
-
-    /**
-     * 🔄 Trigger để force refresh danh sách items.
-     * Mỗi lần thêm/xoá item, ta tăng giá trị này lên → flatMapLatest được kích hoạt lại.
-     */
     private val _refreshTrigger = MutableStateFlow(0L)
 
-    /**
-     * Category đang được chọn — UI collect để highlight chip tương ứng.
-     */
     val selectedCategory: StateFlow<String> = _selectedCategory
 
-    /**
-     * Danh sách items dạng [StateFlow], tự động lọc theo [_selectedCategory].
-     *
-     * Sử dụng [flatMapLatest] để mỗi khi category thay đổi, Flow cũ bị huỷ
-     * và Flow mới (từ DAO) được subscribe — tiết kiệm tài nguyên, tránh memory leak.
-     *
-     * [stateIn] chuyển Flow lạnh thành StateFlow nóng:
-     * - `WhileSubscribed(5000)` giữ subscription 5s sau khi không còn collector,
-     *   tránh restart không cần thiết khi xoay màn hình.
-     * - Giá trị khởi tạo: emptyList().
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: StateFlow<List<ClothingItemEntity>> = combine(
         _selectedCategory,
@@ -92,13 +60,7 @@ class ClothingViewModel(
             initialValue = emptyList()
         )
 
-    // ──────────────────────────────────────────────────────────────
-    // 🔍 Search State: Tìm theo tên item
-    // ──────────────────────────────────────────────────────────────
-
     private val _searchQuery = MutableStateFlow("")
-
-    /** Query hiện tại — UI dùng để bind vào search bar. */
     val searchQuery: StateFlow<String> = _searchQuery
 
     private val debouncedSearchQuery = _searchQuery
@@ -107,9 +69,6 @@ class ClothingViewModel(
         .distinctUntilChanged()
         .onStart { emit("") }
 
-    /**
-     * Danh sách items sau khi lọc theo category + search query.
-     */
     val filteredItems: StateFlow<List<ClothingItemEntity>> = combine(
         items,
         debouncedSearchQuery
@@ -127,55 +86,14 @@ class ClothingViewModel(
             initialValue = emptyList()
         )
 
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 Loading State: Trạng thái đang xử lý
-    // ──────────────────────────────────────────────────────────────
-
     private val _isLoading = MutableStateFlow(false)
-
-    /**
-     * Trạng thái loading — UI có thể dùng để hiển thị ProgressBar/spinner
-     * khi người dùng thêm item mới (đang giả lập tách nền).
-     */
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 Error State: Trạng thái lỗi
-    // ──────────────────────────────────────────────────────────────
-
     private val _errorMessage = MutableStateFlow<String?>(null)
-
-    /**
-     * Thông báo lỗi (nếu có) — UI có thể hiển thị Snackbar/Toast.
-     * Được reset về null sau mỗi lần đọc hoặc sau một thao tác thành công.
-     */
     val errorMessage: StateFlow<String?> = _errorMessage
-
-    // ──────────────────────────────────────────────────────────────
-    // ➕ Thêm item mới (có giả lập tách nền)
-    // ──────────────────────────────────────────────────────────────
 
     /**
      * Thêm một clothing item mới vào tủ đồ.
-     *
-     * 📸 Quy trình xử lý:
-     * 1. Bật loading state (UI hiển thị spinner).
-     * 2. Giả lập xử lý tách nền bằng [delay] — mô phỏng API call hoặc xử lý ảnh.
-     * 3. Tạo entity mới với ID (UUID) + đầy đủ thông tin chi tiết.
-     * 4. Lưu vào database qua Repository (trên [Dispatchers.IO]).
-     * 5. Tắt loading, UI tự động cập nhật nhờ Flow reactive.
-     *
-     * 🧵 Coroutines: Toàn bộ chạy trong [viewModelScope] — tự động huỷ nếu ViewModel bị clear.
-     *
-     * @param imageFile File ảnh gốc người dùng chụp/chọn từ thư viện.
-     * @param category Danh mục quần áo (vd: "Tops", "Bottoms").
-     * @param color Màu sắc chính của item.
-     * @param name Tên món đồ (vd: "Áo sơ mi trắng").
-     * @param season Mùa phù hợp ("Spring", "Summer", "Autumn", "Winter").
-     * @param occasion Dịp sử dụng ("Casual", "Work", "Sports", "Formal").
-     * @param brand Thương hiệu (vd: "Nike", "Uniqlo", "Adidas").
-     * @param purchaseDate Ngày mua (timestamp epoch millis).
-     * @param price Giá tiền.
      */
     fun addClothingItem(
         imageFile: File,
@@ -190,25 +108,18 @@ class ClothingViewModel(
     ) {
         viewModelScope.launch {
             try {
-                // ── Bước 1: Bật loading ──────────────────────────
                 _isLoading.value = true
                 _errorMessage.value = null
 
                 Log.d(TAG, "📸 Bắt đầu xử lý ảnh: ${imageFile.name}")
 
-                // ── Bước 2: Gọi remove.bg để xoá nền ────────────
-                val (noBgFile, removeBgError) = repository.removeBackground(imageFile)
-                if (removeBgError != null) {
-                    Log.w(TAG, "⚠️ $removeBgError")
-                    _errorMessage.value = removeBgError
-                }
-                val noBgPath = noBgFile?.absolutePath ?: imageFile.absolutePath
+                // Đã gỡ bỏ logic tách nền (remove.bg)
+                val imagePath = imageFile.absolutePath
 
-                // ── Bước 3: Tạo entity mới với đầy đủ thông tin ───
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),
-                    imageOriginal = imageFile.absolutePath,
-                    imageNoBg = noBgPath,
+                    imageOriginal = imagePath,
+                    imageNoBg = imagePath, // Dùng ảnh gốc cho cả 2 trường
                     category = category,
                     color = color,
                     name = name,
@@ -222,30 +133,20 @@ class ClothingViewModel(
                     createdAt = System.currentTimeMillis()
                 )
 
-                Log.d(TAG, "✅ Tách nền hoàn tất. ID: ${newItem.id}, Tên: ${newItem.name}")
-
-                // ── Bước 4: Lưu vào database qua Repository ──────
                 repository.insertItem(newItem)
-
-                // 🔄 Refresh danh sách để UI tự động cập nhật
                 _refreshTrigger.value = System.currentTimeMillis()
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi thêm item: ${e.message}", e)
                 _errorMessage.value = "Không thể thêm item: ${e.message}"
             } finally {
-                // ── Bước 6: Tắt loading ──────────────────────────
                 _isLoading.value = false
             }
         }
     }
 
     /**
-     * ✏️ Cập nhật một item (có thể đổi ảnh).
-     *
-     * @param originalItem Item gốc (để giữ ảnh cũ nếu không đổi).
-     * @param updatedItem Item đã chỉnh sửa thông tin.
-     * @param newImageFile Ảnh mới nếu người dùng chọn lại (null = giữ ảnh cũ).
+     * ✏️ Cập nhật một item.
      */
     fun updateClothingItem(
         originalItem: ClothingItemEntity,
@@ -258,14 +159,10 @@ class ClothingViewModel(
                 _errorMessage.value = null
 
                 val finalItem = if (newImageFile != null) {
-                    val (noBgFile, removeBgError) = repository.removeBackground(newImageFile)
-                    if (removeBgError != null) {
-                        Log.w(TAG, "⚠️ $removeBgError")
-                        _errorMessage.value = removeBgError
-                    }
+                    val imagePath = newImageFile.absolutePath
                     updatedItem.copy(
-                        imageOriginal = newImageFile.absolutePath,
-                        imageNoBg = noBgFile?.absolutePath ?: newImageFile.absolutePath
+                        imageOriginal = imagePath,
+                        imageNoBg = imagePath
                     )
                 } else {
                     updatedItem.copy(
@@ -285,16 +182,10 @@ class ClothingViewModel(
         }
     }
 
-    /**
-     * ❌ Xoá một clothing item.
-     *
-     * @param item Entity cần xoá.
-     */
     fun deleteClothingItem(item: ClothingItemEntity) {
         viewModelScope.launch {
             try {
                 repository.deleteItem(item)
-                // 🔄 Refresh danh sách sau khi xoá
                 _refreshTrigger.value = System.currentTimeMillis()
                 Log.d(TAG, "🗑️ Đã xoá item: ${item.id}")
             } catch (e: Exception) {
@@ -304,13 +195,6 @@ class ClothingViewModel(
         }
     }
 
-    /**
-     * 📊 Lấy số lượng items trong một category cụ thể dưới dạng Flow.
-     * UI sẽ collect Flow này để hiển thị badge đếm bên cạnh mỗi chip category.
-     *
-     * Sử dụng Repository để đảm bảo luồng dữ liệu reactive:
-     * khi thêm/xoá item, Room tự động emit lại giá trị mới → UI cập nhật badge.
-     */
     fun getItemCountByCategory(category: String): Flow<Int> {
         return if (category == Categories.ALL) {
             repository.getTotalItemCount()
@@ -319,10 +203,6 @@ class ClothingViewModel(
         }
     }
 
-    /**
-     * 🏷️ Chọn category để lọc danh sách.
-     * Gọi từ UI khi người dùng tap vào chip category.
-     */
     fun selectCategory(category: String) {
         _selectedCategory.value = category
     }
@@ -335,18 +215,10 @@ class ClothingViewModel(
         _searchQuery.value = ""
     }
 
-    /**
-     * Xoá thông báo lỗi sau khi UI đã xử lý (vd: đóng Snackbar).
-     */
     fun clearError() {
         _errorMessage.value = null
     }
 
-    /**
-     * 🔄 Force refresh danh sách items từ API.
-     *
-     * Dùng khi có thao tác update item từ màn hình khác.
-     */
     fun refreshItems() {
         _refreshTrigger.value = System.currentTimeMillis()
     }
@@ -363,14 +235,6 @@ class ClothingViewModel(
     }
 }
 
-/**
- * 🏭 ClothingViewModelFactory — Factory pattern để inject [ClothingRepository] vào ViewModel.
- *
- * Tuân thủ [ViewModelProvider.Factory] — cho phép truyền dependency
- * mà không cần Dagger/Hilt (thuần Kotlin, phù hợp project hiện tại).
- *
- * @param repository Repository instance (sẽ được tạo từ AppDatabase trong Activity/Fragment).
- */
 class ClothingViewModelFactory(
     private val repository: ClothingRepository
 ) : ViewModelProvider.Factory {
