@@ -196,6 +196,47 @@ data class UploadResponse(
 )
 
 // ═══════════════════════════════════════════════════════════════
+// 🤖 AI STYLIST CHAT
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Request body for AI Stylist Chat endpoint.
+ */
+data class ChatRequest(
+    val userId: String?,
+    val message: String,
+    val lat: Double?,
+    val lon: Double?,
+    val selectedItemIds: List<String>? = null
+)
+
+/**
+ * DTO for a suggested outfit from LLM.
+ */
+data class SuggestedOutfitDto(
+    val id: String,
+    val top_id: String?,
+    val bottom_id: String?,
+    val shoes_id: String?,
+    val image_urls: Map<String, String>?,
+    val reason: String?
+)
+
+/**
+ * Response from AI Stylist Chat endpoint.
+ * Note: Backend returns { success: true, message: "...", suggested_outfits: [...] }
+ * but our Retrofit interface wraps it in ApiSingleResponse if we want the 'success' flag,
+ * OR we can define the full response structure directly.
+ * Let's follow the pattern of ApiSingleResponse but the backend response for chat
+ * is slightly different (it doesn't have a nested 'data' field, it has 'message' and 'suggested_outfits' at root).
+ */
+data class ChatResponse(
+    val success: Boolean,
+    val message: String,
+    val suggested_outfits: List<SuggestedOutfitDto>?
+)
+
+// ═══════════════════════════════════════════════════════════════
 // 🗑️ Các class response wrapper (Backend trả về success/count/data)
 // ═══════════════════════════════════════════════════════════════
 

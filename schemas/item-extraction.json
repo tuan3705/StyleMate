@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Item Extraction Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "dominantColors", "material", "tags", "suggestedPrice", "confidenceMap"],
+  "properties": {
+    "category": { "type": "string" },
+    "subCategory": { "type": "string" },
+    "dominantColors": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "material": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "suggestedPrice": { "type": "number", "minimum": 0 },
+    "confidenceMap": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } }
+  }
+}

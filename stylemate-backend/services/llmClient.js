@@ -1,69 +1,28 @@
 /**
  * services/llmClient.js
  *
- * Hardened LLM client with support for:
- *  - MOCK mode for local development
- *  - Generic REST providers (GEMINI_API_URL + GEMINI_API_KEY)
- *  - Google Generative Language / Vertex style endpoints using service account OAuth or API key
- *
- * Features:
- *  - Retries with exponential backoff on 5xx/429
- *  - Timeout control
- *  - Robust extraction of text from various provider response shapes
- *  - Strict JSON extraction/validation for Phase 1 schema (message + suggested_outfits)
+ * Tối ưu hóa cho StyleMate - Sử dụng duy nhất SDK chính thức của Google Gemini.
+ * Hỗ trợ: Mock mode, Tự động ép kiểu JSON Schema (Structured Output), Retry "Bọc thép".
  */
-const util = require('util');
-const axios = require('axios');
-const { GoogleAuth } = require('google-auth-library');
+
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Khởi tạo SDK
+const apiKey = process.env.GEMINI_API_KEY || process.env.GGL_API_KEY;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+
+// Cấu hình Model mặc định (Sử dụng dòng model hiện hành)
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const DEFAULT_MOCK_DELAY = 300;
-
-const GEMINI_API_URL = process.env.GEMINI_API_URL;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-default';
-
-// Google / Vertex generative API settings (optional). Default to Gemini model.
-const GGL_MODEL = process.env.GGL_MODEL || process.env.GENERATIVE_MODEL || process.env.VERTEX_MODEL || 'models/gemini-1.5'; // e.g. models/gemini-1.5
-const GGL_API_KEY = process.env.GGL_API_KEY || process.env.GENERATIVE_API_KEY;
-
 const MAX_RETRIES = Number(process.env.LLM_MAX_RETRIES || 3);
-const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 20000);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function extractJsonFromString(s) {
-  if (!s || typeof s !== 'string') return null;
-
-  const firstBrace = s.indexOf('{');
-  const firstBracket = s.indexOf('[');
-  let start = -1;
-  let openChar = null;
-
-  if (firstBrace === -1 && firstBracket === -1) return null;
-  if (firstBrace === -1) { start = firstBracket; openChar = '['; }
-  else if (firstBracket === -1) { start = firstBrace; openChar = '{'; }
-  else { start = Math.min(firstBrace, firstBracket); openChar = start === firstBrace ? '{' : '['; }
-
-  let depth = 0;
-  for (let i = start; i < s.length; i++) {
-    const ch = s[i];
-    if (ch === openChar) depth++;
-    else if ((openChar === '{' && ch === '}') || (openChar === '[' && ch === ']')) depth--;
-
-    if (depth === 0) {
-      const candidate = s.slice(start, i + 1);
-      try {
-        return JSON.parse(candidate);
-      } catch (e) {
-        return null;
-      }
-    }
-  }
-
-  return null;
-}
-
+/**
+ * Kiểm tra cấu trúc Schema Phase 1 bắt buộc cho StyleMate
+ */
 function validatePhase1Schema(obj) {
   if (!obj || typeof obj !== 'object') return false;
   if (typeof obj.message !== 'string') return false;
@@ -71,200 +30,156 @@ function validatePhase1Schema(obj) {
   return true;
 }
 
-async function axiosPostWithRetries(url, body, config = {}, maxAttempts = MAX_RETRIES) {
-  let attempt = 0;
-  while (attempt < maxAttempts) {
-    try {
-      const resp = await axios.post(url, body, config);
-      return resp;
-    } catch (err) {
-      attempt++;
-      const status = err.response?.status;
-      // If client error, don't retry
-      if (status && status >= 400 && status < 500 && status !== 429) {
-        throw err;
-      }
-
-      // Handle 429 specially if Retry-After present
-      if (status === 429) {
-        const ra = err.response.headers['retry-after'];
-        let wait = 1000 * (Number(ra) || Math.pow(2, attempt) * 500 + Math.floor(Math.random() * 200));
-        console.warn(`LLM rate-limited (429). Waiting ${wait}ms before retry (${attempt}/${maxAttempts})`);
-        await sleep(wait);
-        continue;
-      }
-
-      // For 5xx or network errors, exponential backoff
-      if (attempt < maxAttempts) {
-        const backoff = Math.pow(2, attempt) * 500 + Math.floor(Math.random() * 200);
-        console.warn(`LLM request failed (attempt ${attempt}/${maxAttempts}). Backing off ${backoff}ms. Error: ${err.message}`);
-        await sleep(backoff);
-        continue;
-      }
-
-      throw err;
-    }
-  }
-  throw new Error('LLM request retries exhausted');
-}
-
 /**
- * Generate a chat response from an LLM.
- * Supports mock mode, Google Generative Language (service account or API key), and generic REST endpoints.
- */
-/**
- * generateChatResponse
- * @param {{userId?:string,message:string,context?:object,options?:{expectedSchema?:'phase1'|'none'|Function}}} param0
+ * Hàm xuất chính xử lý logic chat và gợi ý đồ
  */
 async function generateChatResponse({ userId, message, context = {}, options = {} }) {
-  // Mock short-circuit
-  const mockMode = process.env.MOCK_LLM === 'true';
-  if (mockMode) {
+  // 1. Chế độ MOCK dành cho Dev Local
+  if (process.env.MOCK_LLM === 'true') {
     await sleep(DEFAULT_MOCK_DELAY);
     return {
-      message: `(Mock) Gợi ý cho: "${message}"`,
+      message: `(Mock) Gợi ý phối đồ cho: "${message}"`,
       suggested_outfits: [
         {
           id: `mock_outfit_1`,
-          top_id: 'mock_top_1',
-          bottom_id: 'mock_bottom_1',
-          shoes_id: 'mock_shoes_1',
-          image_urls: {
-            top: '/uploads/mock_top_1.jpg',
-            bottom: '/uploads/mock_bottom_1.jpg',
-            shoes: '/uploads/mock_shoes_1.jpg'
-          },
-          reason: 'Mock suggestion: phù hợp với thời tiết và phong cách bạn chọn.'
+          reason: 'Phù hợp với thời tiết dựa trên dữ liệu giả lập.'
         }
       ]
     };
   }
 
-  // Build a strict system prompt and include RAG-style context if available
-  const systemPrompt = `You are an assistant that MUST reply with a single JSON object only. Do not include explanation or markdown.`;
-
-  const promptParts = [systemPrompt];
-  if (context && typeof context.summaryText === 'string' && context.summaryText.trim().length > 0) {
-    promptParts.push(`Context Summary:\n${context.summaryText}`);
+  // Kiểm tra cấu hình khóa API
+  if (!genAI) {
+    throw Object.assign(new Error('GEMINI_API_KEY chưa được cấu hình trong file .env'), { statusCode: 500 });
   }
 
-  // Also include the full context JSON for reference (providers may ignore if too long)
+  // Bọc toàn bộ luồng xử lý trong Try...Catch tổng
   try {
-    promptParts.push(`Full Context (JSON):\n${JSON.stringify(context, null, 2)}`);
-  } catch (e) {
-    // fallback to util.inspect if JSON stringify fails
-    promptParts.push(`Full Context (INSPECT):\n${util.inspect(context, { depth: 2 })}`);
-  }
+    // 2. Chuẩn bị Prompt & Ngữ cảnh (RAG)
+    const systemPrompt = `You are StyleMate, a professional fashion stylist AI. 
+You MUST reply with a single JSON object matching the required schema. Do not output any Markdown block code, markdown format, or extra text.
+CRITICAL INSTRUCTION: Keep the 'message' and 'reason' fields extremely concise. Maximum 2 sentences per field. Do NOT generate long explanations.`;
 
-  promptParts.push(`User message:\n${message}`);
-  const prompt = promptParts.join('\n\n');
-
-  const expectedSchema = (options && options.expectedSchema) || 'phase1';
-
-  // Prefer Google Generative Language if configured
-  const canUseGoogle = Boolean(GGL_MODEL || process.env.GOOGLE_APPLICATION_CREDENTIALS || GGL_API_KEY);
-  if (canUseGoogle) {
-    const modelPath = GGL_MODEL?.startsWith('models/') ? GGL_MODEL : `models/${GGL_MODEL || 'text-bison-001'}`;
-    let url = `https://generativelanguage.googleapis.com/v1beta2/${modelPath}:generateText`;
-    if (GGL_API_KEY) url += `?key=${GGL_API_KEY}`;
-
-    const headers = { 'Content-Type': 'application/json' };
-    if (!GGL_API_KEY) {
-      // Use service account / ADC to obtain access token
-      const auth = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/cloud-platform'] });
-      const client = await auth.getClient();
-      const accessToken = await client.getAccessToken();
-      const token = accessToken?.token || accessToken;
-      if (!token) throw Object.assign(new Error('Failed to acquire Google access token for Generative API'), { statusCode: 500 });
-      headers.Authorization = `Bearer ${token}`;
+    const promptParts = [systemPrompt];
+    if (context?.summaryText) {
+      promptParts.push(`Context Summary:\n${context.summaryText}`);
     }
+    if (context && Object.keys(context).length > 0) {
+      promptParts.push(`Full Context Data:\n${JSON.stringify(context)}`);
+    }
+    promptParts.push(`User current request:\n${message}`);
+    const finalPrompt = promptParts.join('\n\n');
 
-    const body = {
-      prompt: { text: prompt },
-      temperature: 0.2,
-      maxOutputTokens: 800
+    // 3. Cấu hình generationConfig với Schema Phase 1
+    // Việc định nghĩa responseSchema ở đây giúp loại bỏ hoàn toàn các hàm normalize phức tạp.
+    const generationConfig = {
+      temperature: 0.3,
+      maxOutputTokens: 2048,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+          suggested_outfits: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                reason: { type: "string" }
+              },
+              required: ["id", "reason"]
+            }
+          }
+        },
+        required: ["message", "suggested_outfits"]
+      }
     };
 
-    try {
-      const resp = await axiosPostWithRetries(url, body, { headers, timeout: TIMEOUT_MS }, MAX_RETRIES);
-      const data = resp.data;
+    // 4. VÒNG LẶP RETRY "BỌC THÉP" (Xử lý cả lỗi mạng lẫn lỗi JSON rách/cắt cụt)
+    let parsedData = null;
+    let attempt = 0;
+    const maxAttempts = MAX_RETRIES || 3;
 
-      const rawText = data?.candidates?.[0]?.content || data?.candidates?.[0]?.output || data?.output || data?.responses?.[0]?.content || JSON.stringify(data);
+    while (attempt < maxAttempts) {
+      try {
+        attempt++;
+        let modelName = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+        // Chuẩn hóa tên model (xóa tiền tố "models/" nếu bị dư)
+        modelName = modelName.replace(/^models\//, '');
+        const model = genAI.getGenerativeModel({ model: modelName });
 
-      // Extract JSON
-      const parsed = extractJsonFromString(String(rawText));
-      if (!parsed) {
-        const err = new Error('LLM returned non-JSON response');
-        err.statusCode = 502;
-        throw err;
-      }
+        // Gọi API trực tiếp
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
+          generationConfig
+        });
 
-      // Validate according to expectedSchema option
-      if (expectedSchema === 'phase1') {
-        if (!validatePhase1Schema(parsed)) {
-          const err = new Error('LLM JSON does not match required schema (message + suggested_outfits)');
-          err.statusCode = 502;
-          throw err;
+        // Kiểm tra lý do dừng của AI
+        const candidate = result.response.candidates?.[0];
+        let isMaxTokensError = false;
+        if (candidate && candidate.finishReason !== 'STOP') {
+          console.warn(`[LLM Cảnh báo] API ngắt giữa chừng vì lý do: ${candidate.finishReason}`);
+          if (candidate.finishReason === 'MAX_TOKENS') {
+            isMaxTokensError = true;
+          }
         }
-      } else if (typeof expectedSchema === 'function') {
-        const ok = expectedSchema(parsed);
-        if (!ok) {
-          const err = new Error('LLM JSON does not match custom validation function');
-          err.statusCode = 502;
-          throw err;
+
+        let responseText = result.response.text();
+
+        // Làm sạch các ký tự rác hoặc markdown nếu có
+        responseText = responseText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+        responseText = responseText.replace(/[\u0000-\u001F]+/g, (match) => {
+          if (match === '\n') return '\\n';
+          if (match === '\r') return '\\r';
+          if (match === '\t') return '\\t';
+          return '';
+        });
+
+        if (isMaxTokensError) {
+          // Nếu bị ngắt giữa chừng, quăng lỗi ngay để chạy lại vòng lặp
+          throw new Error("AI trả về kết quả quá dài (MAX_TOKENS) khiến JSON bị rách.");
         }
-      }
 
-      return parsed;
-    } catch (err) {
-      console.error('LLM (Google) request error:', err.message);
-      if (!err.statusCode) err.statusCode = 502;
-      throw err;
+        // Ép kiểu JSON - Nếu bị đứt đoạn, sẽ tự văng lỗi và nhảy vào catch để gọi lại AI
+        parsedData = JSON.parse(responseText);
+        
+        // Bứt khỏi vòng lặp nếu parse thành công
+        break; 
+
+      } catch (err) {
+        console.warn(`❌ [LLM Thất bại Lần ${attempt}]: ${err.message}`);
+        
+        if (attempt >= maxAttempts) {
+          throw Object.assign(new Error(`LLM liên tục trả về JSON hỏng hoặc lỗi mạng sau ${maxAttempts} lần thử.`), { statusCode: 502 });
+        }
+        
+        // Nghỉ một nhịp trước khi bắt LLM gọi lại
+        const delay = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 500);
+        console.log(`⏳ Đang thử gọi lại AI sau ${delay}ms...`);
+        await sleep(delay);
+      }
     }
-  }
 
-  // Fallback: Generic GEMINI-like REST provider
-  if (GEMINI_API_URL && GEMINI_API_KEY) {
-    const url = GEMINI_API_URL;
-    const headers = {
-      Authorization: `Bearer ${GEMINI_API_KEY}`,
-      'Content-Type': 'application/json'
-    };
-    const body = {
-      model: GEMINI_MODEL,
-      prompt,
-      max_tokens: 800
-    };
-
-    try {
-      const resp = await axiosPostWithRetries(url, body, { headers, timeout: TIMEOUT_MS }, MAX_RETRIES);
-      const data = resp.data;
-      const rawText = data.output || data.text || (data?.choices && data.choices[0]?.text) || JSON.stringify(data);
-
-      const parsed = extractJsonFromString(String(rawText));
-      if (!parsed) {
-        const err = new Error('LLM returned non-JSON response');
-        err.statusCode = 502;
-        throw err;
-      }
-
-      if (!validatePhase1Schema(parsed)) {
-        const err = new Error('LLM JSON does not match required schema (message + suggested_outfits)');
-        err.statusCode = 502;
-        throw err;
-      }
-
-      return parsed;
-    } catch (err) {
-      console.error('LLM (Generic) request error:', err.message);
-      if (!err.statusCode) err.statusCode = 502;
-      throw err;
+    // 5. Validate Schema Phase 1 (Double Check)
+    const expectedSchema = options?.expectedSchema || 'phase1';
+    if (expectedSchema === 'phase1' && !validatePhase1Schema(parsedData)) {
+      throw Object.assign(new Error('Dữ liệu JSON từ LLM không khớp với Schema cấu trúc Phase 1'), { statusCode: 502 });
     }
-  }
 
-  const err = new Error('LLM provider not configured. Set MOCK_LLM=true for local dev, or configure Google or GEMINI provider env vars.');
-  err.statusCode = 500;
-  throw err;
+    return parsedData;
+
+  } catch (error) {
+    // Bắt lỗi tổng và chuẩn hóa mã lỗi HTTP trước khi trả về Controller
+    console.error('❌ [LLM Client Error]:', {
+      message: error.message,
+      status: error.status || error.statusCode || 500,
+    });
+    
+    throw Object.assign(new Error(`Xử lý AI Stylist thất bại: ${error.message}`), { 
+      statusCode: error.statusCode || 502 
+    });
+  }
 }
 
 module.exports = {

@@ -1,0 +1,7 @@
+{
+  "feature": "fit-analysis",
+  "schema": "../schemas/fit-analysis.json",
+  "responseMimeType": "application/json",
+  "strict": true,
+  "systemPrompt": "You are StyleMate Fit Analysis assistant. Return a single JSON object exactly matching ../schemas/fit-analysis.json. Do NOT include Markdown, code fences, or extra commentary. Provide measurement estimates as numbers (centimeters) when possible and concise style tips. Respond only with application/json."
+}

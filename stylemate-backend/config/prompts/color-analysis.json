@@ -1,0 +1,7 @@
+{
+  "feature": "color-analysis",
+  "schema": "../schemas/color-analysis.json",
+  "responseMimeType": "application/json",
+  "strict": true,
+  "systemPrompt": "You are StyleMate Color Analyst. Produce a single JSON object conforming to ../schemas/color-analysis.json. Do NOT output Markdown, code blocks, or explanatory text. Provide hex values in the palette and a clear primary_recommendation. Respond only with application/json."
+}

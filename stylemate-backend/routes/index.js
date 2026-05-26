@@ -10,8 +10,18 @@ const calendarRoutes = require('./calendarRoutes');
 const weatherRoutes = require('./weatherRoutes');
 const userRoutes = require('./userRoutes');
 const aiStylistRoutes = require('./aiStylistRoutes');
-const virtualTryOnRoutes = require('./virtualTryOnRoutes');
-const itemRoutes = require('./itemRoutes');
+let virtualTryOnRoutes = null;
+let itemRoutes = null;
+try {
+  virtualTryOnRoutes = require('./virtualTryOnRoutes');
+} catch (e) {
+  console.warn('[routes] virtualTryOnRoutes not loaded:', e.message);
+}
+try {
+  itemRoutes = require('./itemRoutes');
+} catch (e) {
+  console.warn('[routes] itemRoutes not loaded:', e.message);
+}
 
 /**
  * Mount tất cả routes vào Express app.
@@ -36,10 +46,10 @@ const mountRoutes = (app) => {
 
   // 🤖 AI Stylist endpoints (Phase 1)
   app.use('/api/ai-stylist', aiStylistRoutes);
-  // Virtual Try-on async endpoints
-  app.use('/api/ai-stylist/virtual-tryon', virtualTryOnRoutes);
-  // Items (upload + metadata extraction)
-  app.use('/api/items', itemRoutes);
+  // Virtual Try-on async endpoints (optional)
+  if (virtualTryOnRoutes) app.use('/api/ai-stylist/virtual-tryon', virtualTryOnRoutes);
+  // Items (upload + metadata extraction) (optional)
+  if (itemRoutes) app.use('/api/items', itemRoutes);
 
   // 🏠 Route kiểm tra health
   app.get('/api/health', (req, res) => {
