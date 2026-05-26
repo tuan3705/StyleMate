@@ -31,6 +31,7 @@ local.properties
 stylemate-backend/node_modules/
 stylemate-backend/.env
 stylemate-backend/uploads/*
+stylemate-backend/config/serviceAccount.json
 !stylemate-backend/uploads/.gitkeep
 
 # ═══════════════════════════════════════════════════════════════
@@ -40,8 +41,13 @@ stylemate-backend/uploads/*
 *.log
 *.tmp
 <<<<<<< HEAD
+<<<<<<< HEAD
 /docs
 /stylemate-backend/config/serviceAccount.json
 /app/google-services.json
 =======
 >>>>>>> parent of 30495fc (Chat Bot Service)
+=======
+/docs
+app/google-services.json
+>>>>>>> parent of 16affab (Revert "Chat Bot Service")
