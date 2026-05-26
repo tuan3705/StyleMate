@@ -31,6 +31,7 @@ local.properties
 stylemate-backend/node_modules/
 stylemate-backend/.env
 stylemate-backend/uploads/*
+stylemate-backend/config/serviceAccount.json
 !stylemate-backend/uploads/.gitkeep
 
 # ═══════════════════════════════════════════════════════════════
@@ -39,3 +40,5 @@ stylemate-backend/uploads/*
 
 *.log
 *.tmp
+/docs
+app/google-services.json
