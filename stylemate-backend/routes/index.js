@@ -9,9 +9,6 @@ const outfitsRoutes = require('./outfitsRoutes');
 const calendarRoutes = require('./calendarRoutes');
 const weatherRoutes = require('./weatherRoutes');
 const userRoutes = require('./userRoutes');
-const aiStylistRoutes = require('./aiStylistRoutes');
-const virtualTryOnRoutes = require('./virtualTryOnRoutes');
-const itemRoutes = require('./itemRoutes');
 
 /**
  * Mount tất cả routes vào Express app.
@@ -33,13 +30,6 @@ const mountRoutes = (app) => {
 
   // 📱 Quản lý FCM Token
   app.use('/api/user', userRoutes);
-
-  // 🤖 AI Stylist endpoints (Phase 1)
-  app.use('/api/ai-stylist', aiStylistRoutes);
-  // Virtual Try-on async endpoints
-  app.use('/api/ai-stylist/virtual-tryon', virtualTryOnRoutes);
-  // Items (upload + metadata extraction)
-  app.use('/api/items', itemRoutes);
 
   // 🏠 Route kiểm tra health
   app.get('/api/health', (req, res) => {
