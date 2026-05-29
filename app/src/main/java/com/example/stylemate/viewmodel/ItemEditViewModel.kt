@@ -187,6 +187,38 @@ class ItemEditViewModel(
         }
     }
 
+    fun saveRemovedBackground(newPath: String) {
+        val original = originalItem ?: return
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(isSaving = true, errorMessage = null)
+
+                val updatedItem = original.copy(
+                    imageOriginal = newPath,
+                    imageNoBg = newPath
+                )
+
+                withContext(Dispatchers.IO) {
+                    clothingRepository.updateItem(updatedItem)
+                }
+
+                originalItem = updatedItem
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    imageOriginal = updatedItem.imageOriginal,
+                    imageNoBg = updatedItem.imageNoBg,
+                    newImagePath = null
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Lỗi khi lưu ảnh đã tách nền: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(
+                    isSaving = false,
+                    errorMessage = "Không thể lưu ảnh đã tách nền: ${e.message}"
+                )
+            }
+        }
+    }
+
     private fun updateState(block: ItemEditUiState.() -> ItemEditUiState) {
         _uiState.value = _uiState.value.block()
     }

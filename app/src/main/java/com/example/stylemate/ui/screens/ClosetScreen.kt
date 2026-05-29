@@ -450,7 +450,7 @@ private fun ClosetSearchBar(
     )
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════��═══
 // 🔷 TAB 0: ItemsTabContent (Canvas view)
 // ═════════════════════════════════════════════════════════════════
 
@@ -1149,7 +1149,7 @@ private fun AddItemSelectCard(
 //   - Click vào item → thêm/xoá khỏi draft (toggle)
 //   - Item đã chọn → viền xanh + icon check
 //   - Lưu xong → đóng sheet + clear draft
-// ═════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════��════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1208,7 +1208,7 @@ private fun CreateOutfitBottomSheetContent(
 
         Spacer(Modifier.height(8.dp))
 
-        // ── Badge hiển thị số lượng đã chọn ─────────────────────
+        // ── Badge hiển thị số lượng đã chọn ──────────������─────────
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Chọn món đồ",
@@ -1278,7 +1278,7 @@ private fun CreateOutfitBottomSheetContent(
 
         Spacer(Modifier.height(20.dp))
 
-        // ── Nút Lưu ─────────────────────────────────────────────
+        // ── Nút Lưu ──────────────��──────────────────────────────
         Button(
             onClick = {
                 outfitVM.saveOutfit(outfitName)
@@ -1304,9 +1304,9 @@ private fun CreateOutfitBottomSheetContent(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ════════════════���═══���════════════════════════════════════════════
 // 🔷 SelectableItemCard — Item trong grid có thể chọn/bỏ chọn
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════��═══════════
 //
 // 🎯 Visual feedback:
 //   - Đã chọn: viền xanh 3dp + overlay icon ✅ góc trên
@@ -1317,7 +1317,8 @@ private fun CreateOutfitBottomSheetContent(
 private fun SelectableItemCard(
     item: ClothingItemEntity,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     val borderColor = if (isSelected) Color(0xFF4CAF50) else Color.Transparent
     val borderWidth = if (isSelected) 3.dp else 0.dp
@@ -1386,19 +1387,56 @@ private fun SelectableItemCard(
                     .background(Color.Black.copy(alpha = 0.4f))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text = item.category,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-                if (item.brand.isNotBlank()) {
+                if (item.name.isNotBlank()) {
                     Text(
-                        text = item.brand,
+                        text = item.name,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.category,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    if (item.brand.isNotBlank()) {
+                        Text(
+                            text = item.brand,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.color,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+            if (onDelete != null) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete item",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .background(Color.Red.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                            .padding(4.dp)
                     )
                 }
             }
@@ -1519,8 +1557,8 @@ fun ClothingItemCard(
 private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
-        val data = resolveImageData(context, item.imageOriginal)
-            ?: resolveImageData(context, item.imageNoBg)
+        val data = resolveImageData(context, item.imageNoBg)
+            ?: resolveImageData(context, item.imageOriginal)
         data?.let {
             ImageRequest.Builder(context)
                 .data(it)
@@ -1558,7 +1596,7 @@ private fun getCategoryIcon(category: String): String = when (category) {
 
 private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "Bags", "Accessories", "Jewelry")
 
-// ═════════════════════════════════════════════════════════════════
+// ═════════════════════���═══════════════════════════════════════════
 // 📝 NewClothingItemSheet — Bottom sheet thêm item mới (giữ lại)
 // ═════════════════════════════════════════════════════════════════
 
@@ -1569,7 +1607,7 @@ fun NewClothingItemSheet(
     onItemAdded: () -> Unit,
     onError: (String) -> Unit
 ) {
-    // ── Focus management ──────────────────────────────────────────
+    // ── Focus management ──────────────────────��───────────────────
     // Mỗi field có FocusRequester riêng, bấm Enter/Done → nhảy field tiếp
     val focusManager = LocalFocusManager.current
     val categoryFocus = remember { FocusRequester() }
@@ -1662,7 +1700,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── COLOR ────────────────────────────────────────────────
+        // ── COLOR ─────────────────────────────��──────────────────
         Text("Color", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -1709,7 +1747,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── PRICE ────────────────────────────────────────────────
+        // ── PRICE ──────────────────────────────────────────────��─
         Text("Price", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -1753,7 +1791,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── OCCASION ─────────────────────────────────────────────
+        // ─��� OCCASION ─────────────────────────────────────────────
         Text("Occasion", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         Row(
@@ -1775,7 +1813,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── PURCHASE DATE ────────────────────────────────────────
+        // ── PURCHASE DATE ──────────────────────────────────��─────
         Text("Purchase Date", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedCard(
@@ -1811,7 +1849,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(24.dp))
 
-        // ── ADD BUTTON ───────────────────────────────────────────
+        // ── ADD BUTTON ──���────────────────────────────────────────
         Button(
             onClick = {
                 if (imagePath == null) {

@@ -203,10 +203,15 @@ class ClothingRepository(
 
     suspend fun insertItem(item: ClothingItemEntity) = withContext(Dispatchers.IO) {
         try {
-            val uploadedUrl = uploadImageToServer(item.imageOriginal)
+            val uploadedOriginal = uploadImageToServer(item.imageOriginal)
+            val uploadedNoBg = if (item.imageNoBg.isNotBlank()) {
+                uploadImageToServer(item.imageNoBg)
+            } else {
+                uploadedOriginal
+            }
             val dto = item.toDto().copy(
-                imageOriginal = uploadedUrl,
-                imageNoBg = uploadedUrl
+                imageOriginal = uploadedOriginal,
+                imageNoBg = uploadedNoBg
             )
             apiService.createClothingItem(dto)
         } catch (e: Exception) {
@@ -216,10 +221,15 @@ class ClothingRepository(
 
     suspend fun updateItem(item: ClothingItemEntity) = withContext(Dispatchers.IO) {
         try {
-            val uploadedUrl = uploadImageToServer(item.imageOriginal)
+            val uploadedOriginal = uploadImageToServer(item.imageOriginal)
+            val uploadedNoBg = if (item.imageNoBg.isNotBlank()) {
+                uploadImageToServer(item.imageNoBg)
+            } else {
+                uploadedOriginal
+            }
             val updateMap = mapOf<String, Any>(
-                "imageOriginal" to uploadedUrl,
-                "imageNoBg" to uploadedUrl,
+                "imageOriginal" to uploadedOriginal,
+                "imageNoBg" to uploadedNoBg,
                 "category" to item.category,
                 "color" to item.color,
                 "name" to item.name,

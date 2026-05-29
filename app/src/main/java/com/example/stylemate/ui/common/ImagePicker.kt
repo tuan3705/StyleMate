@@ -50,7 +50,8 @@ class ImagePickerState internal constructor(
     val imagePath: State<String?>,
     val onCameraClick: () -> Unit,
     val onGalleryClick: () -> Unit,
-    val onRemoveBackgroundClick: () -> Unit
+    val onRemoveBackgroundClick: () -> Unit,
+    val setImagePath: (String?) -> Unit
 )
 
 @Composable
@@ -133,7 +134,8 @@ fun rememberImagePickerState(
         imagePath = imagePathState,
         onCameraClick = onCameraClick,
         onGalleryClick = onGalleryClick,
-        onRemoveBackgroundClick = onRemoveBackground
+        onRemoveBackgroundClick = onRemoveBackground,
+        setImagePath = { newPath -> imagePathState.value = newPath }
     )
 }
 
@@ -146,7 +148,9 @@ fun ImagePickerSection(
     onRemoveBgClick: () -> Unit,
     modifier: Modifier = Modifier,
     titleStyle: TextStyle = MaterialTheme.typography.titleMedium,
-    showPreview: Boolean = true
+    showPreview: Boolean = true,
+    isProcessing: Boolean = false,
+    canRemoveBg: Boolean = true
 ) {
     Text(title, style = titleStyle, fontWeight = FontWeight.SemiBold)
     Row(
@@ -217,13 +221,13 @@ fun ImagePickerSection(
     FilledTonalButton(
         onClick = onRemoveBgClick,
         modifier = Modifier.fillMaxWidth().height(48.dp),
-        enabled = isImageSelected
+        enabled = isImageSelected && !isProcessing && canRemoveBg
     ) {
         Icon(
             imageVector = Icons.Default.AutoAwesome,
             contentDescription = null
         )
         Spacer(Modifier.width(8.dp))
-        Text("Remove Background")
+        Text(if (isProcessing) "Removing..." else "Remove Background")
     }
 }

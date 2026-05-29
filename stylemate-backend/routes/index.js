@@ -10,6 +10,7 @@ const calendarRoutes = require('./calendarRoutes');
 const weatherRoutes = require('./weatherRoutes');
 const userRoutes = require('./userRoutes');
 const authRoutes = require('./authRoutes');
+const imageRoutes = require('./imageRoutes');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 /**
@@ -35,6 +36,9 @@ const mountRoutes = (app) => {
 
   // 📱 Quản lý FCM Token
   app.use('/api/user', requireAuth, userRoutes);
+
+  // 🖼️ Xử lý ảnh (remove background)
+  app.use('/api/images', requireAuth, imageRoutes);
 
   // 🏠 Route kiểm tra health
   app.get('/api/health', (req, res) => {

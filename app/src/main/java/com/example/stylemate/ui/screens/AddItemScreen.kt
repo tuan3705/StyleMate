@@ -23,10 +23,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.stylemate.repository.ClothingRepository
+import com.example.stylemate.repository.ImageProcessingRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
+import com.example.stylemate.viewmodel.ImageProcessingViewModel
+import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -46,6 +49,11 @@ fun AddItemScreen(navController: NavController) {
         factory = ClothingViewModelFactory(repository)
     )
 
+    val imageProcessingRepository = ImageProcessingRepository(apiService, context)
+    val imageProcessingViewModel: ImageProcessingViewModel = viewModel(
+        factory = ImageProcessingViewModelFactory(imageProcessingRepository)
+    )
+
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
@@ -54,16 +62,29 @@ fun AddItemScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     val imagePickerState = rememberImagePickerState(
-        onRemoveBackground = {
-            scope.launch { 
-                snackbarHostState.showSnackbar("Tính năng Xoá nền sẽ sớm ra mắt!") 
-            }
-        },
+        onRemoveBackground = {},
         onError = { message ->
             scope.launch { snackbarHostState.showSnackbar(message) }
         }
     )
     val imagePath by imagePickerState.imagePath
+    val removeBgState by imageProcessingViewModel.removeBgState.collectAsState()
+    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
+
+    val canRemoveBackground = imagePath?.let { current ->
+        lastRemoveBgPath == null || current != lastRemoveBgPath
+    } ?: false
+
+    val onRemoveBackgroundClick = {
+        val currentPath = imagePath
+        if (currentPath.isNullOrBlank()) {
+            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+        } else {
+            imageProcessingViewModel.removeBackground(currentPath)
+        }
+        Unit
+    }
+
     var category by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
 
@@ -94,6 +115,23 @@ fun AddItemScreen(navController: NavController) {
         }
     }
 
+    LaunchedEffect(removeBgState.resultPath) {
+        val newPath = removeBgState.resultPath
+        if (!newPath.isNullOrBlank()) {
+            imagePickerState.setImagePath(newPath)
+            lastRemoveBgPath = newPath
+            imageProcessingViewModel.clearResult()
+        }
+    }
+
+    LaunchedEffect(removeBgState.errorMessage) {
+        val message = removeBgState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearResult()
+        }
+    }
+
     Scaffold(
         topBar = {
             LargeTopAppBar(
@@ -120,7 +158,9 @@ fun AddItemScreen(navController: NavController) {
                 imagePath = imagePath,
                 onCameraClick = imagePickerState.onCameraClick,
                 onGalleryClick = imagePickerState.onGalleryClick,
-                onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
+                onRemoveBgClick = onRemoveBackgroundClick,
+                isProcessing = removeBgState.isProcessing,
+                canRemoveBg = canRemoveBackground
             )
 
             HorizontalDivider()

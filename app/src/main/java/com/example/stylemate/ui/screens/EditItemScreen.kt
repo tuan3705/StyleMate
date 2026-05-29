@@ -57,10 +57,13 @@ import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
+import com.example.stylemate.repository.ImageProcessingRepository
 import com.example.stylemate.repository.OutfitRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.ui.common.resolveImageData
+import com.example.stylemate.viewmodel.ImageProcessingViewModel
+import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import com.example.stylemate.viewmodel.ItemEditViewModel
 import com.example.stylemate.viewmodel.ItemEditViewModelFactory
 import kotlinx.coroutines.launch
@@ -83,6 +86,11 @@ fun EditItemScreen(
         factory = ItemEditViewModelFactory(clothingRepo, outfitRepo)
     )
 
+    val imageProcessingRepository = ImageProcessingRepository(apiService, context)
+    val imageProcessingViewModel: ImageProcessingViewModel = viewModel(
+        factory = ImageProcessingViewModelFactory(imageProcessingRepository)
+    )
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val relevantOutfits by viewModel.relevantOutfits.collectAsStateWithLifecycle()
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
@@ -92,11 +100,31 @@ fun EditItemScreen(
     val relevantCardWidth = (LocalConfiguration.current.screenWidthDp * (2f / 3f)).dp
 
     val imagePickerState = rememberImagePickerState(
+        onRemoveBackground = {},
         onError = { message ->
             scope.launch { snackbarHostState.showSnackbar(message) }
         }
     )
     val pickedImagePath by imagePickerState.imagePath
+    val removeBgState by imageProcessingViewModel.removeBgState.collectAsStateWithLifecycle()
+
+    val displayImagePath = pickedImagePath
+        ?: uiState.imageNoBg.takeIf { it.isNotBlank() }
+        ?: uiState.imageOriginal
+    val canRemoveBackground = displayImagePath.isNotBlank() &&
+        (uiState.imageNoBg.isBlank() || displayImagePath != uiState.imageNoBg)
+
+    var relevantOutfitsRefreshKey by remember { mutableStateOf(0) }
+
+    val onRemoveBackgroundClick = {
+        val currentPath = pickedImagePath ?: uiState.imageOriginal
+        if (currentPath.isBlank()) {
+            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+        } else {
+            imageProcessingViewModel.removeBackground(currentPath)
+        }
+        Unit
+    }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var expandedMenu by remember { mutableStateOf(false) }
@@ -124,6 +152,24 @@ fun EditItemScreen(
         uiState.errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(removeBgState.resultPath) {
+        val newPath = removeBgState.resultPath
+        if (!newPath.isNullOrBlank()) {
+            imagePickerState.setImagePath(newPath)
+            imageProcessingViewModel.clearResult()
+            viewModel.saveRemovedBackground(newPath)
+            relevantOutfitsRefreshKey += 1
+        }
+    }
+
+    LaunchedEffect(removeBgState.errorMessage) {
+        val message = removeBgState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearResult()
         }
     }
 
@@ -168,10 +214,12 @@ fun EditItemScreen(
 
             ImagePickerSection(
                 title = "Item Image",
-                imagePath = pickedImagePath ?: uiState.imageOriginal,
+                imagePath = displayImagePath,
                 onCameraClick = imagePickerState.onCameraClick,
                 onGalleryClick = imagePickerState.onGalleryClick,
-                onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
+                onRemoveBgClick = onRemoveBackgroundClick,
+                isProcessing = removeBgState.isProcessing,
+                canRemoveBg = canRemoveBackground
             )
 
             Text("Relevant Outfits", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -190,6 +238,7 @@ fun EditItemScreen(
                         RelevantOutfitPreviewCard(
                             outfitWithItems = outfit,
                             outfitRepo = outfitRepo,
+                            refreshKey = relevantOutfitsRefreshKey,
                             modifier = Modifier.width(relevantCardWidth)
                         )
                     }
@@ -410,6 +459,7 @@ private data class OutfitPreviewItem(
 private fun RelevantOutfitPreviewCard(
     outfitWithItems: OutfitWithClothingItems,
     outfitRepo: OutfitRepository,
+    refreshKey: Any,
     modifier: Modifier = Modifier
 ) {
     val outfit = outfitWithItems.outfit
@@ -420,7 +470,8 @@ private fun RelevantOutfitPreviewCard(
     }
     val itemsWithPosition by produceState(
         initialValue = emptyList<OutfitItemWithPosition>(),
-        key1 = outfit.id
+        key1 = outfit.id,
+        key2 = refreshKey
     ) {
         value = outfitRepo.getOutfitItemsWithPosition(outfit.id)
     }
@@ -570,8 +621,8 @@ private fun RelevantOutfitCanvasPreview(
 private fun rememberOutfitItemImageRequest(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
-        val data = resolveImageData(context, item.imageOriginal)
-            ?: resolveImageData(context, item.imageNoBg)
+        val data = resolveImageData(context, item.imageNoBg)
+            ?: resolveImageData(context, item.imageOriginal)
         data?.let {
             ImageRequest.Builder(context)
                 .data(it)

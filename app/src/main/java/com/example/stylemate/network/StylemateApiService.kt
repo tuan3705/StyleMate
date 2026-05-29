@@ -1,6 +1,7 @@
 package com.example.stylemate.network
 
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -11,6 +12,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -30,6 +32,21 @@ import retrofit2.http.Query
  */
 
 interface StylemateApiService {
+
+    // ═════════════════════════════════════════════════════════════
+    // 🖼️ IMAGE PROCESSING — /api/images/remove-bg
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/images/remove-bg
+     * Tách nền ảnh bằng remove.bg thông qua backend.
+     */
+    @Multipart
+    @POST("api/images/remove-bg")
+    @Streaming
+    suspend fun removeBackgroundImage(
+        @Part file: MultipartBody.Part
+    ): Response<ResponseBody>
 
     // ═════════════════════════════════════════════════════════════
     // 🖼️ UPLOAD — /api/clothes/upload
@@ -344,3 +361,4 @@ interface StylemateApiService {
         @Body request: FcmTokenRequest
     ): Response<ApiSingleResponse<UserDeviceDto>>
 }
+
