@@ -450,7 +450,7 @@ private fun ClosetSearchBar(
     )
 }
 
-// ═════════════════════════════════════════════════════════════��═══
+// ════════════════════════════════════════════════════════════════
 // 🔷 TAB 0: ItemsTabContent (Canvas view)
 // ═════════════════════════════════════════════════════════════════
 
@@ -1149,7 +1149,7 @@ private fun AddItemSelectCard(
 //   - Click vào item → thêm/xoá khỏi draft (toggle)
 //   - Item đã chọn → viền xanh + icon check
 //   - Lưu xong → đóng sheet + clear draft
-// ════════════════════════════════════════════════��════════════════
+// ════════════════════════════════════════════════════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1208,7 +1208,7 @@ private fun CreateOutfitBottomSheetContent(
 
         Spacer(Modifier.height(8.dp))
 
-        // ── Badge hiển thị số lượng đã chọn ──────────������─────────
+        // ── Badge hiển thị số lượng đã chọn ───────────────────
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Chọn món đồ",
@@ -1278,7 +1278,7 @@ private fun CreateOutfitBottomSheetContent(
 
         Spacer(Modifier.height(20.dp))
 
-        // ── Nút Lưu ──────────────��──────────────────────────────
+        // ── Nút Lưu ────────────────────────────────────────────
         Button(
             onClick = {
                 outfitVM.saveOutfit(outfitName)
@@ -1304,9 +1304,9 @@ private fun CreateOutfitBottomSheetContent(
     }
 }
 
-// ════════════════���═══���════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // 🔷 SelectableItemCard — Item trong grid có thể chọn/bỏ chọn
-// ═════════════════════════════════════════════════════��═══════════
+// ════════════════════════════════════════════════════════════════
 //
 // 🎯 Visual feedback:
 //   - Đã chọn: viền xanh 3dp + overlay icon ✅ góc trên
@@ -1444,7 +1444,7 @@ private fun SelectableItemCard(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // 🃏 ClothingItemCard — Card hiển thị một clothing item (GIỮ NGUYÊN)
 // ═════════════════════════════════════════════════════════════════
 
@@ -1596,7 +1596,7 @@ private fun getCategoryIcon(category: String): String = when (category) {
 
 private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "Bags", "Accessories", "Jewelry")
 
-// ═════════════════════���═══════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 // 📝 NewClothingItemSheet — Bottom sheet thêm item mới (giữ lại)
 // ═════════════════════════════════════════════════════════════════
 
@@ -1607,7 +1607,7 @@ fun NewClothingItemSheet(
     onItemAdded: () -> Unit,
     onError: (String) -> Unit
 ) {
-    // ── Focus management ──────────────────────��───────────────────
+    // ── Focus management ─────────────────────────────────────────
     // Mỗi field có FocusRequester riêng, bấm Enter/Done → nhảy field tiếp
     val focusManager = LocalFocusManager.current
     val categoryFocus = remember { FocusRequester() }
@@ -1658,6 +1658,15 @@ fun NewClothingItemSheet(
             onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
         )
 
+        Spacer(Modifier.height(24.dp))
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Item details",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
         Spacer(Modifier.height(12.dp))
 
         // ── CATEGORY ─────────────────────────────────────────────
@@ -1700,7 +1709,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── COLOR ─────────────────────────────��──────────────────
+        // ── COLOR ───────────────────────────────────────────────
         Text("Color", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -1747,7 +1756,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── PRICE ──────────────────────────────────────────────��─
+        // ── PRICE ───────────────────────────────────────────────
         Text("Price", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -1791,7 +1800,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ─��� OCCASION ─────────────────────────────────────────────
+        // ─ OCCASION ─────────────────────────────────────────────
         Text("Occasion", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         Row(
@@ -1813,7 +1822,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── PURCHASE DATE ──────────────────────────────────��─────
+        // ── PURCHASE DATE ───────────────────────────────────────
         Text("Purchase Date", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedCard(
@@ -1849,7 +1858,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(24.dp))
 
-        // ── ADD BUTTON ──���────────────────────────────────────────
+        // ── ADD BUTTON ──────────────────────────────────────────
         Button(
             onClick = {
                 if (imagePath == null) {

@@ -245,7 +245,14 @@ fun EditItemScreen(
                 }
             }
 
-            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+            Text(
+                "Item details",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
 
             Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             ExposedDropdownMenuBox(
