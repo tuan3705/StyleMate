@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -74,9 +75,12 @@ import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
+import com.example.stylemate.repository.ImageProcessingRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.ui.common.resolveImageData
+import com.example.stylemate.viewmodel.ImageProcessingViewModel
+import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import com.example.stylemate.viewmodel.OutfitViewModel
@@ -1431,7 +1435,7 @@ private fun SelectableItemCard(
                     modifier = Modifier.align(Alignment.TopEnd)
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        imageVector = Icons.Default.Delete,
                         contentDescription = "Delete item",
                         tint = Color.White,
                         modifier = Modifier
@@ -1541,7 +1545,7 @@ fun ClothingItemCard(
                 modifier = Modifier.align(Alignment.TopEnd)
             ) {
                 Icon(
-                    Icons.Default.Delete,
+                    imageVector = Icons.Default.Delete,
                     contentDescription = "Delete item",
                     tint = Color.White,
                     modifier = Modifier
@@ -1598,7 +1602,7 @@ private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "
 
 // ════════════════════════════════════════════════════════════════
 // 📝 NewClothingItemSheet — Bottom sheet thêm item mới (giữ lại)
-// ═════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1615,6 +1619,14 @@ fun NewClothingItemSheet(
     val nameFocus = remember { FocusRequester() }
     val brandFocus = remember { FocusRequester() }
     val priceFocus = remember { FocusRequester() }
+
+    val context = LocalContext.current
+    val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
+    val imageProcessingRepository = ImageProcessingRepository(apiService, context)
+    val imageProcessingViewModel: ImageProcessingViewModel = viewModel(
+        factory = ImageProcessingViewModelFactory(imageProcessingRepository)
+    )
+    val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
 
     // ── State ────────────────────────────────────────────────────
     var category by remember { mutableStateOf("") }
@@ -1635,6 +1647,24 @@ fun NewClothingItemSheet(
     val isLoading by viewModel.isLoading.collectAsState()
     val imagePickerState = rememberImagePickerState(onError = onError)
     val imagePath by imagePickerState.imagePath
+
+    LaunchedEffect(aiFillState.suggestion) {
+        val suggestion = aiFillState.suggestion
+        if (suggestion != null) {
+            suggestion.category?.let { category = it }
+            suggestion.color?.let { color = it }
+            suggestion.name?.let { itemName = it }
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(aiFillState.errorMessage) {
+        val message = aiFillState.errorMessage
+        if (!message.isNullOrBlank()) {
+            onError(message)
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1661,12 +1691,47 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(24.dp))
         HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
         Spacer(Modifier.height(16.dp))
-        Text(
-            "Item details",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "Item details",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            TextButton(
+                onClick = {
+                    val currentPath = imagePath
+                    if (currentPath.isNullOrBlank()) {
+                        onError("Please select an image")
+                    } else {
+                        imageProcessingViewModel.fillWithAi(currentPath)
+                    }
+                },
+                enabled = !aiFillState.isProcessing,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                if (aiFillState.isProcessing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Filling...")
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
         Spacer(Modifier.height(12.dp))
 
         // ── CATEGORY ─────────────────────────────────────────────

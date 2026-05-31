@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import android.util.Log
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.ImageProcessingRepository
 import com.example.stylemate.ui.common.ImagePickerSection
@@ -56,6 +58,7 @@ fun AddItemScreen(navController: NavController) {
 
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
 
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
@@ -132,6 +135,25 @@ fun AddItemScreen(navController: NavController) {
         }
     }
 
+    LaunchedEffect(aiFillState.suggestion) {
+        val suggestion = aiFillState.suggestion
+        if (suggestion != null) {
+            Log.d("AddItemScreen", "AI suggestion applied: $suggestion")
+            suggestion.category?.let { category = it }
+            suggestion.color?.let { color = it }
+            suggestion.name?.let { itemName = it }
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(aiFillState.errorMessage) {
+        val message = aiFillState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
     Scaffold(
         topBar = {
             LargeTopAppBar(
@@ -162,6 +184,41 @@ fun AddItemScreen(navController: NavController) {
                 isProcessing = removeBgState.isProcessing,
                 canRemoveBg = canRemoveBackground
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                        } else {
+                            imageProcessingViewModel.fillWithAi(currentPath)
+                        }
+                    },
+                    enabled = !aiFillState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (aiFillState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Filling...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
 
             HorizontalDivider()
 

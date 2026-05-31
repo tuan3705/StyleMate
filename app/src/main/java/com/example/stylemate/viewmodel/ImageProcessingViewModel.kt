@@ -18,8 +18,17 @@ class ImageProcessingViewModel(
         val resultPath: String? = null
     )
 
+    data class AiFillUiState(
+        val isProcessing: Boolean = false,
+        val errorMessage: String? = null,
+        val suggestion: com.example.stylemate.network.AiFillSuggestionDto? = null
+    )
+
     private val _removeBgState = MutableStateFlow(RemoveBgUiState())
     val removeBgState: StateFlow<RemoveBgUiState> = _removeBgState
+
+    private val _aiFillState = MutableStateFlow(AiFillUiState())
+    val aiFillState: StateFlow<AiFillUiState> = _aiFillState
 
     fun removeBackground(currentPath: String) {
         if (currentPath.isBlank()) return
@@ -38,6 +47,26 @@ class ImageProcessingViewModel(
         val current = _removeBgState.value
         if (current.resultPath != null || current.errorMessage != null) {
             _removeBgState.value = current.copy(resultPath = null, errorMessage = null)
+        }
+    }
+
+    fun fillWithAi(currentPath: String) {
+        if (currentPath.isBlank()) return
+        viewModelScope.launch {
+            _aiFillState.value = AiFillUiState(isProcessing = true)
+            val result = repository.fillWithAi(currentPath)
+            _aiFillState.value = if (result.isSuccess) {
+                AiFillUiState(suggestion = result.getOrNull())
+            } else {
+                AiFillUiState(errorMessage = result.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    fun clearAiFillResult() {
+        val current = _aiFillState.value
+        if (current.suggestion != null || current.errorMessage != null) {
+            _aiFillState.value = current.copy(suggestion = null, errorMessage = null)
         }
     }
 }

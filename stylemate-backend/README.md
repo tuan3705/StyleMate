@@ -51,6 +51,32 @@ Body:
 Header:
 - `Authorization: Bearer <accessToken>`
 
+## AI Auto-Fill (Lykdat)
+Base path: `/api/images`
+
+### POST `/ai-fill`
+Form-data:
+- `image`: file ảnh
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "category": "Tops",
+    "categoryConfidence": 0.96,
+    "categorySource": "labels",
+    "color": "silver",
+    "colorConfidence": 0.44,
+    "name": "set-in sleeve",
+    "nameConfidence": 0.56,
+    "candidates": {
+      "categories": []
+    }
+  }
+}
+```
+
 ## Smoke Test
 ```powershell
 npm run test:auth

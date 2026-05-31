@@ -196,6 +196,31 @@ data class UploadResponse(
 )
 
 // ═══════════════════════════════════════════════════════════════
+// 🤖 AI AUTO-FILL RESPONSE
+// ═══════════════════════════════════════════════════════════════
+
+data class AiFillCategoryCandidateDto(
+    val category: String,
+    val confidence: Double,
+    val source: String
+)
+
+data class AiFillCandidatesDto(
+    val categories: List<AiFillCategoryCandidateDto> = emptyList()
+)
+
+data class AiFillSuggestionDto(
+    val category: String?,
+    val categoryConfidence: Double,
+    val categorySource: String?,
+    val color: String?,
+    val colorConfidence: Double,
+    val name: String?,
+    val nameConfidence: Double,
+    val candidates: AiFillCandidatesDto?
+)
+
+// ═══════════════════════════════════════════════════════════════
 // 🗑️ Các class response wrapper (Backend trả về success/count/data)
 // ═══════════════════════════════════════════════════════════════
 

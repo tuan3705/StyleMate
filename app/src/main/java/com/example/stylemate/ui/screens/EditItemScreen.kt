@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -53,6 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import android.util.Log
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
@@ -107,6 +110,7 @@ fun EditItemScreen(
     )
     val pickedImagePath by imagePickerState.imagePath
     val removeBgState by imageProcessingViewModel.removeBgState.collectAsStateWithLifecycle()
+    val aiFillState by imageProcessingViewModel.aiFillState.collectAsStateWithLifecycle()
 
     val displayImagePath = pickedImagePath
         ?: uiState.imageNoBg.takeIf { it.isNotBlank() }
@@ -170,6 +174,25 @@ fun EditItemScreen(
         if (!message.isNullOrBlank()) {
             snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
             imageProcessingViewModel.clearResult()
+        }
+    }
+
+    LaunchedEffect(aiFillState.suggestion) {
+        val suggestion = aiFillState.suggestion
+        if (suggestion != null) {
+            Log.d("EditItemScreen", "AI suggestion applied: $suggestion")
+            suggestion.category?.let { viewModel.updateCategory(it) }
+            suggestion.color?.let { viewModel.updateColor(it) }
+            suggestion.name?.let { viewModel.updateName(it) }
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(aiFillState.errorMessage) {
+        val message = aiFillState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearAiFillResult()
         }
     }
 
@@ -247,12 +270,48 @@ fun EditItemScreen(
 
             Spacer(Modifier.height(8.dp))
             HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
-            Text(
-                "Item details",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Item details",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                TextButton(
+                    onClick = {
+                        val currentPath = pickedImagePath ?: uiState.imageOriginal
+                        if (currentPath.isBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                        } else {
+                            imageProcessingViewModel.fillWithAi(currentPath)
+                        }
+                    },
+                    enabled = !aiFillState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (aiFillState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Filling...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
 
             Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             ExposedDropdownMenuBox(

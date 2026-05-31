@@ -48,6 +48,16 @@ interface StylemateApiService {
         @Part file: MultipartBody.Part
     ): Response<ResponseBody>
 
+    /**
+     * POST /api/images/ai-fill
+     * AI auto-fill fields from image.
+     */
+    @Multipart
+    @POST("api/images/ai-fill")
+    suspend fun aiFillFromImage(
+        @Part file: MultipartBody.Part
+    ): Response<ApiSingleResponse<AiFillSuggestionDto>>
+
     // ═════════════════════════════════════════════════════════════
     // 🖼️ UPLOAD — /api/clothes/upload
     // ═════════════════════════════════════════════════════════════
