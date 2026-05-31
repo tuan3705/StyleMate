@@ -117,4 +117,51 @@ class ImageProcessingRepository(
                 Result.failure(e)
             }
         }
+
+    suspend fun autoTagging(localPath: String): Result<com.example.stylemate.network.AiAutoTaggingSuggestionDto> =
+        withContext(Dispatchers.IO) {
+            try {
+                val file = when {
+                    localPath.startsWith("file://") -> File(localPath.removePrefix("file://"))
+                    localPath.startsWith("content://") -> {
+                        val uri = Uri.parse(localPath)
+                        ImageStorage.copyUriToInternalStorage(context, uri, prefix = "auto_tag_input_")
+                    }
+                    else -> File(localPath)
+                }
+
+                if (!file.exists()) {
+                    return@withContext Result.failure(IllegalArgumentException("Ảnh không tồn tại"))
+                }
+
+                val extension = file.extension.lowercase(Locale.ROOT)
+                val mimeType = when (extension) {
+                    "jpg", "jpeg" -> "image/jpeg"
+                    "png" -> "image/png"
+                    "webp" -> "image/webp"
+                    "gif" -> "image/gif"
+                    "bmp" -> "image/bmp"
+                    else -> "image/*"
+                }
+                val requestBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
+                val multipartPart = MultipartBody.Part.createFormData("image", file.name, requestBody)
+
+                val response = apiService.autoTaggingFromImage(multipartPart)
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(
+                        IllegalStateException("Auto tagging thất bại: ${response.code()}")
+                    )
+                }
+
+                val body = response.body()
+                    ?: return@withContext Result.failure(IllegalStateException("Không nhận được dữ liệu"))
+                if (!body.success) {
+                    return@withContext Result.failure(IllegalStateException(body.message ?: "Auto tagging lỗi"))
+                }
+
+                Result.success(body.data)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 }

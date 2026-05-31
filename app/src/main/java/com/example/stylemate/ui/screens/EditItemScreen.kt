@@ -111,6 +111,7 @@ fun EditItemScreen(
     val pickedImagePath by imagePickerState.imagePath
     val removeBgState by imageProcessingViewModel.removeBgState.collectAsStateWithLifecycle()
     val aiFillState by imageProcessingViewModel.aiFillState.collectAsStateWithLifecycle()
+    val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsStateWithLifecycle()
 
     val displayImagePath = pickedImagePath
         ?: uiState.imageNoBg.takeIf { it.isNotBlank() }
@@ -193,6 +194,23 @@ fun EditItemScreen(
         if (!message.isNullOrBlank()) {
             snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
             imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.suggestion) {
+        val suggestion = autoTaggingState.suggestion
+        if (suggestion != null) {
+            suggestion.season?.let { viewModel.updateSeason(it) }
+            suggestion.occasion?.let { viewModel.updateOccasion(it) }
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.errorMessage) {
+        val message = autoTaggingState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearAutoTaggingResult()
         }
     }
 
@@ -282,33 +300,59 @@ fun EditItemScreen(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                TextButton(
-                    onClick = {
-                        val currentPath = pickedImagePath ?: uiState.imageOriginal
-                        if (currentPath.isBlank()) {
-                            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                Row(horizontalArrangement = Arrangement.End) {
+                    TextButton(
+                        onClick = {
+                            val currentPath = pickedImagePath ?: uiState.imageOriginal
+                            if (currentPath.isBlank()) {
+                                scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                            } else {
+                                imageProcessingViewModel.autoTagging(currentPath)
+                            }
+                        },
+                        enabled = !autoTaggingState.isProcessing,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        if (autoTaggingState.isProcessing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Tagging...")
                         } else {
-                            imageProcessingViewModel.fillWithAi(currentPath)
+                            Text("Auto tagging", style = MaterialTheme.typography.labelLarge)
                         }
-                    },
-                    enabled = !aiFillState.isProcessing,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    if (aiFillState.isProcessing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Filling...")
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(
+                        onClick = {
+                            val currentPath = pickedImagePath ?: uiState.imageOriginal
+                            if (currentPath.isBlank()) {
+                                scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                            } else {
+                                imageProcessingViewModel.fillWithAi(currentPath)
+                            }
+                        },
+                        enabled = !aiFillState.isProcessing,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        if (aiFillState.isProcessing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Filling...")
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }

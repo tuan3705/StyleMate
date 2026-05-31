@@ -58,6 +58,16 @@ interface StylemateApiService {
         @Part file: MultipartBody.Part
     ): Response<ApiSingleResponse<AiFillSuggestionDto>>
 
+    /**
+     * POST /api/images/auto-tagging
+     * Experimental auto-tagging for season/occasion.
+     */
+    @Multipart
+    @POST("api/images/auto-tagging")
+    suspend fun autoTaggingFromImage(
+        @Part file: MultipartBody.Part
+    ): Response<ApiSingleResponse<AiAutoTaggingSuggestionDto>>
+
     // ═════════════════════════════════════════════════════════════
     // 🖼️ UPLOAD — /api/clothes/upload
     // ═════════════════════════════════════════════════════════════

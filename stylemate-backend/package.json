@@ -9,6 +9,7 @@
     "test:auth": "node scripts/auth_smoke_test.js",
     "test:remove-bg": "node scripts/remove_bg_smoke_test.js",
     "test:ai-tagging": "node scripts/ai_tagging_smoke_test.js",
+    "test:auto-tagging": "node scripts/ai_autotagging_smoke_test.js",
     "push:weather": "node scripts/push_weather_now.js",
     "push:preview": "node scripts/push_weather_preview.js"
   },

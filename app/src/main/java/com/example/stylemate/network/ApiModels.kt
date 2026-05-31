@@ -220,6 +220,17 @@ data class AiFillSuggestionDto(
     val candidates: AiFillCandidatesDto?
 )
 
+data class AiAutoTagTagDto(
+    val label: String,
+    val confidence: Double? = null
+)
+
+data class AiAutoTaggingSuggestionDto(
+    val season: String?,
+    val occasion: String?,
+    val tags: List<AiAutoTagTagDto> = emptyList()
+)
+
 // ═══════════════════════════════════════════════════════════════
 // 🗑️ Các class response wrapper (Backend trả về success/count/data)
 // ═══════════════════════════════════════════════════════════════

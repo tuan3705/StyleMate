@@ -77,6 +77,27 @@ Response:
 }
 ```
 
+## Auto Tagging (Experimental)
+Base path: `/api/images`
+
+### POST `/auto-tagging`
+Form-data:
+- `image`: file ảnh
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "season": "Summer",
+    "occasion": "Casual",
+    "tags": [
+      { "label": "summer", "confidence": 0.91 }
+    ]
+  }
+}
+```
+
 ## Smoke Test
 ```powershell
 npm run test:auth

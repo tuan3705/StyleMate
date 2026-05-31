@@ -59,6 +59,7 @@ fun AddItemScreen(navController: NavController) {
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
+    val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsState()
 
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
@@ -154,6 +155,23 @@ fun AddItemScreen(navController: NavController) {
         }
     }
 
+    LaunchedEffect(autoTaggingState.suggestion) {
+        val suggestion = autoTaggingState.suggestion
+        if (suggestion != null) {
+            suggestion.season?.let { selectedSeason = it }
+            suggestion.occasion?.let { selectedOccasion = it }
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.errorMessage) {
+        val message = autoTaggingState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
     Scaffold(
         topBar = {
             LargeTopAppBar(
@@ -189,6 +207,30 @@ fun AddItemScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                        } else {
+                            imageProcessingViewModel.autoTagging(currentPath)
+                        }
+                    },
+                    enabled = !autoTaggingState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (autoTaggingState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Tagging...")
+                    } else {
+                        Text("Auto tagging", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
                 TextButton(
                     onClick = {
                         val currentPath = imagePath

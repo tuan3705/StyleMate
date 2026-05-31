@@ -1627,6 +1627,7 @@ fun NewClothingItemSheet(
         factory = ImageProcessingViewModelFactory(imageProcessingRepository)
     )
     val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
+    val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsState()
 
     // ── State ────────────────────────────────────────────────────
     var category by remember { mutableStateOf("") }
@@ -1666,6 +1667,23 @@ fun NewClothingItemSheet(
         }
     }
 
+    LaunchedEffect(autoTaggingState.suggestion) {
+        val suggestion = autoTaggingState.suggestion
+        if (suggestion != null) {
+            suggestion.season?.let { selectedSeason = it }
+            suggestion.occasion?.let { selectedOccasion = it }
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.errorMessage) {
+        val message = autoTaggingState.errorMessage
+        if (!message.isNullOrBlank()) {
+            onError(message)
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1702,33 +1720,59 @@ fun NewClothingItemSheet(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            TextButton(
-                onClick = {
-                    val currentPath = imagePath
-                    if (currentPath.isNullOrBlank()) {
-                        onError("Please select an image")
+            Row(horizontalArrangement = Arrangement.End) {
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            onError("Please select an image")
+                        } else {
+                            imageProcessingViewModel.autoTagging(currentPath)
+                        }
+                    },
+                    enabled = !autoTaggingState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (autoTaggingState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Tagging...")
                     } else {
-                        imageProcessingViewModel.fillWithAi(currentPath)
+                        Text("Auto tagging", style = MaterialTheme.typography.labelLarge)
                     }
-                },
-                enabled = !aiFillState.isProcessing,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                if (aiFillState.isProcessing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Filling...")
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            onError("Please select an image")
+                        } else {
+                            imageProcessingViewModel.fillWithAi(currentPath)
+                        }
+                    },
+                    enabled = !aiFillState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (aiFillState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Filling...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
         }

@@ -24,11 +24,20 @@ class ImageProcessingViewModel(
         val suggestion: com.example.stylemate.network.AiFillSuggestionDto? = null
     )
 
+    data class AutoTaggingUiState(
+        val isProcessing: Boolean = false,
+        val errorMessage: String? = null,
+        val suggestion: com.example.stylemate.network.AiAutoTaggingSuggestionDto? = null
+    )
+
     private val _removeBgState = MutableStateFlow(RemoveBgUiState())
     val removeBgState: StateFlow<RemoveBgUiState> = _removeBgState
 
     private val _aiFillState = MutableStateFlow(AiFillUiState())
     val aiFillState: StateFlow<AiFillUiState> = _aiFillState
+
+    private val _autoTaggingState = MutableStateFlow(AutoTaggingUiState())
+    val autoTaggingState: StateFlow<AutoTaggingUiState> = _autoTaggingState
 
     fun removeBackground(currentPath: String) {
         if (currentPath.isBlank()) return
@@ -67,6 +76,26 @@ class ImageProcessingViewModel(
         val current = _aiFillState.value
         if (current.suggestion != null || current.errorMessage != null) {
             _aiFillState.value = current.copy(suggestion = null, errorMessage = null)
+        }
+    }
+
+    fun autoTagging(currentPath: String) {
+        if (currentPath.isBlank()) return
+        viewModelScope.launch {
+            _autoTaggingState.value = AutoTaggingUiState(isProcessing = true)
+            val result = repository.autoTagging(currentPath)
+            _autoTaggingState.value = if (result.isSuccess) {
+                AutoTaggingUiState(suggestion = result.getOrNull())
+            } else {
+                AutoTaggingUiState(errorMessage = result.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    fun clearAutoTaggingResult() {
+        val current = _autoTaggingState.value
+        if (current.suggestion != null || current.errorMessage != null) {
+            _autoTaggingState.value = current.copy(suggestion = null, errorMessage = null)
         }
     }
 }
