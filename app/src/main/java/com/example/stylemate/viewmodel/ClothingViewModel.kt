@@ -119,7 +119,7 @@ class ClothingViewModel(
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),
                     imageOriginal = imagePath,
-                    imageNoBg = imagePath, // Dùng ảnh gốc cho cả 2 trường
+                    imageNoBg = "",
                     category = category,
                     color = color,
                     name = name,
@@ -162,7 +162,7 @@ class ClothingViewModel(
                     val imagePath = newImageFile.absolutePath
                     updatedItem.copy(
                         imageOriginal = imagePath,
-                        imageNoBg = imagePath
+                        imageNoBg = ""
                     )
                 } else {
                     updatedItem.copy(

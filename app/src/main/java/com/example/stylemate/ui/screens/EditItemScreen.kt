@@ -116,8 +116,13 @@ fun EditItemScreen(
     val displayImagePath = pickedImagePath
         ?: uiState.imageNoBg.takeIf { it.isNotBlank() }
         ?: uiState.imageOriginal
+    val isUsingSavedNoBg = pickedImagePath == null &&
+        uiState.imageNoBg.isNotBlank() &&
+        displayImagePath == uiState.imageNoBg
+    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
     val canRemoveBackground = displayImagePath.isNotBlank() &&
-        (uiState.imageNoBg.isBlank() || displayImagePath != uiState.imageNoBg)
+        !isUsingSavedNoBg &&
+        (lastRemoveBgPath == null || displayImagePath != lastRemoveBgPath)
 
     var relevantOutfitsRefreshKey by remember { mutableStateOf(0) }
 
@@ -150,6 +155,13 @@ fun EditItemScreen(
     LaunchedEffect(pickedImagePath) {
         if (pickedImagePath != null) {
             viewModel.updateImagePath(pickedImagePath)
+            lastRemoveBgPath = null
+        }
+    }
+
+    LaunchedEffect(uiState.imageNoBg, pickedImagePath) {
+        if (pickedImagePath == null) {
+            lastRemoveBgPath = uiState.imageNoBg.takeIf { it.isNotBlank() }
         }
     }
 
@@ -167,6 +179,7 @@ fun EditItemScreen(
             imageProcessingViewModel.clearResult()
             viewModel.saveRemovedBackground(newPath)
             relevantOutfitsRefreshKey += 1
+            lastRemoveBgPath = newPath
         }
     }
 

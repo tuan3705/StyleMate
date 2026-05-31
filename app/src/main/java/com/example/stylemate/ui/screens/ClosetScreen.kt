@@ -1628,6 +1628,7 @@ fun NewClothingItemSheet(
     )
     val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
     val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsState()
+    val removeBgState by imageProcessingViewModel.removeBgState.collectAsState()
 
     // ── State ────────────────────────────────────────────────────
     var category by remember { mutableStateOf("") }
@@ -1648,6 +1649,38 @@ fun NewClothingItemSheet(
     val isLoading by viewModel.isLoading.collectAsState()
     val imagePickerState = rememberImagePickerState(onError = onError)
     val imagePath by imagePickerState.imagePath
+    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
+
+    val canRemoveBackground = imagePath?.let { current ->
+        lastRemoveBgPath == null || current != lastRemoveBgPath
+    } ?: false
+
+    val onRemoveBackgroundClick = {
+        val currentPath = imagePath
+        if (currentPath.isNullOrBlank()) {
+            onError("Please select an image")
+        } else {
+            imageProcessingViewModel.removeBackground(currentPath)
+        }
+        Unit
+    }
+
+    LaunchedEffect(removeBgState.resultPath) {
+        val newPath = removeBgState.resultPath
+        if (!newPath.isNullOrBlank()) {
+            imagePickerState.setImagePath(newPath)
+            lastRemoveBgPath = newPath
+            imageProcessingViewModel.clearResult()
+        }
+    }
+
+    LaunchedEffect(removeBgState.errorMessage) {
+        val message = removeBgState.errorMessage
+        if (!message.isNullOrBlank()) {
+            onError(message)
+            imageProcessingViewModel.clearResult()
+        }
+    }
 
     LaunchedEffect(aiFillState.suggestion) {
         val suggestion = aiFillState.suggestion
@@ -1703,7 +1736,9 @@ fun NewClothingItemSheet(
             onCameraClick = imagePickerState.onCameraClick,
             onGalleryClick = imagePickerState.onGalleryClick,
             titleStyle = MaterialTheme.typography.labelLarge,
-            onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
+            onRemoveBgClick = onRemoveBackgroundClick,
+            isProcessing = removeBgState.isProcessing,
+            canRemoveBg = canRemoveBackground
         )
 
         Spacer(Modifier.height(24.dp))
@@ -1779,7 +1814,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── CATEGORY ─────────────────────────────────────────────
-        Text("Category", style = MaterialTheme.typography.labelLarge)
+        Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         ExposedDropdownMenuBox(
             expanded = expandedMenu,
@@ -1819,7 +1854,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── COLOR ───────────────────────────────────────────────
-        Text("Color", style = MaterialTheme.typography.labelLarge)
+        Text("Color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = color,
@@ -1834,7 +1869,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── ITEM NAME ────────────────────────────────────────────
-        Text("Item Name", style = MaterialTheme.typography.labelLarge)
+        Text("Item Name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = itemName,
@@ -1850,7 +1885,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── BRAND ────────────────────────────────────────────────
-        Text("Brand", style = MaterialTheme.typography.labelLarge)
+        Text("Brand", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = brand,
@@ -1866,7 +1901,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── PRICE ───────────────────────────────────────────────
-        Text("Price", style = MaterialTheme.typography.labelLarge)
+        Text("Price", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = price,
@@ -1888,7 +1923,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── SEASON ───────────────────────────────────────────────
-        Text("Season", style = MaterialTheme.typography.labelLarge)
+        Text("Season", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier
@@ -1910,7 +1945,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ─ OCCASION ─────────────────────────────────────────────
-        Text("Occasion", style = MaterialTheme.typography.labelLarge)
+        Text("Occasion", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier
@@ -1932,7 +1967,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── PURCHASE DATE ───────────────────────────────────────
-        Text("Purchase Date", style = MaterialTheme.typography.labelLarge)
+        Text("Purchase Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
