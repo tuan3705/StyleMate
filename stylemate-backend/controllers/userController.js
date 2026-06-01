@@ -21,12 +21,14 @@ const { AppError } = require('../middleware/errorHandler');
  * Body:
  *   - userId: String (bắt buộc) — UUID do Client sinh
  *   - fcmToken: String (bắt buộc) — FCM Token từ Firebase
- * 
+ *   - latitude: Number (tùy chọn) — Vĩ độ
+ *   - longitude: Number (tùy chọn) — Kinh độ
+ *
  * Response 200 (update): { success: true, message: "Đã cập nhật", data: {...} }
  * Response 201 (create): { success: true, message: "Đã tạo mới", data: {...} }
  */
 const saveOrUpdateFcmToken = asyncHandler(async (req, res) => {
-  const { userId, fcmToken } = req.body;
+  const { userId, fcmToken, latitude, longitude } = req.body;
 
   // Validation
   if (!userId) {
@@ -43,7 +45,25 @@ const saveOrUpdateFcmToken = asyncHandler(async (req, res) => {
     });
   }
 
+  if (latitude !== undefined && Number.isNaN(Number(latitude))) {
+    return res.status(400).json({
+      success: false,
+      message: 'latitude phải là số hợp lệ'
+    });
+  }
+
+  if (longitude !== undefined && Number.isNaN(Number(longitude))) {
+    return res.status(400).json({
+      success: false,
+      message: 'longitude phải là số hợp lệ'
+    });
+  }
+
   const trimmedToken = fcmToken.trim();
+  const locationUpdate = {
+    ...(latitude !== undefined ? { latitude: Number(latitude) } : {}),
+    ...(longitude !== undefined ? { longitude: Number(longitude) } : {})
+  };
 
   // Kiểm tra xem user này đã có record chưa
   const existingByUser = await UserDevice.findOne({ userId });
@@ -51,6 +71,9 @@ const saveOrUpdateFcmToken = asyncHandler(async (req, res) => {
   if (existingByUser) {
     // User đã tồn tại → Cập nhật token
     existingByUser.fcmToken = trimmedToken;
+    if (Object.keys(locationUpdate).length > 0) {
+      Object.assign(existingByUser, locationUpdate);
+    }
     existingByUser.updatedAt = Date.now();
     await existingByUser.save();
 
@@ -67,6 +90,9 @@ const saveOrUpdateFcmToken = asyncHandler(async (req, res) => {
   if (existingByToken) {
     // Token đã tồn tại → Cập nhật userId cho token này
     existingByToken.userId = userId;
+    if (Object.keys(locationUpdate).length > 0) {
+      Object.assign(existingByToken, locationUpdate);
+    }
     existingByToken.updatedAt = Date.now();
     await existingByToken.save();
 
@@ -81,6 +107,7 @@ const saveOrUpdateFcmToken = asyncHandler(async (req, res) => {
   const newDevice = await UserDevice.create({
     userId,
     fcmToken: trimmedToken,
+    ...locationUpdate,
     createdAt: Date.now(),
     updatedAt: Date.now()
   });

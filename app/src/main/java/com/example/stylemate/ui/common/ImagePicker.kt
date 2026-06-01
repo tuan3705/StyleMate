@@ -8,17 +8,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,12 +30,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.stylemate.data.local.ImageStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -44,13 +49,16 @@ import java.io.File
 class ImagePickerState internal constructor(
     val imagePath: State<String?>,
     val onCameraClick: () -> Unit,
-    val onGalleryClick: () -> Unit
+    val onGalleryClick: () -> Unit,
+    val onRemoveBackgroundClick: () -> Unit,
+    val setImagePath: (String?) -> Unit
 )
 
 @Composable
 fun rememberImagePickerState(
     context: Context = LocalContext.current,
     coroutineScope: CoroutineScope = rememberCoroutineScope(),
+    onRemoveBackground: () -> Unit = {},
     onError: (String) -> Unit
 ): ImagePickerState {
     val imagePathState = remember { mutableStateOf<String?>(null) }
@@ -125,7 +133,9 @@ fun rememberImagePickerState(
     return ImagePickerState(
         imagePath = imagePathState,
         onCameraClick = onCameraClick,
-        onGalleryClick = onGalleryClick
+        onGalleryClick = onGalleryClick,
+        onRemoveBackgroundClick = onRemoveBackground,
+        setImagePath = { newPath -> imagePathState.value = newPath }
     )
 }
 
@@ -135,9 +145,12 @@ fun ImagePickerSection(
     imagePath: String?,
     onCameraClick: () -> Unit,
     onGalleryClick: () -> Unit,
+    onRemoveBgClick: () -> Unit,
     modifier: Modifier = Modifier,
     titleStyle: TextStyle = MaterialTheme.typography.titleMedium,
-    showPreview: Boolean = true
+    showPreview: Boolean = true,
+    isProcessing: Boolean = false,
+    canRemoveBg: Boolean = true
 ) {
     Text(title, style = titleStyle, fontWeight = FontWeight.SemiBold)
     Row(
@@ -146,7 +159,7 @@ fun ImagePickerSection(
     ) {
         FilledTonalButton(
             onClick = onCameraClick,
-            modifier = Modifier.height(48.dp)
+            modifier = Modifier.height(48.dp).weight(1f)
         ) {
             Icon(Icons.Default.PhotoCamera, contentDescription = null)
             Spacer(Modifier.width(8.dp))
@@ -154,7 +167,7 @@ fun ImagePickerSection(
         }
         FilledTonalButton(
             onClick = onGalleryClick,
-            modifier = Modifier.height(48.dp)
+            modifier = Modifier.height(48.dp).weight(1f)
         ) {
             Icon(Icons.Default.PhotoLibrary, contentDescription = null)
             Spacer(Modifier.width(8.dp))
@@ -162,19 +175,59 @@ fun ImagePickerSection(
         }
     }
 
-    if (showPreview && imagePath != null) {
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val screenHeightDp = configuration.screenHeightDp
+    val minPreviewSize = (screenHeightDp * 0.3f).dp
+    val maxPreviewSize = (screenHeightDp * 0.4f).dp
+    
+    val isImageSelected = !imagePath.isNullOrBlank()
+    
+    val imageRequest = remember(imagePath, context) {
+        imagePath
+            ?.takeIf { it.isNotBlank() }
+            ?.let { path -> resolveImageData(context, path) }
+            ?.let { data ->
+                ImageRequest.Builder(context)
+                    .data(data)
+                    .crossfade(true)
+                    .build()
+            }
+    }
+
+    if (showPreview && imageRequest != null) {
         Spacer(Modifier.height(8.dp))
-        Card(
+        Box(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Image selected: ${imagePath.substringAfterLast("/")}",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                style = MaterialTheme.typography.bodySmall
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = "Selected image",
+                modifier = Modifier.sizeIn(
+                    minWidth = minPreviewSize,
+                    minHeight = minPreviewSize,
+                    maxWidth = maxPreviewSize,
+                    maxHeight = maxPreviewSize
+                ),
+                contentScale = ContentScale.Fit
             )
         }
+    }
+    
+    Spacer(Modifier.height(8.dp))
+    
+    // Nút Xoá nền ảnh
+    FilledTonalButton(
+        onClick = onRemoveBgClick,
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+        enabled = isImageSelected && !isProcessing && canRemoveBg
+    ) {
+        Icon(
+            imageVector = Icons.Default.AutoAwesome,
+            contentDescription = null
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(if (isProcessing) "Removing..." else "Remove Background")
     }
 }

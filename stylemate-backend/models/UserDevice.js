@@ -21,6 +21,14 @@ const userDeviceSchema = new mongoose.Schema({
     unique: true, // Mỗi token là duy nhất
     trim: true
   },
+  latitude: {
+    type: Number,
+    default: null
+  },
+  longitude: {
+    type: Number,
+    default: null
+  },
   createdAt: {
     type: Number,
     default: () => Date.now()

@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Stylist Chat Session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sessionId", "userId", "messages", "context"],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Unique session identifier"
+    },
+    "userId": {
+      "type": "string",
+      "description": "User ID who owns this session"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "lastAccessedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "messages": {
+      "type": "array",
+      "description": "Chat message history",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "content", "timestamp"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["user", "assistant"]
+          },
+          "content": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Text message from user"
+              },
+              {
+                "type": "object",
+                "description": "Structured response from AI",
+                "additionalProperties": false,
+                "required": ["message"],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "suggested_outfits": {
+                    "type": "array",
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "description": "Session context (weather, location, preferences)",
+      "properties": {
+        "weather": {
+          "type": "object",
+          "properties": {
+            "temperature": { "type": "number" },
+            "condition": { "type": "string" },
+            "location": { "type": "string" }
+          }
+        },
+        "location": {
+          "type": "string"
+        },
+        "userProfile": {
+          "type": "object",
+          "properties": {
+            "gender": { "type": "string" },
+            "style": { "type": "string" },
+            "colorPreference": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "selectedItems": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "occasion": {
+          "type": "string"
+        }
+      }
+    },
+    "suggestedOutfits": {
+      "type": "array",
+      "description": "Outfits suggested during this session",
+      "items": {
+        "type": "object",
+        "properties": {
+          "outfits": { "type": "array" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "messageIndex": { "type": "integer" }
+        }
+      }
+    },
+    "selectedOutfit": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "object" }
+      ]
+    }
+  }
+}

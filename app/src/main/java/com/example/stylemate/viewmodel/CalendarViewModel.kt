@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -77,11 +78,14 @@ class CalendarViewModel(
      * API observeEventByDate chỉ là one-shot Flow → cần trigger refresh thủ công.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val eventForSelectedDate: StateFlow<CalendarEventEntity?> = _refreshTrigger
-        .flatMapLatest { _ ->
-            _selectedDate.value.let { date ->
-                calendarRepository.observeEventByDate(date)
-            }
+    val eventForSelectedDate: StateFlow<CalendarEventEntity?> = combine(
+        _selectedDate,
+        _refreshTrigger
+    ) { date, _ ->
+        date
+    }
+        .flatMapLatest { date ->
+            calendarRepository.observeEventByDate(date)
         }
         .stateIn(
             scope = viewModelScope,

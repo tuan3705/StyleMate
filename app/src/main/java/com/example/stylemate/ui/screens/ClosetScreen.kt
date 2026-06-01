@@ -1,5 +1,10 @@
 package com.example.stylemate.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,8 +15,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -22,6 +30,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.consumePositionChange
 import androidx.compose.ui.draw.alpha
@@ -36,8 +47,11 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,7 +59,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.layout.ContentScale
-import android.net.Uri
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,13 +75,18 @@ import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
+import com.example.stylemate.repository.ImageProcessingRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
+import com.example.stylemate.ui.common.resolveImageData
+import com.example.stylemate.viewmodel.ImageProcessingViewModel
+import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import com.example.stylemate.viewmodel.OutfitViewModel
 import com.example.stylemate.viewmodel.OutfitViewModelFactory
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -92,7 +110,11 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClosetScreen() {
+fun ClosetScreen(
+    onEditItem: (String) -> Unit,
+    refreshSignal: StateFlow<Boolean>,
+    onRefreshConsumed: () -> Unit
+) {
     val context = LocalContext.current
 
     // ── Khởi tạo Repositories & ViewModels (dùng RetrofitClient thay AppDatabase) ─
@@ -109,7 +131,8 @@ fun ClosetScreen() {
 
     // ── Collect StateFlows (Items) ──────────────────────────────
     val selectedCategory by clothingVM.selectedCategory.collectAsStateWithLifecycle()
-    val items by clothingVM.items.collectAsStateWithLifecycle()
+    val filteredItems by clothingVM.filteredItems.collectAsStateWithLifecycle()
+    val searchQuery by clothingVM.searchQuery.collectAsStateWithLifecycle()
     val isItemsLoading by clothingVM.isLoading.collectAsStateWithLifecycle()
     val errorMessage by clothingVM.errorMessage.collectAsStateWithLifecycle()
     val allClosetItems by clothingRepo.getAllItems().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -128,6 +151,8 @@ fun ClosetScreen() {
     var showCreateOutfitSheet by remember { mutableStateOf(false) } // Tạo outfit
     var showOutfitEditor by remember { mutableStateOf(false) }
     var showAddItemsSheet by remember { mutableStateOf(false) }
+    var showSearchBar by rememberSaveable { mutableStateOf(false) }
+    val itemsGridState = rememberLazyGridState()
     // Mỗi BottomSheet có sheetState riêng để vuốt mượt, không conflict
     val quickAddSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val createOutfitSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -136,6 +161,28 @@ fun ClosetScreen() {
 
     val allCategories = listOf(Categories.ALL) + Categories.list
     val tabs = listOf("Món đồ", "Bộ đồ")
+    val isItemsAtTop by remember {
+        derivedStateOf {
+            itemsGridState.firstVisibleItemIndex == 0 &&
+                itemsGridState.firstVisibleItemScrollOffset == 0
+        }
+    }
+    val itemsScrollConnection = remember(itemsGridState, selectedTab) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (selectedTab != 0) return Offset.Zero
+                if (!isItemsAtTop) {
+                    showSearchBar = false
+                    return Offset.Zero
+                }
+                when {
+                    available.y > 0 -> showSearchBar = true
+                    available.y < 0 -> showSearchBar = false
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     // ── Snackbar error ──────────────────────────────────────────
     LaunchedEffect(errorMessage) {
@@ -150,12 +197,25 @@ fun ClosetScreen() {
             outfitVM.clearError()
         }
     }
+    LaunchedEffect(isItemsAtTop, selectedTab) {
+        if (selectedTab != 0 || !isItemsAtTop) {
+            showSearchBar = false
+        }
+    }
+
+    val refreshRequested by refreshSignal.collectAsStateWithLifecycle()
 
     LaunchedEffect(editSaveSuccess) {
         if (editSaveSuccess) {
             showOutfitEditor = false
             showAddItemsSheet = false
             outfitVM.clearEditSaveSuccess()
+        }
+    }
+    LaunchedEffect(refreshRequested) {
+        if (refreshRequested) {
+            clothingVM.refreshItems()
+            onRefreshConsumed()
         }
     }
 
@@ -201,6 +261,22 @@ fun ClosetScreen() {
                 }
             }
 
+            AnimatedVisibility(
+                visible = selectedTab == 0 && showSearchBar,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.height(8.dp))
+                    ClosetSearchBar(
+                        query = searchQuery,
+                        onQueryChange = clothingVM::updateSearchQuery,
+                        onClearQuery = clothingVM::clearSearchQuery
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+            }
+
             // ── TabRow ──────────────────────────────────────────
             TabRow(
                 selectedTabIndex = selectedTab,
@@ -227,13 +303,17 @@ fun ClosetScreen() {
             // TAB 0: MÓN ĐỒ (Giữ nguyên logic cũ)
             // ═══════════════════════════════════════════════════════
             if (selectedTab == 0) {
-                ItemsTabContent(
-                    clothingVM = clothingVM,
-                    selectedCategory = selectedCategory,
-                    items = items,
-                    isLoading = isItemsLoading,
-                    allCategories = allCategories
-                )
+            ItemsTabContent(
+                clothingVM = clothingVM,
+                selectedCategory = selectedCategory,
+                items = filteredItems,
+                searchQuery = searchQuery,
+                isLoading = isItemsLoading,
+                allCategories = allCategories,
+                gridState = itemsGridState,
+                nestedScrollConnection = itemsScrollConnection,
+                onItemClick = { itemId -> onEditItem(itemId) }
+            )
             }
             // ═══════════════════════════════════════════════════════
             // TAB 1: BỘ ĐỒ
@@ -336,7 +416,45 @@ fun ClosetScreen() {
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
+@Composable
+private fun ClosetSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        placeholder = { Text("Tìm món đồ") },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = "Search")
+        },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(
+                    onClick = {
+                        onClearQuery()
+                        focusManager.clearFocus()
+                    }
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { focusManager.clearFocus() }
+        )
+    )
+}
+
+// ════════════════════════════════════════════════════════════════
 // 🔷 TAB 0: ItemsTabContent (Canvas view)
 // ═════════════════════════════════════════════════════════════════
 
@@ -345,8 +463,12 @@ private fun ItemsTabContent(
     clothingVM: ClothingViewModel,
     selectedCategory: String,
     items: List<ClothingItemEntity>,
+    searchQuery: String,
     isLoading: Boolean,
-    allCategories: List<String>
+    allCategories: List<String>,
+    gridState: LazyGridState,
+    nestedScrollConnection: NestedScrollConnection,
+    onItemClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Category Filter Buttons ──────────────────────────────
@@ -375,38 +497,51 @@ private fun ItemsTabContent(
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.TopCenter
         ) {
-            when {
-                isLoading -> CircularProgressIndicator()
-                items.isEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!",
-                            color = Color.Gray,
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            else -> {
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
                 LazyVerticalGrid(
+                    state = gridState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(nestedScrollConnection),
                     columns = GridCells.Fixed(2),
                     contentPadding = PaddingValues(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(items, key = { it.id }) { clothingItem ->
-                        ClothingItemCard(
-                            item = clothingItem,
-                            onDelete = { clothingVM.deleteClothingItem(clothingItem) }
-                        )
+                    if (items.isEmpty()) {
+                        val isSearching = searchQuery.isNotBlank()
+                        val emptyMessage = if (isSearching) {
+                            "Không tìm thấy món đồ phù hợp"
+                        } else {
+                            "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!"
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = emptyMessage,
+                                    color = Color.Gray,
+                                    fontSize = 16.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    } else {
+                        items(items, key = { it.id }) { clothingItem ->
+                            ClothingItemCard(
+                                item = clothingItem,
+                                onClick = { onItemClick(clothingItem.id) },
+                                onDelete = { clothingVM.deleteClothingItem(clothingItem) }
+                            )
+                        }
                     }
                 }
-            }
             }
         }
     }
@@ -1018,7 +1153,7 @@ private fun AddItemSelectCard(
 //   - Click vào item → thêm/xoá khỏi draft (toggle)
 //   - Item đã chọn → viền xanh + icon check
 //   - Lưu xong → đóng sheet + clear draft
-// ═════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1077,7 +1212,7 @@ private fun CreateOutfitBottomSheetContent(
 
         Spacer(Modifier.height(8.dp))
 
-        // ── Badge hiển thị số lượng đã chọn ─────────────────────
+        // ── Badge hiển thị số lượng đã chọn ───────────────────
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Chọn món đồ",
@@ -1147,7 +1282,7 @@ private fun CreateOutfitBottomSheetContent(
 
         Spacer(Modifier.height(20.dp))
 
-        // ── Nút Lưu ─────────────────────────────────────────────
+        // ── Nút Lưu ────────────────────────────────────────────
         Button(
             onClick = {
                 outfitVM.saveOutfit(outfitName)
@@ -1173,9 +1308,9 @@ private fun CreateOutfitBottomSheetContent(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // 🔷 SelectableItemCard — Item trong grid có thể chọn/bỏ chọn
-// ═════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 //
 // 🎯 Visual feedback:
 //   - Đã chọn: viền xanh 3dp + overlay icon ✅ góc trên
@@ -1186,7 +1321,8 @@ private fun CreateOutfitBottomSheetContent(
 private fun SelectableItemCard(
     item: ClothingItemEntity,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     val borderColor = if (isSelected) Color(0xFF4CAF50) else Color.Transparent
     val borderWidth = if (isSelected) 3.dp else 0.dp
@@ -1255,19 +1391,56 @@ private fun SelectableItemCard(
                     .background(Color.Black.copy(alpha = 0.4f))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text = item.category,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-                if (item.brand.isNotBlank()) {
+                if (item.name.isNotBlank()) {
                     Text(
-                        text = item.brand,
+                        text = item.name,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.category,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    if (item.brand.isNotBlank()) {
+                        Text(
+                            text = item.brand,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = item.color,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                }
+            }
+            if (onDelete != null) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete item",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .background(Color.Red.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                            .padding(4.dp)
                     )
                 }
             }
@@ -1275,20 +1448,22 @@ private fun SelectableItemCard(
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // 🃏 ClothingItemCard — Card hiển thị một clothing item (GIỮ NGUYÊN)
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
 fun ClothingItemCard(
     item: ClothingItemEntity,
+    onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     val imageModel = rememberItemImageModel(item)
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp),
+            .height(180.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -1370,7 +1545,7 @@ fun ClothingItemCard(
                 modifier = Modifier.align(Alignment.TopEnd)
             ) {
                 Icon(
-                    Icons.Default.Delete,
+                    imageVector = Icons.Default.Delete,
                     contentDescription = "Delete item",
                     tint = Color.White,
                     modifier = Modifier
@@ -1386,37 +1561,8 @@ fun ClothingItemCard(
 private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
-        fun resolveData(path: String): Any? {
-            if (path.isBlank()) return null
-
-            // ── HTTP/HTTPS URL (ảnh từ server) ────────────────
-            if (path.startsWith("http://") || path.startsWith("https://")) {
-                return path // Coil nhận String URL trực tiếp
-            }
-
-            // ── content:// URI (từ camera/gallery) ────────────
-            if (path.startsWith("content://") || path.startsWith("file://")) {
-                return Uri.parse(path)
-            }
-
-            // ── Đường dẫn file tuyệt đối (vd: /data/.../abc.jpg) ─
-            val file = File(path)
-            if (file.isAbsolute && file.exists()) return file
-
-            // ── Đường dẫn tương đối từ filesDir ─────────────────
-            val internalFile = File(context.filesDir, path)
-            if (internalFile.exists()) return internalFile
-
-            // ── File trong thư mục images/ ─────────────────────
-            val imagesDir = File(context.filesDir, "images")
-            val byName = File(imagesDir, File(path).name)
-            if (byName.exists()) return byName
-
-            // ── Fallback: trả về path gốc cho Coil tự xử lý ────
-            return path
-        }
-
-        val data = resolveData(item.imageOriginal) ?: resolveData(item.imageNoBg)
+        val data = resolveImageData(context, item.imageNoBg)
+            ?: resolveImageData(context, item.imageOriginal)
         data?.let {
             ImageRequest.Builder(context)
                 .data(it)
@@ -1454,9 +1600,9 @@ private fun getCategoryIcon(category: String): String = when (category) {
 
 private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "Bags", "Accessories", "Jewelry")
 
-// ═════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 // 📝 NewClothingItemSheet — Bottom sheet thêm item mới (giữ lại)
-// ═════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1465,7 +1611,7 @@ fun NewClothingItemSheet(
     onItemAdded: () -> Unit,
     onError: (String) -> Unit
 ) {
-    // ── Focus management ──────────────────────────────────────────
+    // ── Focus management ─────────────────────────────────────────
     // Mỗi field có FocusRequester riêng, bấm Enter/Done → nhảy field tiếp
     val focusManager = LocalFocusManager.current
     val categoryFocus = remember { FocusRequester() }
@@ -1473,6 +1619,15 @@ fun NewClothingItemSheet(
     val nameFocus = remember { FocusRequester() }
     val brandFocus = remember { FocusRequester() }
     val priceFocus = remember { FocusRequester() }
+
+    val context = LocalContext.current
+    val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
+    val imageProcessingRepository = ImageProcessingRepository(apiService, context)
+    val imageProcessingViewModel: ImageProcessingViewModel = viewModel(
+        factory = ImageProcessingViewModelFactory(imageProcessingRepository)
+    )
+    val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
+    val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsState()
 
     // ── State ────────────────────────────────────────────────────
     var category by remember { mutableStateOf("") }
@@ -1494,6 +1649,41 @@ fun NewClothingItemSheet(
     val imagePickerState = rememberImagePickerState(onError = onError)
     val imagePath by imagePickerState.imagePath
 
+    LaunchedEffect(aiFillState.suggestion) {
+        val suggestion = aiFillState.suggestion
+        if (suggestion != null) {
+            suggestion.category?.let { category = it }
+            suggestion.color?.let { color = it }
+            suggestion.name?.let { itemName = it }
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(aiFillState.errorMessage) {
+        val message = aiFillState.errorMessage
+        if (!message.isNullOrBlank()) {
+            onError(message)
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.suggestion) {
+        val suggestion = autoTaggingState.suggestion
+        if (suggestion != null) {
+            suggestion.season?.let { selectedSeason = it }
+            suggestion.occasion?.let { selectedOccasion = it }
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.errorMessage) {
+        val message = autoTaggingState.errorMessage
+        if (!message.isNullOrBlank()) {
+            onError(message)
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1512,9 +1702,80 @@ fun NewClothingItemSheet(
             imagePath = imagePath,
             onCameraClick = imagePickerState.onCameraClick,
             onGalleryClick = imagePickerState.onGalleryClick,
-            titleStyle = MaterialTheme.typography.labelLarge
+            titleStyle = MaterialTheme.typography.labelLarge,
+            onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
         )
 
+        Spacer(Modifier.height(24.dp))
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                "Item details",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Row(horizontalArrangement = Arrangement.End) {
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            onError("Please select an image")
+                        } else {
+                            imageProcessingViewModel.autoTagging(currentPath)
+                        }
+                    },
+                    enabled = !autoTaggingState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (autoTaggingState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Tagging...")
+                    } else {
+                        Text("Auto tagging", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            onError("Please select an image")
+                        } else {
+                            imageProcessingViewModel.fillWithAi(currentPath)
+                        }
+                    },
+                    enabled = !aiFillState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (aiFillState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Filling...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
         Spacer(Modifier.height(12.dp))
 
         // ── CATEGORY ─────────────────────────────────────────────
@@ -1557,7 +1818,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── COLOR ────────────────────────────────────────────────
+        // ── COLOR ───────────────────────────────────────────────
         Text("Color", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -1604,7 +1865,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── PRICE ────────────────────────────────────────────────
+        // ── PRICE ───────────────────────────────────────────────
         Text("Price", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
@@ -1648,7 +1909,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── OCCASION ─────────────────────────────────────────────
+        // ─ OCCASION ─────────────────────────────────────────────
         Text("Occasion", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         Row(
@@ -1670,7 +1931,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(12.dp))
 
-        // ── PURCHASE DATE ────────────────────────────────────────
+        // ── PURCHASE DATE ───────────────────────────────────────
         Text("Purchase Date", style = MaterialTheme.typography.labelLarge)
         Spacer(Modifier.height(4.dp))
         OutlinedCard(
@@ -1706,7 +1967,7 @@ fun NewClothingItemSheet(
 
         Spacer(Modifier.height(24.dp))
 
-        // ── ADD BUTTON ───────────────────────────────────────────
+        // ── ADD BUTTON ──────────────────────────────────────────
         Button(
             onClick = {
                 if (imagePath == null) {

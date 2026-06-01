@@ -35,6 +35,16 @@ const dotenv = require('dotenv');
 // Load biến môi trường từ file .env
 dotenv.config();
 
+// ═══════════════════════════════════════════════════════════════
+// 📁 Tự động tạo thư mục uploads/ nếu chưa có
+// ═══════════════════════════════════════════════════════════════
+const fs = require('fs');
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('📁 Đã tạo thư mục uploads/');
+}
+
 // Khởi tạo Express app
 const app = express();
 
@@ -43,6 +53,7 @@ const connectDatabase = require('./config/database');
 
 // Routes
 const mountRoutes = require('./routes/index');
+const { startScheduler } = require('./cron/scheduler');
 
 // Middleware xử lý lỗi
 const {
@@ -146,6 +157,8 @@ const startServer = async () => {
       console.log(`║  User/FCM:   http://localhost:${PORT}/api/user/fcm-token`);
       console.log('╚═══════════════════════════════════════════════╝');
     });
+
+    startScheduler();
   } catch (error) {
     console.error('❌ Lỗi khởi động server:', error.message);
     process.exit(1);

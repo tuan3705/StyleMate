@@ -196,44 +196,39 @@ data class UploadResponse(
 )
 
 // ═══════════════════════════════════════════════════════════════
-// 🤖 AI STYLIST CHAT
+// 🤖 AI AUTO-FILL RESPONSE
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Request body for AI Stylist Chat endpoint.
- */
-data class ChatRequest(
-    val userId: String?,
-    val message: String,
-    val lat: Double?,
-    val lon: Double?,
-    val selectedItemIds: List<String>? = null
+data class AiFillCategoryCandidateDto(
+    val category: String,
+    val confidence: Double,
+    val source: String
 )
 
-/**
- * DTO for a suggested outfit from LLM.
- */
-data class SuggestedOutfitDto(
-    val id: String,
-    val top_id: String?,
-    val bottom_id: String?,
-    val shoes_id: String?,
-    val image_urls: Map<String, String>?,
-    val reason: String?
+data class AiFillCandidatesDto(
+    val categories: List<AiFillCategoryCandidateDto> = emptyList()
 )
 
-/**
- * Response from AI Stylist Chat endpoint.
- * Note: Backend returns { success: true, message: "...", suggested_outfits: [...] }
- * but our Retrofit interface wraps it in ApiSingleResponse if we want the 'success' flag,
- * OR we can define the full response structure directly.
- * Let's follow the pattern of ApiSingleResponse but the backend response for chat
- * is slightly different (it doesn't have a nested 'data' field, it has 'message' and 'suggested_outfits' at root).
- */
-data class ChatResponse(
-    val success: Boolean,
-    val message: String,
-    val suggested_outfits: List<SuggestedOutfitDto>?
+data class AiFillSuggestionDto(
+    val category: String?,
+    val categoryConfidence: Double,
+    val categorySource: String?,
+    val color: String?,
+    val colorConfidence: Double,
+    val name: String?,
+    val nameConfidence: Double,
+    val candidates: AiFillCandidatesDto?
+)
+
+data class AiAutoTagTagDto(
+    val label: String,
+    val confidence: Double? = null
+)
+
+data class AiAutoTaggingSuggestionDto(
+    val season: String?,
+    val occasion: String?,
+    val tags: List<AiAutoTagTagDto> = emptyList()
 )
 
 // ═══════════════════════════════════════════════════════════════
@@ -255,4 +250,26 @@ data class ApiSingleResponse<T>(
     val success: Boolean,
     val message: String?,
     val data: T
+)
+
+// ═══════════════════════════════════════════════════════════════
+// 🔔 FCM TOKEN
+// ═══════════════════════════════════════════════════════════════
+
+data class FcmTokenRequest(
+    val userId: String,
+    val fcmToken: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
+
+data class UserDeviceDto(
+    @SerializedName("_id")
+    val id: String,
+    val userId: String,
+    val fcmToken: String,
+    val latitude: Double?,
+    val longitude: Double?,
+    val createdAt: Long,
+    val updatedAt: Long
 )

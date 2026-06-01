@@ -297,20 +297,4 @@ interface StylemateApiService {
         @Query("lat") lat: Double,
         @Query("lon") lon: Double
     ): Response<com.example.stylemate.model.weather.WeatherApiResponse>
-
-    // ═════════════════════════════════════════════════════════════
-    // 🤖 AI STYLIST — /api/ai-stylist
-    // ═════════════════════════════════════════════════════════════
-
-    /**
-     * POST /api/ai-stylist/chat
-     * Gửi tin nhắn cho AI Stylist (Gemini) để nhận gợi ý.
-     *
-     * @param request ChatRequest chứa message, vị trí và context
-     * @return ChatResponse chứa câu trả lời và danh sách trang phục gợi ý
-     */
-    @POST("api/ai-stylist/chat")
-    suspend fun chatWithAi(
-        @Body request: ChatRequest
-    ): Response<ChatResponse>
 }

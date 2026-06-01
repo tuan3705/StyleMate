@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,11 +23,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import android.util.Log
 import com.example.stylemate.repository.ClothingRepository
+import com.example.stylemate.repository.ImageProcessingRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
+import com.example.stylemate.viewmodel.ImageProcessingViewModel
+import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -35,18 +40,10 @@ import java.util.Locale
 
 /**
  * 📸 Màn hình Thêm đồ mới (AddItemScreen).
- *
- * 📐 Luồng dữ liệu:
- *   UI ← collect StateFlow (isLoading, errorMessage) ← ClothingViewModel
- *   UI → gọi addClothingItem() → ClothingViewModel → ClothingRepository → Room
- *
- * 🔐 Xử lý loading: Khi isLoading == true, nút bị vô hiệu hoá + hiển thị spinner.
- * 🔐 Xử lý lỗi: errorMessage được show qua Snackbar, tự động clear.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddItemScreen(navController: NavController) {
-    // ── Khởi tạo ViewModel (dùng RetrofitClient thay AppDatabase) ─
     val context = LocalContext.current
     val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
     val repository = ClothingRepository(apiService, context)
@@ -54,37 +51,57 @@ fun AddItemScreen(navController: NavController) {
         factory = ClothingViewModelFactory(repository)
     )
 
-    // ── Collect StateFlow từ ViewModel ───────────────────────────
+    val imageProcessingRepository = ImageProcessingRepository(apiService, context)
+    val imageProcessingViewModel: ImageProcessingViewModel = viewModel(
+        factory = ImageProcessingViewModelFactory(imageProcessingRepository)
+    )
+
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
+    val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsState()
 
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ── Local state cho form ─────────────────────────────────────
     val imagePickerState = rememberImagePickerState(
+        onRemoveBackground = {},
         onError = { message ->
             scope.launch { snackbarHostState.showSnackbar(message) }
         }
     )
     val imagePath by imagePickerState.imagePath
+    val removeBgState by imageProcessingViewModel.removeBgState.collectAsState()
+    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
+
+    val canRemoveBackground = imagePath?.let { current ->
+        lastRemoveBgPath == null || current != lastRemoveBgPath
+    } ?: false
+
+    val onRemoveBackgroundClick = {
+        val currentPath = imagePath
+        if (currentPath.isNullOrBlank()) {
+            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+        } else {
+            imageProcessingViewModel.removeBackground(currentPath)
+        }
+        Unit
+    }
+
     var category by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
 
-    // 🔸 Các state mới cho trường chi tiết
     var itemName by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var selectedSeason by remember { mutableStateOf("") }
     var selectedOccasion by remember { mutableStateOf("") }
     var purchaseDate by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    // State để hiển thị ngày đã chọn dưới dạng text
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     var purchaseDateText by remember {
         mutableStateOf(dateFormat.format(Date()))
     }
-    // 📅 State cho DatePickerDialog
     var showDatePicker by remember { mutableStateOf(false) }
 
     val categories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "Bags", "Accessories", "Jewelry")
@@ -92,7 +109,6 @@ fun AddItemScreen(navController: NavController) {
     val occasions = listOf("Casual", "Work", "Sports", "Formal")
     var expandedMenu by remember { mutableStateOf(false) }
 
-    // ── Hiển thị Snackbar khi có lỗi ─────────────────────────────
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(
@@ -100,6 +116,59 @@ fun AddItemScreen(navController: NavController) {
                 duration = SnackbarDuration.Short
             )
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(removeBgState.resultPath) {
+        val newPath = removeBgState.resultPath
+        if (!newPath.isNullOrBlank()) {
+            imagePickerState.setImagePath(newPath)
+            lastRemoveBgPath = newPath
+            imageProcessingViewModel.clearResult()
+        }
+    }
+
+    LaunchedEffect(removeBgState.errorMessage) {
+        val message = removeBgState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearResult()
+        }
+    }
+
+    LaunchedEffect(aiFillState.suggestion) {
+        val suggestion = aiFillState.suggestion
+        if (suggestion != null) {
+            Log.d("AddItemScreen", "AI suggestion applied: $suggestion")
+            suggestion.category?.let { category = it }
+            suggestion.color?.let { color = it }
+            suggestion.name?.let { itemName = it }
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(aiFillState.errorMessage) {
+        val message = aiFillState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearAiFillResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.suggestion) {
+        val suggestion = autoTaggingState.suggestion
+        if (suggestion != null) {
+            suggestion.season?.let { selectedSeason = it }
+            suggestion.occasion?.let { selectedOccasion = it }
+            imageProcessingViewModel.clearAutoTaggingResult()
+        }
+    }
+
+    LaunchedEffect(autoTaggingState.errorMessage) {
+        val message = autoTaggingState.errorMessage
+        if (!message.isNullOrBlank()) {
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            imageProcessingViewModel.clearAutoTaggingResult()
         }
     }
 
@@ -128,12 +197,73 @@ fun AddItemScreen(navController: NavController) {
                 title = "Item Image",
                 imagePath = imagePath,
                 onCameraClick = imagePickerState.onCameraClick,
-                onGalleryClick = imagePickerState.onGalleryClick
+                onGalleryClick = imagePickerState.onGalleryClick,
+                onRemoveBgClick = onRemoveBackgroundClick,
+                isProcessing = removeBgState.isProcessing,
+                canRemoveBg = canRemoveBackground
             )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                        } else {
+                            imageProcessingViewModel.autoTagging(currentPath)
+                        }
+                    },
+                    enabled = !autoTaggingState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (autoTaggingState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Tagging...")
+                    } else {
+                        Text("Auto tagging", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                TextButton(
+                    onClick = {
+                        val currentPath = imagePath
+                        if (currentPath.isNullOrBlank()) {
+                            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                        } else {
+                            imageProcessingViewModel.fillWithAi(currentPath)
+                        }
+                    },
+                    enabled = !aiFillState.isProcessing,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    if (aiFillState.isProcessing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Filling...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
 
             HorizontalDivider()
 
-            // ── Category (Dropdown) ────────────────────────────────
             Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             ExposedDropdownMenuBox(
                 expanded = expandedMenu,
@@ -169,7 +299,6 @@ fun AddItemScreen(navController: NavController) {
                 }
             }
 
-            // ── Color ──────────────────────────────────────────────
             Text("Color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = color,
@@ -183,11 +312,6 @@ fun AddItemScreen(navController: NavController) {
 
             HorizontalDivider()
 
-            // ═══════════════════════════════════════════════════════
-            // 🔸 CÁC TRƯỜNG THÔNG TIN CHI TIẾT MỚI
-            // ═══════════════════════════════════════════════════════
-
-            // ── Item Name ───────────────────────────────────────────
             Text("Item Name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = itemName,
@@ -200,7 +324,6 @@ fun AddItemScreen(navController: NavController) {
                 keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
             )
 
-            // ── Brand ───────────────────────────────────────────────
             Text("Brand", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = brand,
@@ -213,7 +336,6 @@ fun AddItemScreen(navController: NavController) {
                 keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
             )
 
-            // ── Price ───────────────────────────────────────────────
             Text("Price", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = price,
@@ -232,7 +354,6 @@ fun AddItemScreen(navController: NavController) {
                 prefix = { Text("₫ ") }
             )
 
-            // ── Season ──────────────────────────────────────────────
             Text("Season", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Row(
                 modifier = Modifier
@@ -244,7 +365,6 @@ fun AddItemScreen(navController: NavController) {
                     FilterChip(
                         selected = selectedSeason == season,
                         onClick = {
-                            // 👆 Click lần nữa để bỏ chọn
                             selectedSeason = if (selectedSeason == season) "" else season
                         },
                         label = { Text(season) }
@@ -252,7 +372,6 @@ fun AddItemScreen(navController: NavController) {
                 }
             }
 
-            // ── Occasion ────────────────────────────────────────────
             Text("Occasion", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Row(
                 modifier = Modifier
@@ -264,7 +383,6 @@ fun AddItemScreen(navController: NavController) {
                     FilterChip(
                         selected = selectedOccasion == occasion,
                         onClick = {
-                            // 👆 Click lần nữa để bỏ chọn
                             selectedOccasion = if (selectedOccasion == occasion) "" else occasion
                         },
                         label = { Text(occasion) }
@@ -272,11 +390,10 @@ fun AddItemScreen(navController: NavController) {
                 }
             }
 
-            // ── Purchase Date ───────────────────────────────────────
             Text("Purchase Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = { showDatePicker = true }  // 📅 Mở DatePickerDialog
+                onClick = { showDatePicker = true }
             ) {
                 Row(
                     modifier = Modifier
@@ -309,10 +426,8 @@ fun AddItemScreen(navController: NavController) {
 
             Spacer(Modifier.height(8.dp))
 
-            // ── Nút Lưu (Loading-aware) ───────────────────────────
             Button(
                 onClick = {
-                    // ── Validate ─────────────────────────────────
                     if (imagePath == null) {
                         scope.launch { snackbarHostState.showSnackbar("Please select an image first") }; return@Button
                     }
@@ -326,11 +441,8 @@ fun AddItemScreen(navController: NavController) {
                         scope.launch { snackbarHostState.showSnackbar("Please enter item name") }; return@Button
                     }
 
-                    // ⚡ Parse price từ String → Double (mặc định 0.0 nếu rỗng/không hợp lệ)
                     val parsedPrice = price.toDoubleOrNull() ?: 0.0
 
-                    // ⚡ Gọi ViewModel — xử lý bất đồng bộ (mock tách nền + ghi DB)
-                    //    Truyền đầy đủ tất cả tham số mới
                     viewModel.addClothingItem(
                         imageFile = File(imagePath!!),
                         category = category,
@@ -344,30 +456,28 @@ fun AddItemScreen(navController: NavController) {
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                enabled = !isLoading  // ⛔ Vô hiệu hoá khi đang xử lý
+                enabled = !isLoading
             ) {
                 if (isLoading) {
-                    // 🔄 Spinner + text
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp
                     )
                     Spacer(Modifier.width(12.dp))
-                    Text("Processing image...")
+                    Text("Adding to Closet...")
                 } else {
                     Text("Add to Closet", style = MaterialTheme.typography.titleMedium)
                 }
             }
 
-            // Loading info card
             if (isLoading) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)
                 ) {
                     Text(
-                        text = "⏳ Đang xử lý ảnh & tách nền cho \"$itemName\"...",
+                        text = "⏳ Đang tải ảnh lên hệ thống cho \"$itemName\"...",
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -379,14 +489,11 @@ fun AddItemScreen(navController: NavController) {
         }
     }
 
-    // ── DatePickerDialog (Material3) ─────────────────────────────
-    // 📅 Cho phép chọn ngày từ quá khứ đến hiện tại
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = purchaseDate,
             selectableDates = object : SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                    // 🚫 Không cho chọn ngày trong tương lai
                     return utcTimeMillis <= System.currentTimeMillis()
                 }
             }

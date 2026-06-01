@@ -68,6 +68,10 @@ import com.example.stylemate.viewmodel.WeatherViewModelFactory
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import androidx.compose.runtime.rememberCoroutineScope
+import com.example.stylemate.StyleMateApp
+import com.example.stylemate.notification.fetchFcmToken
+import kotlinx.coroutines.launch
 
 @Composable
 fun WeatherScreen(
@@ -78,6 +82,9 @@ fun WeatherScreen(
     )
 ) {
     val context = LocalContext.current
+    val app = context.applicationContext as StyleMateApp
+    val scope = rememberCoroutineScope()
+
     val weatherData by viewModel.weatherData.collectAsState()
     val locationName by viewModel.locationName.collectAsState()
     val weatherAnalysis by viewModel.weatherAnalysis.collectAsState()
@@ -86,6 +93,13 @@ fun WeatherScreen(
 
     // ── Trạng thái: đã thử lấy vị trí từ GPS chưa? ──────────────
     var hasAttemptedLocation by remember { mutableStateOf(false) }
+
+    fun syncDeviceLocation(lat: Double, lon: Double) {
+        scope.launch {
+            val token = fetchFcmToken()
+            app.fcmRepository.syncFcmToken(token, lat, lon)
+        }
+    }
 
     // ── Yêu cầu quyền vị trí ────────────────────────────────────
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -98,6 +112,7 @@ fun WeatherScreen(
             // Đã cấp quyền → lấy vị trí GPS thực
             getLastKnownLocation(context) { lat, lon ->
                 viewModel.fetchWeatherByGps(lat, lon)
+                syncDeviceLocation(lat, lon)
             }
         } else {
             // Không cấp quyền → dùng toạ độ mặc định (Hà Nội)
@@ -106,6 +121,7 @@ fun WeatherScreen(
                 WeatherViewModel.DEFAULT_LAT,
                 WeatherViewModel.DEFAULT_LON
             )
+            syncDeviceLocation(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
         }
         hasAttemptedLocation = true
     }
@@ -124,6 +140,7 @@ fun WeatherScreen(
                 // Đã có quyền → lấy vị trí ngay
                 getLastKnownLocation(context) { lat, lon ->
                     viewModel.fetchWeatherByGps(lat, lon)
+                    syncDeviceLocation(lat, lon)
                 }
                 hasAttemptedLocation = true
             } else {

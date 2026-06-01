@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Closet Items Filter Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["success", "items", "total"],
+  "properties": {
+    "success": {
+      "type": "boolean"
+    },
+    "items": {
+      "type": "array",
+      "description": "Filtered closet items",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "category", "image"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Item ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Item name"
+          },
+          "category": {
+            "type": "string",
+            "description": "Item category (áo, quần, giày, etc.)"
+          },
+          "color": {
+            "type": "string",
+            "description": "Item color"
+          },
+          "brand": {
+            "type": "string",
+            "description": "Brand name"
+          },
+          "size": {
+            "type": "string",
+            "description": "Size (S, M, L, XL, etc.)"
+          },
+          "image": {
+            "type": "string",
+            "format": "uri",
+            "description": "Item image URL"
+          },
+          "occasion": {
+            "type": "string",
+            "description": "Suitable occasion"
+          },
+          "dateAdded": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timesWorn": {
+            "type": "integer",
+            "description": "Number of times worn"
+          }
+        }
+      }
+    },
+    "total": {
+      "type": "integer",
+      "description": "Total items matching filter"
+    },
+    "page": {
+      "type": "integer",
+      "description": "Current page number"
+    },
+    "pageSize": {
+      "type": "integer",
+      "description": "Items per page"
+    },
+    "filters": {
+      "type": "object",
+      "description": "Applied filters",
+      "properties": {
+        "category": { "type": "array", "items": { "type": "string" } },
+        "color": { "type": "array", "items": { "type": "string" } },
+        "brand": { "type": "array", "items": { "type": "string" } },
+        "size": { "type": "array", "items": { "type": "string" } },
+        "occasion": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

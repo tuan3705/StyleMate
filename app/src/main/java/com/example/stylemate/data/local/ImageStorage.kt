@@ -12,9 +12,13 @@ import java.io.IOException
 object ImageStorage {
     private const val IMAGE_DIR = "images"
 
-    fun createImageFile(context: Context, prefix: String = "image_"): File {
+    fun createImageFile(
+        context: Context,
+        prefix: String = "image_",
+        extension: String = "jpg"
+    ): File {
         val directory = File(context.filesDir, IMAGE_DIR).apply { mkdirs() }
-        return File(directory, "${prefix}${System.currentTimeMillis()}.jpg")
+        return File(directory, "${prefix}${System.currentTimeMillis()}.$extension")
     }
 
     fun createImageUri(context: Context, imageFile: File): Uri {
@@ -33,6 +37,21 @@ object ImageStorage {
         val destination = createImageFile(context, prefix)
         val inputStream = context.contentResolver.openInputStream(sourceUri)
             ?: throw IOException("Cannot open input stream for selected image")
+        inputStream.use { input ->
+            FileOutputStream(destination).use { output ->
+                input.copyTo(output)
+            }
+        }
+        destination
+    }
+
+    suspend fun saveStreamToInternalStorage(
+        context: Context,
+        inputStream: java.io.InputStream,
+        prefix: String = "nobg_",
+        extension: String = "png"
+    ): File = withContext(Dispatchers.IO) {
+        val destination = createImageFile(context, prefix, extension)
         inputStream.use { input ->
             FileOutputStream(destination).use { output ->
                 input.copyTo(output)
