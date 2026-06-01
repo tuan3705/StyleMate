@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AI Stylist Outfit Suggestion with Items",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message", "suggested_outfits"],
+  "properties": {
+    "message": {
+      "type": "string",
+      "description": "AI assistant message"
+    },
+    "suggested_outfits": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Array of outfit suggestions with linked closet items",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "item_ids", "items"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Outfit suggestion ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Outfit name or title"
+          },
+          "item_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string" },
+            "description": "IDs of closet items in this outfit"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Full item details with images",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "name", "category", "image"],
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "category": { "type": "string" },
+                "color": { "type": "string" },
+                "brand": { "type": "string" },
+                "image": { "type": "string", "format": "uri" },
+                "occasion": { "type": "string" }
+              }
+            }
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Why this outfit is suggested"
+          },
+          "occasion": {
+            "type": "string",
+            "description": "Suitable occasion"
+          },
+          "weather_suitable": {
+            "type": "string",
+            "description": "Weather conditions suitable for this outfit"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Confidence score (0-1)"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tags (e.g., 'casual', 'formal', 'trendy')"
+          }
+        }
+      }
+    },
+    "context_used": {
+      "type": "object",
+      "description": "Context information used for suggestions",
+      "properties": {
+        "weather": { "type": "string" },
+        "occasion": { "type": "string" },
+        "location": { "type": "string" },
+        "user_preferences": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

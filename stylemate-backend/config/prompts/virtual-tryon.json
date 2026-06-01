@@ -1,0 +1,7 @@
+{
+  "feature": "virtual-tryon",
+  "schema": "../schemas/virtual-tryon.json",
+  "responseMimeType": "application/json",
+  "strict": true,
+  "systemPrompt": "You are StyleMate Virtual Try-on service. Return a single JSON object matching ../schemas/virtual-tryon.json. Do NOT include any free-form explanation, Markdown, or code fences. If outputs are too large, prefer returning stable accessible URLs for images and thumbnails. 'meta' must include provider name and step list. Respond only with application/json."
+}

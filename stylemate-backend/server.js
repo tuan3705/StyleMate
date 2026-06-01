@@ -33,7 +33,7 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 
 // Load biến môi trường từ file .env
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env'), override: true });
 
 // ═══════════════════════════════════════════════════════════════
 // 📁 Tự động tạo thư mục uploads/ nếu chưa có
@@ -101,6 +101,24 @@ app.get('/', (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 
 mountRoutes(app);
+
+// Debug: list mounted routes for troubleshooting
+console.log('[server] mounted routes (debug):');
+if (app && app._router && app._router.stack) {
+  app._router.stack.forEach(layer => {
+    if (layer.route && layer.route.path) {
+      console.log('Route:', Object.keys(layer.route.methods).join(','), layer.route.path);
+    } else if (layer.name === 'router' && layer.handle && layer.handle.stack) {
+      layer.handle.stack.forEach(l => {
+        if (l.route && l.route.path) {
+          console.log('  Subroute:', Object.keys(l.route.methods).join(','), l.route.path);
+        }
+      });
+    }
+  });
+} else {
+  console.log('[server] No router found on app yet.');
+}
 
 // ═══════════════════════════════════════════════════════════════
 // 🚨 Middleware xử lý lỗi (phải đặt SAU routes)

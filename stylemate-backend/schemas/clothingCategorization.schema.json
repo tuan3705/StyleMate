@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ClothingCategorization",
+  "type": "object",
+  "properties": {
+    "category": { "type": "string" },
+    "subcategory": { "type": "string" },
+    "colors": { "type": "array", "items": { "type": "string" } },
+    "season": { "type": "array", "items": { "type": "string" } },
+    "occasion": { "type": "array", "items": { "type": "string" } },
+    "brand": { "type": "string" },
+    "material": { "type": "string" },
+    "sizeSuggestions": { "type": "array", "items": { "type": "string" } },
+    "confidence": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } }
+  },
+  "required": ["category", "subcategory", "colors", "season", "occasion"],
+  "additionalProperties": false
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Fit Analysis Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["body_shape", "measurements", "tips"],
+  "properties": {
+    "body_shape": { "type": "string" },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chest", "waist", "hips"],
+      "properties": {
+        "chest": { "type": "number", "minimum": 0 },
+        "waist": { "type": "number", "minimum": 0 },
+        "hips": { "type": "number", "minimum": 0 }
+      }
+    },
+    "tips": { "type": "array", "items": { "type": "string" } }
+  }
+}

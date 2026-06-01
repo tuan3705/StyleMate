@@ -1,0 +1,22 @@
+{
+  "01": { "file": "UI Stylemate/01_home_features.jpg", "use": "HomeScreenHeader", "screen": "HomeScreen" },
+  "02": { "file": "UI Stylemate/02_ai_creator_entry.jpg", "use": "AIStylistEntry", "screen": "AIStylistScreen" },
+  "03": { "file": "UI Stylemate/03_closet_grid.jpg", "use": "ClosetGrid", "screen": "SelectFromClosetScreen" },
+  "04": { "file": "UI Stylemate/04_choose_occasion_1.jpg", "use": "OccasionPicker", "screen": "AIStylistScreen" },
+  "05": { "file": "UI Stylemate/05_choose_occasion_2.jpg", "use": "DetailedOccasionPicker", "screen": "AIStylistScreen" },
+  "06": { "file": "UI Stylemate/06_ai_suggestion_sample.jpg", "use": "ChatResponse", "screen": "AIStylistScreen" },
+  "07": { "file": "UI Stylemate/07_outfit_carousel_preview.jpg", "use": "OutfitCarousel", "screen": "AIStylistScreen" },
+  "10": { "file": "UI Stylemate/10_dip_tags.jpg", "use": "OccasionChips", "screen": "AIStylistScreen" },
+  "13": { "file": "UI Stylemate/13_chat_followup_prompt.jpg", "use": "QuickFollowups", "screen": "AIStylistScreen" },
+  "14": { "file": "UI Stylemate/14_outfit_detail_page.jpg", "use": "OutfitDetail", "screen": "SuggestionDetailScreen" },
+  "19": { "file": "UI Stylemate/19_final_chat_entry.jpg", "use": "ChatInputBar", "screen": "AIStylistScreen" },
+  "25": { "file": "UI Stylemate/25_style_chat_processing.jpg", "use": "ProcessingIndicator", "screen": "StyleChatScreen" },
+  "28": { "file": "UI Stylemate/28_style_chat_fit_analysis.jpg", "use": "FitAnalysisOverlay", "screen": "FitAnalysisScreen" },
+  "30": { "file": "UI Stylemate/30_color_intro.jpg", "use": "ColorIntroHeader", "screen": "ColorIntroScreen" },
+  "35": { "file": "UI Stylemate/35_color_camera_capture.jpg", "use": "CameraUI", "screen": "ColorCaptureScreen" },
+  "38": { "file": "UI Stylemate/38_color_result_palette.jpg", "use": "PaletteResult", "screen": "ColorResultScreen" },
+  "42": { "file": "UI Stylemate/42_style_assess_entry.jpg", "use": "AssessEntry", "screen": "StyleAssessScreen" },
+  "43": { "file": "UI Stylemate/43_style_assess_select_source.jpg", "use": "SourceSelection", "screen": "StyleAssessScreen" },
+  "47": { "file": "UI Stylemate/47_style_assess_upload_photo.jpg", "use": "UploadPreview", "screen": "UploadPhotoScreen" },
+  "49": { "file": "UI Stylemate/49_style_assess_result.jpg", "use": "ScoreGauge", "screen": "AssessmentResultScreen" }
+}

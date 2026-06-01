@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Color Analysis Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["season_tone", "palette", "primary_recommendation", "followups"],
+  "properties": {
+    "season_tone": {
+      "type": "string",
+      "enum": ["spring_warm", "summer_cool", "autumn_warm", "winter_cool"],
+      "description": "Canonical tone category: spring_warm, summer_cool, autumn_warm, winter_cool"
+    },
+    "season_label": { "type": "string" },
+    "palette": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "hex", "score", "role"],
+        "properties": {
+          "name": { "type": "string" },
+          "hex": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6})$" },
+          "rgb": { "type": "string", "pattern": "^rgb\\(\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*\\)$" },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "role": { "type": "string", "enum": ["primary", "secondary", "accent", "neutral"] },
+          "contrast_text_hex": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6})$" }
+        }
+      }
+    },
+    "primary_recommendation": { "type": "string" },
+    "notes": { "type": "string" },
+    "followups": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+  }
+}

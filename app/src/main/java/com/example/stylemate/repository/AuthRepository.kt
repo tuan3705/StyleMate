@@ -67,18 +67,18 @@ class AuthRepository(
                             userId = data.user.id,
                             email = data.user.email
                         )
-                        Result.success(data)
+                        Result.success<AuthLoginData>(data)
                     } else {
-                        Result.failure(IllegalStateException("Response rỗng"))
+                        Result.failure<AuthLoginData>(IllegalStateException("Response rỗng"))
                     }
                 } else {
                     val message = parseErrorMessage(response.errorBody())
                         ?: "Đăng nhập thất bại: ${response.code()}"
-                    Result.failure(IllegalStateException(message))
+                    Result.failure<AuthLoginData>(IllegalStateException(message))
                 }
             } catch (e: Exception) {
                 val message = mapNetworkError(e) ?: (e.message ?: "Đăng nhập thất bại")
-                Result.failure(IllegalStateException(message))
+                Result.failure<AuthLoginData>(IllegalStateException(message))
             }
         }
     }
@@ -104,18 +104,18 @@ class AuthRepository(
                             userId = data.user.id,
                             email = data.user.email
                         )
-                        Result.success(data)
+                        Result.success<AuthLoginData>(data)
                     } else {
-                        Result.failure(IllegalStateException("Response rỗng"))
+                        Result.failure<AuthLoginData>(IllegalStateException("Response rỗng"))
                     }
                 } else {
                     val message = parseErrorMessage(response.errorBody())
                         ?: "Đăng ký thất bại: ${response.code()}"
-                    Result.failure(IllegalStateException(message))
+                    Result.failure<AuthLoginData>(IllegalStateException(message))
                 }
             } catch (e: Exception) {
                 val message = mapNetworkError(e) ?: (e.message ?: "Đăng ký thất bại")
-                Result.failure(IllegalStateException(message))
+                Result.failure<AuthLoginData>(IllegalStateException(message))
             }
         }
     }
@@ -132,15 +132,15 @@ class AuthRepository(
                     val token = response.body()?.data?.accessToken
                     if (!token.isNullOrBlank()) {
                         authStorage.updateAccessToken(token)
-                        Result.success(token)
+                        Result.success<String>(token)
                     } else {
-                        Result.failure(IllegalStateException("Token mới không hợp lệ"))
+                        Result.failure<String>(IllegalStateException("Token mới không hợp lệ"))
                     }
                 } else {
-                    Result.failure(IllegalStateException("Refresh token thất bại: ${response.code()}"))
+                    Result.failure<String>(IllegalStateException("Refresh token thất bại: ${response.code()}"))
                 }
             } catch (e: Exception) {
-                Result.failure(e)
+                Result.failure<String>(e)
             }
         }
     }

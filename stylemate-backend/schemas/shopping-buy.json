@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Shopping / Buy Suggestions Schema (backend copy)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["message", "results", "closet_analysis"],
+  "properties": {
+    "message": { "type": "string" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "reason"],
+        "properties": {
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "brand": { "type": "string" },
+          "image_url": { "type": "string", "format": "uri" },
+          "price": { "type": "number", "minimum": 0 },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "availability": { "type": "string", "enum": ["in_stock", "out_of_stock", "preorder", "limited"] },
+          "sizes": { "type": "array", "items": { "type": "string" } },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "reason": { "type": "string", "maxLength": 500 },
+          "analysis": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "fit_with_closet": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "score": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "matched_items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "name": { "type": "string" },
+                        "image_url": { "type": "string", "format": "uri" }
+                      }
+                    }
+                  }
+                }
+              },
+              "style_score": { "type": "number", "minimum": 0, "maximum": 1 },
+              "why": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "closet_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total_items": { "type": "integer", "minimum": 0 },
+        "top_categories": { "type": "array", "items": { "type": "string" } },
+        "color_profile": { "type": "array", "items": { "type": "string" } },
+        "summary": { "type": "string" }
+      }
+    },
+    "followups": { "type": "array", "items": { "type": "string" } }
+  }
+}
