@@ -33,7 +33,7 @@ const morgan = require('morgan');
 const dotenv = require('dotenv');
 
 // Load biến môi trường từ file .env
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env'), override: true });
 
 // ═══════════════════════════════════════════════════════════════
 // 📁 Tự động tạo thư mục uploads/ nếu chưa có

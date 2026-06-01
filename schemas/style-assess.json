@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Style Assessment Schema",
+  "title": "Style Assessment Schema (frontend copy)",
   "type": "object",
   "additionalProperties": false,
   "required": ["message", "score", "recommendations"],
@@ -8,7 +8,27 @@
     "message": { "type": "string" },
     "score": { "type": "number", "minimum": 0, "maximum": 10 },
     "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-    "category_tags": { "type": "array", "items": { "type": "string" } },
+    "outfit_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fit": { "type": "string" },
+        "style_coherence": { "type": "string" },
+        "color_harmony": { "type": "string" },
+        "occasion_appropriateness": { "type": "string" },
+        "overall_impression": { "type": "string" }
+      }
+    },
+    "photo_assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "posture": { "type": "string" },
+        "grooming": { "type": "string" },
+        "confidence_level": { "type": "string" },
+        "photography_quality": { "type": "string" }
+      }
+    },
     "recommendations": {
       "type": "array",
       "minItems": 1,
@@ -20,6 +40,7 @@
           "id": { "type": "string" },
           "text": { "type": "string" },
           "reason": { "type": "string" },
+          "category": { "type": "string", "enum": ["color", "fit", "style", "accessory", "general"] },
           "priority": { "type": "string", "enum": ["low", "medium", "high"] },
           "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
           "tags": { "type": "array", "items": { "type": "string" } },
@@ -47,8 +68,7 @@
         }
       }
     },
-    "fit_advice": { "type": "array", "items": { "type": "string" } },
-    "exemplar_outfits": {
+    "suggested_outfits": {
       "type": "array",
       "items": {
         "type": "object",
@@ -58,42 +78,49 @@
           "id": { "type": "string" },
           "item_ids": { "type": "array", "items": { "type": "string" } },
           "image_urls": { "type": "array", "items": { "type": "string", "format": "uri" } },
-          "reason": { "type": "string" }
+          "reason": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "items_detail": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "name"],
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string" },
+                "category": { "type": "string" },
+                "color": { "type": "string" },
+                "brand": { "type": "string" },
+                "image_url": { "type": "string", "format": "uri" }
+              }
+            }
+          }
         }
       }
     },
-    "closet_summary": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "total_items": { "type": "integer", "minimum": 0 },
-        "top_categories": { "type": "array", "items": { "type": "string" } },
-        "sample_items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["id","name"],
-            "properties": {
-              "id": { "type": "string" },
-              "name": { "type": "string" },
-              "category": { "type": "string" },
-              "image_url": { "type": "string", "format": "uri" }
-            }
-          }
-        },
-        "color_profile": { "type": "array", "items": { "type": "string" } },
-        "summary": { "type": "string" }
+    "styling_tips": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tip"],
+        "properties": {
+          "tip": { "type": "string" },
+          "detail": { "type": "string" }
+        }
       }
     },
-    "followups": { "type": "array", "items": { "type": "string" } },
-    "meta": {
+    "closet_optimization": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "generatedAt": { "type": "string", "format": "date-time" },
-        "provider": { "type": "string" }
+        "strengths": { "type": "array", "items": { "type": "string" } },
+        "gaps": { "type": "array", "items": { "type": "string" } },
+        "color_palette": { "type": "array", "items": { "type": "string" } },
+        "recommended_additions": { "type": "array", "items": { "type": "string" } }
       }
-    }
+    },
+    "followup_questions": { "type": "array", "items": { "type": "string" } }
   }
 }

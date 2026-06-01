@@ -25,6 +25,9 @@ const upload = multer({ storage });
 // Kickoff try-on (multipart/form-data)
 router.post('/', upload.fields([{ name: 'bodyImage', maxCount: 1 }, { name: 'itemImages', maxCount: 5 }]), virtualTryOnController.kickoffTryOn);
 
+// Kickoff try-on alias used by docs and Android clients
+router.post('/create', upload.fields([{ name: 'bodyImage', maxCount: 1 }, { name: 'itemImages', maxCount: 5 }]), virtualTryOnController.kickoffTryOn);
+
 // Status
 router.get('/:jobId/status', virtualTryOnController.getStatus);
 

@@ -14,7 +14,9 @@
 # ═══════════════════════════════════════════════════════════════
 
 local.properties
-
+*.md
+*.txt
+*.docs
 # ═══════════════════════════════════════════════════════════════
 # 💻 IDE
 # ═══════════════════════════════════════════════════════════════
@@ -32,7 +34,7 @@ stylemate-backend/node_modules/
 stylemate-backend/.env
 stylemate-backend/uploads/*
 !stylemate-backend/uploads/.gitkeep
-
+stylemate-backend/config/serviceAccount.json
 # ═══════════════════════════════════════════════════════════════
 # 🗑️ BUILD OUTPUT
 # ═══════════════════════════════════════════════════════════════

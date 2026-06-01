@@ -273,3 +273,31 @@ data class UserDeviceDto(
     val createdAt: Long,
     val updatedAt: Long
 )
+
+// ═══════════════════════════════════════════════════════════════
+// 🤖 AI STYLIST / CHATBOT
+// ═══════════════════════════════════════════════════════════════
+
+data class ChatRequest(
+    val userId: String,
+    val message: String,
+    val sessionId: String? = null,
+    val lat: Double? = null,
+    val lon: Double? = null
+)
+
+data class SuggestedOutfitDto(
+    val id: String? = null,
+    val name: String? = null,
+    val reason: String? = null,
+    val confidence: Double? = null,
+    val image_urls: Map<String, String>? = null,
+    val items: List<String>? = null
+)
+
+data class ChatResponse(
+    val sessionId: String? = null,
+    val message: String? = null,
+    val suggested_outfits: List<SuggestedOutfitDto>? = null,
+    val followups: List<String>? = null
+)

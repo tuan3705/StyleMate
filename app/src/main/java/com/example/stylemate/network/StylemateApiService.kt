@@ -1,6 +1,7 @@
 package com.example.stylemate.network
 
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -90,6 +91,33 @@ interface StylemateApiService {
     suspend fun createClothingItem(
         @Body item: ClothingItemDto
     ): Response<ApiSingleResponse<ClothingItemDto>>
+
+    /**
+     * POST /api/images/remove-bg
+     */
+    @Multipart
+    @POST("api/images/remove-bg")
+    suspend fun removeBackgroundImage(
+        @Part image: MultipartBody.Part
+    ): Response<ResponseBody>
+
+    /**
+     * POST /api/images/ai-fill
+     */
+    @Multipart
+    @POST("api/images/ai-fill")
+    suspend fun aiFillFromImage(
+        @Part image: MultipartBody.Part
+    ): Response<ApiSingleResponse<AiFillSuggestionDto>>
+
+    /**
+     * POST /api/images/auto-tagging
+     */
+    @Multipart
+    @POST("api/images/auto-tagging")
+    suspend fun autoTaggingFromImage(
+        @Part image: MultipartBody.Part
+    ): Response<ApiSingleResponse<AiAutoTaggingSuggestionDto>>
 
     /**
      * PUT /api/clothes/{id}
@@ -278,6 +306,70 @@ interface StylemateApiService {
     suspend fun deleteCalendarEventByDate(
         @Path("date") date: Long
     ): Response<ApiSingleResponse<CalendarEventDto>>
+
+    // ═════════════════════════════════════════════════════════════
+    // 🔐 AUTH — /api/auth
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/auth/login
+     * Đăng nhập người dùng.
+     */
+    @POST("api/auth/login")
+    suspend fun login(
+        @Body request: LoginRequest
+    ): Response<AuthResponse<AuthLoginData>>
+
+    /**
+     * POST /api/auth/register
+     * Đăng ký người dùng mới.
+     */
+    @POST("api/auth/register")
+    suspend fun register(
+        @Body request: RegisterRequest
+    ): Response<AuthResponse<AuthLoginData>>
+
+    /**
+     * POST /api/auth/refresh
+     * Làm mới Access Token bằng Refresh Token.
+     */
+    @POST("api/auth/refresh")
+    suspend fun refresh(
+        @Body request: RefreshRequest
+    ): Response<AuthResponse<RefreshData>>
+
+    /**
+     * POST /api/auth/logout
+     * Đăng xuất.
+     */
+    @POST("api/auth/logout")
+    suspend fun logout(): Response<SimpleMessageResponse>
+
+    // ═════════════════════════════════════════════════════════════
+    // 🔔 FCM — /api/user/fcm-token
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/user/fcm-token
+     * Lưu hoặc cập nhật FCM Token cho người dùng.
+     */
+    @POST("api/user/fcm-token")
+    suspend fun saveFcmToken(
+        @Body request: FcmTokenRequest
+    ): Response<ApiSingleResponse<Map<String, Any>>>
+
+    // ═════════════════════════════════════════════════════════════
+    // 🤖 AI STYLIST — /api/ai-stylist
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/ai-stylist/chat
+     * Chat với AI Stylist (Gemini) để nhận gợi ý phối đồ.
+     */
+    @POST("api/ai-stylist/chat")
+    suspend fun chatWithAi(
+        @Body request: ChatRequest
+    ): Response<ChatResponse>
 
     // ═════════════════════════════════════════════════════════════
     // 🌤️ WEATHER — /api/weather/forecast (Proxy)
