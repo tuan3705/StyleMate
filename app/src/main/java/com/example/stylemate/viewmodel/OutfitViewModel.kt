@@ -12,9 +12,16 @@ import com.example.stylemate.model.OutfitItemWithPosition
 import kotlin.math.min
 import com.example.stylemate.repository.OutfitRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -68,6 +75,34 @@ class OutfitViewModel(
         .flatMapLatest {
             repository.getAllOutfitsWithItems()
         }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    private val debouncedSearchQuery = _searchQuery
+        .map { it.trim() }
+        .debounce(250)
+        .distinctUntilChanged()
+        .onStart { emit("") }
+
+    val filteredOutfits: StateFlow<List<OutfitWithClothingItems>> = combine(
+        outfits,
+        debouncedSearchQuery
+    ) { currentOutfits, query ->
+        if (query.isBlank()) {
+            currentOutfits
+        } else {
+            currentOutfits.filter { outfit ->
+                outfit.outfit.name.contains(query, ignoreCase = true)
+            }
+        }
+    }
+        .flowOn(Dispatchers.Default)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -384,6 +419,14 @@ class OutfitViewModel(
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun clearSearchQuery() {
+        _searchQuery.value = ""
     }
 }
 

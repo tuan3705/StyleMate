@@ -3,7 +3,7 @@ const { runWeatherNotificationJob } = require('../jobs/weatherNotificationJob');
 
 const startScheduler = () => {
   cron.schedule(
-    '01 00 * * *',
+    '06 22 * * *',
     async () => {
       try {
         const result = await runWeatherNotificationJob();

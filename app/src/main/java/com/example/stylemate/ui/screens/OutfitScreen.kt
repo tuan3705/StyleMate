@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -74,7 +75,8 @@ fun OutfitScreen() {
     )
 
     // ── Collect StateFlows ──────────────────────────────────────
-    val outfits by viewModel.outfits.collectAsStateWithLifecycle()
+    val filteredOutfits by viewModel.filteredOutfits.collectAsStateWithLifecycle()
+    val outfitSearchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val draftItems by viewModel.draftOutfitItems.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
@@ -160,20 +162,82 @@ fun OutfitScreen() {
             // KHU VỰC 3: DANH SÁCH OUTFIT ĐÃ LƯU
             // ═══════════════════════════════════════════════════════
             item {
-                SavedOutfitsHeader(outfitsCount = outfits.size)
+                OutfitSearchBar(
+                    query = outfitSearchQuery,
+                    onQueryChange = { viewModel.updateSearchQuery(it) },
+                    onClearQuery = { viewModel.clearSearchQuery() }
+                )
             }
 
-            items(outfits, key = { it.outfit.id }) { outfitWithItems ->
-                SavedOutfitCard(
-                    outfitWithItems = outfitWithItems,
-                    onDelete = { viewModel.deleteOutfit(outfitWithItems.outfit) }
-                )
+            item {
+                SavedOutfitsHeader(outfitsCount = filteredOutfits.size)
+            }
+
+            if (filteredOutfits.isEmpty()) {
+                item {
+                    val emptyMessage = if (outfitSearchQuery.isNotBlank()) {
+                        "Không tìm thấy bộ đồ phù hợp"
+                    } else {
+                        "Chưa có bộ đồ nào"
+                    }
+                    Text(
+                        text = emptyMessage,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(filteredOutfits, key = { it.outfit.id }) { outfitWithItems ->
+                    SavedOutfitCard(
+                        outfitWithItems = outfitWithItems,
+                        onDelete = { viewModel.deleteOutfit(outfitWithItems.outfit) }
+                    )
+                }
             }
 
             // Spacer bottom
             item { Spacer(Modifier.height(24.dp)) }
         }
     }
+}
+
+@Composable
+private fun OutfitSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text("Tìm bộ đồ") },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = "Search")
+        },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(
+                    onClick = {
+                        onClearQuery()
+                        focusManager.clearFocus()
+                    }
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { focusManager.clearFocus() }
+        )
+    )
 }
 
 // ═════════════════════════════════════════════════════════════════
