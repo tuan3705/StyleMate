@@ -1,10 +1,12 @@
 package com.example.stylemate.ui.screens
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -12,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -25,11 +28,12 @@ import androidx.navigation.navArgument
 import com.example.stylemate.ui.navigation.BottomNavItem
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.dp
 import android.Manifest
 import android.os.Build
@@ -46,6 +50,7 @@ fun MainScreen(onLogout: () -> Unit) {
     val currentDestination = navBackStackEntry?.destination
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var accountMenuExpanded by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -79,12 +84,32 @@ fun MainScreen(onLogout: () -> Unit) {
         topBar = {
             if (!isEditItemRoute) {
                 TopAppBar(
-                    title = { Text("StyleMate") },
+                    title = {},
                     actions = {
-                        TextButton(onClick = onLogout) {
-                            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Logout")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Logout")
+                        IconButton(onClick = { accountMenuExpanded = true }) {
+                            Icon(
+                                Icons.Filled.AccountCircle,
+                                contentDescription = "Tài khoản",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = accountMenuExpanded,
+                            onDismissRequest = { accountMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Đăng xuất") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ExitToApp,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    accountMenuExpanded = false
+                                    onLogout()
+                                }
+                            )
                         }
                     }
                 )
