@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,17 +16,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,8 +43,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,10 +69,7 @@ import com.example.stylemate.repository.OutfitRepository
 import com.example.stylemate.viewmodel.CalendarViewModel
 import com.example.stylemate.viewmodel.CalendarViewModelFactory
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import java.util.TimeZone
 
 // ══════════════════════════════════════════════════════════════════════
@@ -82,12 +85,9 @@ import java.util.TimeZone
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen() {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
-
     val calendarRepo = CalendarRepository(apiService)
     val outfitRepo = OutfitRepository(apiService)
-
     val viewModel: CalendarViewModel = viewModel(
         factory = CalendarViewModelFactory(calendarRepo, outfitRepo)
     )
@@ -98,121 +98,78 @@ fun CalendarScreen() {
     val isLoading by viewModel.isLoading.collectAsState()
 
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showMonthPicker by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    // Chuyển selectedDate từ Long → Calendar để UI
-    val selectedCal = remember(selectedDateMillis) {
-        Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-            timeInMillis = selectedDateMillis
-        }
+    val currentCal = remember(selectedDateMillis) { epochToCalendar(selectedDateMillis) }
+
+    LaunchedEffect(currentCal.get(Calendar.MONTH), currentCal.get(Calendar.YEAR)) {
+        viewModel.loadEventsInMonth(currentCal.timeInMillis)
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
     ) {
-        // ── Header ──────────────────────────────────────────────
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Lịch",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            IconButton(onClick = {
-                // Về ngày hôm nay
-                val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-                cal.set(Calendar.HOUR_OF_DAY, 0)
-                cal.set(Calendar.MINUTE, 0)
-                cal.set(Calendar.SECOND, 0)
-                cal.set(Calendar.MILLISECOND, 0)
-                viewModel.selectDate(cal.timeInMillis)
-            }) {
-                Icon(
-                    Icons.Filled.Today,
-                    contentDescription = "Hôm nay",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            Text("Lịch", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick = { showMonthPicker = true }) {
+                    Icon(Icons.Filled.DateRange, contentDescription = "Chọn tháng", tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = { viewModel.selectDate(todayEpochMidnight()) }) {
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = "Hôm nay", tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
 
-        // ── Horizontal Calendar Strip ──────────────────────────
-        WeekCalendarStrip(
-            selectedDateMillis = selectedDateMillis,
-            onDateSelected = { epochMillis ->
-                viewModel.selectDate(epochMillis)
-            }
-        )
+        WeekCalendarStrip(selectedDateMillis, onDateSelected = { viewModel.selectDate(it) })
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // ── Phần nội dung bên dưới ──────────────────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
             when {
-                isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-                assignedOutfit != null -> {
-                    // Đã có outfit → hiển thị Card
-                    AssignedOutfitCard(
-                        outfitWithItems = assignedOutfit!!,
-                        onRemove = { viewModel.removeOutfitFromSelectedDate() },
-                        onSelectAnother = {
-                            // Mở BottomSheet để chọn outfit khác
-                            showBottomSheet = true
-                        }
-                    )
-                }
-                else -> {
-                    // Chưa có outfit → hiển thị nút gán
-                    NoOutfitPlaceholder(
-                        onAssign = { showBottomSheet = true }
-                    )
-                }
+                isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                assignedOutfit != null -> AssignedOutfitCard(
+                    assignedOutfit!!,
+                    onRemove = { viewModel.removeOutfitFromSelectedDate() },
+                    onSelectAnother = { showBottomSheet = true }
+                )
+                else -> NoOutfitPlaceholder(onAssign = { showBottomSheet = true })
             }
         }
     }
 
-    // ── BOTTOM SHEET: Chọn Outfit để gán ──────────────────────
     if (showBottomSheet) {
         ModalBottomSheet(
-            onDismissRequest = {
-                scope.launch {
-                    sheetState.hide()
-                    showBottomSheet = false
-                }
-            },
+            onDismissRequest = { scope.launch { sheetState.hide(); showBottomSheet = false } },
             sheetState = sheetState
         ) {
             OutfitSelectionSheetContent(
                 outfits = allOutfits,
                 selectedOutfitId = assignedOutfit?.outfit?.id,
-                onOutfitSelected = { outfitId ->
-                    viewModel.assignOutfitToSelectedDate(outfitId)
-                    scope.launch {
-                        sheetState.hide()
-                        showBottomSheet = false
-                    }
+                onOutfitSelected = { id ->
+                    viewModel.assignOutfitToSelectedDate(id)
+                    scope.launch { sheetState.hide(); showBottomSheet = false }
                 },
-                onDismiss = {
-                    scope.launch {
-                        sheetState.hide()
-                        showBottomSheet = false
-                    }
-                }
+                onDismiss = { scope.launch { sheetState.hide(); showBottomSheet = false } }
+            )
+        }
+    }
+
+    if (showMonthPicker) {
+        ModalBottomSheet(onDismissRequest = { showMonthPicker = false }) {
+            MonthPickerSheet(
+                selectedDateMillis = selectedDateMillis,
+                onDaySelected = { epoch ->
+                    viewModel.selectDate(epoch)
+                    showMonthPicker = false
+                },
+                onDismiss = { showMonthPicker = false }
             )
         }
     }
@@ -271,14 +228,11 @@ private fun getStartOfWeek(epochMillis: Long): Long {
  */
 private fun formatMonthYear(epochMillis: Long): String {
     val cal = epochToCalendar(epochMillis)
-    // Lấy tên tháng tiếng Anh, dùng cho tất cả locale
     val monthNames = arrayOf(
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
+        "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+        "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
     )
-    val month = monthNames[cal.get(Calendar.MONTH)]
-    val year = cal.get(Calendar.YEAR)
-    return "$month $year"
+    return "${monthNames[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.YEAR)}"
 }
 
 /**
@@ -331,18 +285,15 @@ private fun WeekCalendarStrip(
 ) {
     val todayEpoch = remember { todayEpochMidnight() }
 
-    // Tính đầu tuần (Thứ Hai) của tuần chứa selectedDate
     val startOfWeek = remember(selectedDateMillis) {
         getStartOfWeek(selectedDateMillis)
     }
 
-    // Tạo danh sách 7 ngày trong tuần (epoch millis)
     val weekDays = remember(startOfWeek) {
         (0..6).map { addDays(startOfWeek, it) }
     }
 
     Column {
-        // Hàng tên tháng + năm
         Text(
             text = formatMonthYear(selectedDateMillis),
             style = MaterialTheme.typography.titleMedium,
@@ -351,11 +302,11 @@ private fun WeekCalendarStrip(
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            itemsIndexed(weekDays) { _, dayEpoch ->
+            weekDays.forEach { dayEpoch ->
                 val isSelected = isSameDay(dayEpoch, selectedDateMillis)
                 val isToday = isSameDay(dayEpoch, todayEpoch)
 
@@ -599,7 +550,7 @@ private fun NoOutfitPlaceholder(onAssign: () -> Unit) {
                 .padding(40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "📅", fontSize = 56.sp)
+            //Text(text = "📅", fontSize = 56.sp)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Chưa có bộ đồ nào",
@@ -778,5 +729,116 @@ private fun OutfitSelectionItem(
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// 🗓️ MONTH PICKER SHEET — BottomSheet chọn ngày cụ thể trong tháng
+// ══════════════════════════════════════════════════════════════════════
 
+@Composable
+private fun MonthPickerSheet(
+    selectedDateMillis: Long,
+    onDaySelected: (Long) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var year by remember { mutableStateOf(epochToCalendar(selectedDateMillis).get(Calendar.YEAR)) }
+    var month by remember { mutableStateOf(epochToCalendar(selectedDateMillis).get(Calendar.MONTH)) }
+    val today = remember { todayEpochMidnight() }
+    val daysInMonth = remember(year, month) { generateDaysInMonth(year, month) }
 
+    val monthNames = arrayOf(
+        "Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6",
+        "Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"
+    )
+    val dayHeader = listOf("T2","T3","T4","T5","T6","T7","CN")
+
+    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+        // Header: thang + nam + nut dong
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("${monthNames[month]} $year", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Dong") }
+        }
+
+        // Dieu huong thang
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { month--; if (month < 0) { month = 11; year-- } }) {
+                Icon(Icons.Filled.ChevronLeft, "Thang truoc", tint = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(Modifier.width(12.dp))
+            TextButton(onClick = {
+                val t = epochToCalendar(today)
+                year = t.get(Calendar.YEAR)
+                month = t.get(Calendar.MONTH)
+            }) { Text("Hom nay", color = MaterialTheme.colorScheme.primary) }
+            Spacer(Modifier.width(12.dp))
+            IconButton(onClick = { month++; if (month > 11) { month = 0; year++ } }) {
+                Icon(Icons.Filled.ChevronRight, "Thang sau", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Hang thu
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            dayHeader.forEach { d ->
+                Text(d, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium,
+                    color = Color.Gray, modifier = Modifier.width(36.dp), textAlign = TextAlign.Center)
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        // Luoi ngay
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(7),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.heightIn(max = 350.dp)
+        ) {
+            items(daysInMonth) { dayEpoch ->
+                val num = getDayOfMonth(dayEpoch)
+                val isT = isSameDay(dayEpoch, today)
+                val isS = isSameDay(dayEpoch, selectedDateMillis)
+
+                Box(
+                    modifier = Modifier.size(40.dp).clip(CircleShape)
+                        .background(when { isS -> MaterialTheme.colorScheme.primary; isT -> MaterialTheme.colorScheme.primaryContainer; else -> Color.Transparent })
+                        .clickable { onDaySelected(dayEpoch) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("$num", style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (isS || isT) FontWeight.Bold else FontWeight.Normal,
+                        color = when { isS -> MaterialTheme.colorScheme.onPrimary; isT -> MaterialTheme.colorScheme.onPrimaryContainer; else -> Color.DarkGray },
+                        textAlign = TextAlign.Center)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+private fun generateDaysInMonth(year: Int, month: Int): List<Long> {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        set(Calendar.YEAR, year)
+        set(Calendar.MONTH, month)
+        set(Calendar.DAY_OF_MONTH, 1)
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    val diff = when (cal.get(Calendar.DAY_OF_WEEK)) {
+        Calendar.SUNDAY -> 6
+        else -> cal.get(Calendar.DAY_OF_WEEK) - 2
+    }
+    val temp = cal.clone() as Calendar
+    temp.add(Calendar.DAY_OF_MONTH, -diff)
+    return (0 until 42).map { val t = temp.timeInMillis; temp.add(Calendar.DAY_OF_MONTH, 1); t }
+}

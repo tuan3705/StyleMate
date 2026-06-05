@@ -24,12 +24,14 @@ import java.util.UUID
 /**
  * 🧩 CalendarViewModel — ViewModel cho màn hình Lịch (Calendar).
  *
- * Quản lý 5 StateFlow chính:
+ * Quản lý các StateFlow chính:
  *   1. [selectedDate] — Ngày đang được chọn trên lịch (epoch midnight).
  *   2. [eventForSelectedDate] — Sự kiện (nếu có) cho ngày đang chọn.
  *   3. [allOutfits] — Danh sách tất cả Outfit để chọn gán.
- *   4. [isLoading] — Trạng thái loading.
- *   5. [errorMessage] — Thông báo lỗi.
+ *   4. [eventsInMonth] — Tập hợp các ngày có sự kiện trong tháng hiện tại.
+ *   5. [assignedOutfit] — Outfit đã gán cho ngày đang chọn.
+ *   6. [isLoading] — Trạng thái loading.
+ *   7. [errorMessage] — Thông báo lỗi.
  *
  * 🔄 Luồng dữ liệu:
  *   UI ← collect StateFlow ← CalendarViewModel ← CalendarRepository + OutfitRepository
@@ -71,11 +73,9 @@ class CalendarViewModel(
     /**
      * Sự kiện lịch của ngày đang chọn.
      *
-     * Sử dụng [flatMapLatest] trên cả [_selectedDate] và [_refreshTrigger] để:
+     * Sử dụng [flatMapLatest trên cả [_selectedDate] và [_refreshTrigger] để:
      *   - Khi đổi ngày → tự động query lại
      *   - Khi gán/xoá outfit → force query lại mà không cần đổi ngày
-     *
-     * API observeEventByDate chỉ là one-shot Flow → cần trigger refresh thủ công.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     val eventForSelectedDate: StateFlow<CalendarEventEntity?> = combine(
@@ -117,13 +117,17 @@ class CalendarViewModel(
      * Outfit (kèm ClothingItem) đã được gán cho ngày đang chọn.
      * null nếu chưa có outfit nào được gán.
      *
-     * Kết hợp [eventForSelectedDate] với [allOutfits] để tìm ra
-     * outfit tương ứng với outfitId trong sự kiện.
+     * 🐛 FIX: Sử dụng combine() thay vì .map{} để lắng nghe cả 2 flow cùng lúc,
+     * tránh race condition khi eventForSelectedDate thay đổi nhưng allOutfits chưa kịp cập nhật.
      */
-    val assignedOutfit: StateFlow<OutfitWithClothingItems?> = eventForSelectedDate
-        .map { event ->
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val assignedOutfit: StateFlow<OutfitWithClothingItems?> = combine(
+        eventForSelectedDate,
+        allOutfits,
+        _refreshTrigger
+    ) { event, outfits, _ ->
             if (event != null) {
-                allOutfits.value.find { it.outfit.id == event.outfitId }
+            outfits.find { it.outfit.id == event.outfitId }
             } else null
         }
         .stateIn(
@@ -131,6 +135,43 @@ class CalendarViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = null
         )
+
+    // ──────────────────────────────────────────────────────────────
+    // 🔷 State: Các ngày có sự kiện trong tháng hiện tại
+    // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Tập hợp các epoch midnight của những ngày có sự kiện trong tháng hiện tại.
+     * Dùng để hiển thị chấm tròn trên lịch tháng.
+     */
+    private val _eventsInMonth = MutableStateFlow<Set<Long>>(emptySet())
+    val eventsInMonth: StateFlow<Set<Long>> = _eventsInMonth
+    /**
+     * Load danh sách ngày có sự kiện trong tháng của [currentMonth].
+     * Được gọi từ UI khi tháng thay đổi.
+     */
+    fun loadEventsInMonth(currentMonthEpoch: Long) {
+        viewModelScope.launch {
+            try {
+                val cal = epochToCalendar(currentMonthEpoch)
+                // Ngày đầu tháng
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                val startOfMonth = cal.timeInMillis
+
+                // Ngày cuối tháng
+                cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+                val endOfMonth = cal.timeInMillis
+
+                calendarRepository.getEventsBetween(startOfMonth, endOfMonth)
+                    .collect { events ->
+                        _eventsInMonth.value = events.map { it.date }.toSet()
+                    }
+            } catch (e: Exception) {
+                Log.w(TAG, "⚠️ loadEventsInMonth() lỗi: ${e.message}")
+                _eventsInMonth.value = emptySet()
+            }
+        }
+    }
 
     // ──────────────────────────────────────────────────────────────
     // 🔷 State: Loading & Error
@@ -141,7 +182,6 @@ class CalendarViewModel(
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
-
     // ═════════════════════════════════════════════════════════════
     // 🎯 HÀM THAO TÁC
     // ═════════════════════════════════════════════════════════════
@@ -155,14 +195,13 @@ class CalendarViewModel(
         _selectedDate.value = date
         Log.d(TAG, "📅 Đã chọn ngày: $date")
     }
-
-    /**
+/**
      * 👔 Gán một bộ đồ vào ngày đang chọn.
      *
-     * Nếu ngày đó đã có outfit, nó sẽ bị ghi đè (nhờ OnConflictStrategy.REPLACE).
+     * Nếu ngày đó đã có outfit, nó sẽ bị ghi đè.
      *
      * @param outfitId UUID của Outfit cần gán.
-     */
+ */
     fun assignOutfitToSelectedDate(outfitId: String) {
         viewModelScope.launch {
             try {
@@ -201,7 +240,7 @@ class CalendarViewModel(
                 _refreshTrigger.value = System.currentTimeMillis()
                 Log.d(TAG, "🗑️ Đã xoá outfit khỏi ngày ${_selectedDate.value}")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Lỗi khi xoá outfit khỏi ngày: ${e.message}", e)
+                Log.e(TAG, "❌ Lỗi xoá outfit: ${e.message}", e)
                 _errorMessage.value = "Không thể xoá bộ đồ: ${e.message}"
             }
         }
@@ -218,11 +257,6 @@ class CalendarViewModel(
     // 🛠️ TIỆN ÍCH
     // ═════════════════════════════════════════════════════════════
 
-    /**
-     * Lấy epoch midnight (UTC) của ngày hôm nay.
-     * Dùng để khởi tạo [selectedDate] với ngày hiện tại.
-     * Tương thích với minSdk 25 (dùng java.util.Calendar thay vì java.time).
-     */
     private fun todayEpochMidnight(): Long {
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
         cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -230,6 +264,12 @@ class CalendarViewModel(
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
         return cal.timeInMillis
+    }
+
+    private fun epochToCalendar(epochMillis: Long): Calendar {
+        return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = epochMillis
+        }
     }
 }
 

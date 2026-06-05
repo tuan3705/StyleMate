@@ -9,6 +9,7 @@
  */
 const CalendarEvent = require('../models/CalendarEvent');
 const Outfit = require('../models/Outfit');
+const ClothingItem = require('../models/ClothingItem');
 const asyncHandler = require('../middleware/asyncHandler');
 const { AppError } = require('../middleware/errorHandler');
 
@@ -19,13 +20,14 @@ const { AppError } = require('../middleware/errorHandler');
  * Hỗ trợ query params:
  *   - date: Lấy sự kiện của 1 ngày cụ thể (epoch midnight)
  *   - from, to: Lấy sự kiện trong khoảng thời gian
- * 
+ *   - populate: nếu "true" → trả về thêm thông tin outfit + clothing items
+ *
  * Nếu không có params, trả về tất cả sự kiện.
  * 
  * Response: { success: true, count: Number, data: [...] }
  */
 const getCalendarEvents = asyncHandler(async (req, res) => {
-  const { date, from, to } = req.query;
+  const { date, from, to, populate } = req.query;
   const currentUserId = req.user._id;
 
   let filter = { userId: currentUserId };
@@ -53,8 +55,38 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
     filter.date = { $gte: fromNum, $lte: toNum };
   }
 
-  const events = await CalendarEvent.find(filter).sort({ date: 1 });
+  let events = await CalendarEvent.find(filter).sort({ date: 1 });
 
+  // Nếu populate=true, join thêm outfit & clothing items
+  if (populate === 'true' && events.length > 0) {
+    const outfitIds = [...new Set(events.map(e => e.outfitId))];
+    const outfits = await Outfit.find({ _id: { $in: outfitIds } }).lean();
+
+    // Lấy tất cả clothingItemIds từ các outfit
+    const allItemIds = [
+      ...new Set(outfits.flatMap(o => o.clothingItems.map(ci => ci.clothingItemId)))
+    ];
+    const clothingItems = await ClothingItem.find({ _id: { $in: allItemIds } }).lean();
+    const clothingMap = {};
+    clothingItems.forEach(item => { clothingMap[item._id] = item; });
+
+    // Map outfit theo id
+    const outfitMap = {};
+    outfits.forEach(o => {
+      // Gắn thông tin clothing items đầy đủ vào outfit
+      o.clothingItems = o.clothingItems.map(ci => ({
+        ...ci,
+        clothingItem: clothingMap[ci.clothingItemId] || null
+      }));
+      outfitMap[o._id] = o;
+    });
+
+    // Gắn outfit vào mỗi event
+    events = events.map(event => ({
+      ...event.toObject(),
+      outfit: outfitMap[event.outfitId] || null
+    }));
+  }
   res.status(200).json({
     success: true,
     count: events.length,
@@ -64,9 +96,9 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
 
 /**
  * 🔍 GET /api/calendar/:id
- * 
+ *
  * Lấy chi tiết một sự kiện lịch theo ID.
- * 
+ *
  * Response: { success: true, data: { ... } }
  * Error 404: { success: false, message: "..." }
  */
@@ -88,19 +120,19 @@ const getCalendarEventById = asyncHandler(async (req, res, next) => {
 
 /**
  * ➕ POST /api/calendar
- * 
+ *
  * Gán (hoặc thay thế) một Outfit vào một ngày.
- * 
+ *
  * ⚠️ Nếu đã có sự kiện cho ngày đó, nó sẽ bị ghi đè (upsert/replace).
  * Cơ chế: Dùng findOneAndUpdate với upsert = true để:
  *   - Nếu chưa có: Tạo mới
  *   - Nếu đã có: Cập nhật outfitId (thay outfit cũ bằng outfit mới)
- * 
+ *
  * Body:
  *   - _id: String (UUID do Client sinh) — bắt buộc
  *   - date: Number (epoch midnight) — bắt buộc
  *   - outfitId: String (UUID của Outfit) — bắt buộc
- * 
+ *
  * Response 200 (nếu update): { success: true, message: "Đã cập nhật", data: {...} }
  * Response 201 (nếu create): { success: true, message: "Đã tạo mới", data: {...} }
  */
@@ -180,9 +212,9 @@ const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
 
 /**
  * ✏️ PUT /api/calendar/:id
- * 
+ *
  * Cập nhật một sự kiện lịch (thay outfitId).
- * 
+ *
  * Response: { success: true, data: { ... } }
  * Error 404: { success: false, message: "..." }
  */
@@ -225,9 +257,9 @@ const updateCalendarEvent = asyncHandler(async (req, res, next) => {
 
 /**
  * ❌ DELETE /api/calendar/:id
- * 
+ *
  * Xoá một sự kiện lịch theo ID.
- * 
+ *
  * Response: { success: true, message: "...", data: {} }
  * Error 404: { success: false, message: "..." }
  */
@@ -250,9 +282,9 @@ const deleteCalendarEvent = asyncHandler(async (req, res, next) => {
 
 /**
  * ❌ DELETE /api/calendar/by-date/:date
- * 
+ *
  * Xoá sự kiện theo ngày (epoch midnight).
- * 
+ *
  * Response: { success: true, message: "...", data: {} }
  * Error 404: { success: false, message: "..." }
  */
@@ -281,11 +313,30 @@ const deleteCalendarEventByDate = asyncHandler(async (req, res, next) => {
   });
 });
 
+/**
+ * 🗑️ DELETE /api/calendar/bulk
+ * Xoá tất cả sự kiện lịch của user hiện tại.
+ * Dùng để xoá dữ liệu test hoặc reset lịch.
+ *
+ * Response: { success: true, message: "...", deletedCount: Number }
+ */
+const bulkDeleteCalendarEvents = asyncHandler(async (req, res) => {
+  const currentUserId = req.user._id;
+  const result = await CalendarEvent.deleteMany({ userId: currentUserId });
+
+  res.status(200).json({
+    success: true,
+    message: `Đã xoá ${result.deletedCount} sự kiện lịch`,
+    deletedCount: result.deletedCount
+  });
+});
+
 module.exports = {
   getCalendarEvents,
   getCalendarEventById,
   createOrReplaceCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
-  deleteCalendarEventByDate
+  deleteCalendarEventByDate,
+  bulkDeleteCalendarEvents
 };
