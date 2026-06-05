@@ -163,7 +163,8 @@ class OutfitViewModel(
     data class OutfitItemPlacement(
         val item: ClothingItemEntity,
         val posX: Float,
-        val posY: Float
+        val posY: Float,
+        val scale: Float
     )
 
     private val _editingItems = MutableStateFlow<List<OutfitItemPlacement>>(emptyList())
@@ -266,7 +267,8 @@ class OutfitViewModel(
                         outfitId = outfitId,
                         clothingItemId = item.id,
                         posX = x,
-                        posY = y
+                        posY = y,
+                        scale = 1f
                     )
                 }
 
@@ -310,11 +312,11 @@ class OutfitViewModel(
         if (items.isEmpty()) return emptyList()
         val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
         if (hasCustomPos) {
-            return items.map { OutfitItemPlacement(it.item, it.posX, it.posY) }
+            return items.map { OutfitItemPlacement(it.item, it.posX, it.posY, it.scale) }
         }
         return items.mapIndexed { index, entry ->
             val (x, y) = defaultGridPosition(index)
-            OutfitItemPlacement(entry.item, x, y)
+            OutfitItemPlacement(entry.item, x, y, entry.scale)
         }
     }
 
@@ -334,6 +336,14 @@ class OutfitViewModel(
         }
     }
 
+    fun updateEditingItemScale(itemId: String, scale: Float) {
+        _editingItems.value = _editingItems.value.map { placement ->
+            if (placement.item.id == itemId) {
+                placement.copy(scale = scale)
+            } else placement
+        }
+    }
+
     fun addItemsToEditing(items: List<ClothingItemEntity>) {
         val existingIds = _editingItems.value.map { it.item.id }.toSet()
         val newItems = items.filterNot { it.id in existingIds }
@@ -341,7 +351,7 @@ class OutfitViewModel(
         val startIndex = _editingItems.value.size
         val appended = newItems.mapIndexed { index, item ->
             val (x, y) = defaultGridPosition(startIndex + index)
-            OutfitItemPlacement(item, x, y)
+            OutfitItemPlacement(item, x, y, 1f)
         }
         _editingItems.value = _editingItems.value + appended
     }
@@ -367,7 +377,8 @@ class OutfitViewModel(
                         outfitId = outfitId,
                         clothingItemId = placement.item.id,
                         posX = placement.posX,
-                        posY = placement.posY
+                        posY = placement.posY,
+                        scale = placement.scale
                     )
                 }
                 repository.insertOutfitClothingCrossRefs(crossRefs)

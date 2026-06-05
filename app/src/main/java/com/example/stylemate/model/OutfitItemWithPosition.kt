@@ -9,9 +9,11 @@ package com.example.stylemate.model
  * @property item ClothingItem entity.
  * @property posX Vị trí X (0.0 → 1.0) trên canvas.
  * @property posY Vị trí Y (0.0 → 1.0) trên canvas.
+ * @property scale Tỉ lệ hiển thị của item trên canvas.
  */
 data class OutfitItemWithPosition(
     val item: ClothingItemEntity,
     val posX: Float,
-    val posY: Float
+    val posY: Float,
+    val scale: Float = 1f
 )

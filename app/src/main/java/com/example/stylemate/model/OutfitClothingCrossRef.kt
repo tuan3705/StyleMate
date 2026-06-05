@@ -10,10 +10,12 @@ package com.example.stylemate.model
  * @property clothingItemId UUID của ClothingItem.
  * @property posX Vị trí X của item trong canvas outfit (0.0 → 1.0).
  * @property posY Vị trí Y của item trong canvas outfit (0.0 → 1.0).
+ * @property scale Tỉ lệ hiển thị của item trên canvas outfit.
  */
 data class OutfitClothingCrossRef(
     val outfitId: String,
     val clothingItemId: String,
     val posX: Float = 0.5f,
-    val posY: Float = 0.5f
+    val posY: Float = 0.5f,
+    val scale: Float = 1f
 )

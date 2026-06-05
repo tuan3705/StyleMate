@@ -11,6 +11,12 @@ const CalendarEvent = require('../models/CalendarEvent');
 const asyncHandler = require('../middleware/asyncHandler');
 const { AppError } = require('../middleware/errorHandler');
 
+const normalizeScale = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1.0;
+  return Math.min(2.0, Math.max(0.4, parsed));
+};
+
 /**
  * 📋 GET /api/outfits
  * 
@@ -143,7 +149,8 @@ const createOutfit = asyncHandler(async (req, res) => {
     ? clothingItems.map((item, index) => ({
         clothingItemId: item.clothingItemId,
         posX: item.posX !== undefined ? item.posX : (index % 2 === 0 ? 0.1 : 0.55),
-        posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25
+        posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25,
+        scale: normalizeScale(item.scale)
       }))
     : [];
 
@@ -196,7 +203,8 @@ const updateOutfit = asyncHandler(async (req, res, next) => {
     updateData.clothingItems = req.body.clothingItems.map((item, index) => ({
       clothingItemId: item.clothingItemId,
       posX: item.posX !== undefined ? item.posX : (index % 2 === 0 ? 0.1 : 0.55),
-      posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25
+      posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25,
+      scale: normalizeScale(item.scale)
     }));
   }
 

@@ -575,7 +575,8 @@ fun EditItemScreen(
 private data class OutfitPreviewItem(
     val item: ClothingItemEntity,
     val posX: Float,
-    val posY: Float
+    val posY: Float,
+    val scale: Float
 )
 
 @Composable
@@ -654,11 +655,11 @@ private fun mapOutfitPreviewPositions(
     if (items.isEmpty()) return emptyList()
     val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
     return if (hasCustomPos) {
-        items.map { OutfitPreviewItem(it.item, it.posX, it.posY) }
+        items.map { OutfitPreviewItem(it.item, it.posX, it.posY, it.scale) }
     } else {
         items.mapIndexed { index, entry ->
             val (x, y) = defaultOutfitGridPosition(index)
-            OutfitPreviewItem(entry.item, x, y)
+            OutfitPreviewItem(entry.item, x, y, entry.scale)
         }
     }
 }
@@ -704,18 +705,19 @@ private fun RelevantOutfitCanvasPreview(
 
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
-            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
             items.forEach { placement ->
                 val imageRequest = rememberOutfitItemImageRequest(placement.item)
+                val scaledSizePx = itemSizePx * placement.scale
+                val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
                 val offsetX = (placement.posX * maxX).roundToInt()
                 val offsetY = (placement.posY * maxY).roundToInt()
 
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(offsetX, offsetY) }
-                        .size(itemSize)
+                        .size(itemSize * placement.scale)
                 ) {
                     if (imageRequest != null) {
                         AsyncImage(

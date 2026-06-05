@@ -54,13 +54,14 @@ data class ClothingItemDto(
  * Sub-DTO: Một item trong mảng clothingItems của Outfit.
  * Backend trả về dạng:
  *   "clothingItems": [
- *       { "clothingItemId": "uuid", "posX": 0.5, "posY": 0.5 }
+ *       { "clothingItemId": "uuid", "posX": 0.5, "posY": 0.5, "scale": 1.0 }
  *   ]
  */
 data class OutfitClothingItemRefDto(
     val clothingItemId: String,
     val posX: Float,
-    val posY: Float
+    val posY: Float,
+    val scale: Float = 1f
 )
 
 /**

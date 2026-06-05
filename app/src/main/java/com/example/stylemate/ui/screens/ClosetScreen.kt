@@ -68,6 +68,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
@@ -397,6 +400,9 @@ fun ClosetScreen(
             onPositionChange = { itemId, posX, posY ->
                 outfitVM.updateEditingItemPosition(itemId, posX, posY)
             },
+            onScaleChange = { itemId, scale ->
+                outfitVM.updateEditingItemScale(itemId, scale)
+            },
             onDeleteItem = { itemId ->
                 outfitVM.removeEditingItem(itemId)
             }
@@ -703,11 +709,11 @@ private fun mapOutfitPreviewPositions(
     if (items.isEmpty()) return emptyList()
     val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
     return if (hasCustomPos) {
-        items.map { OutfitViewModel.OutfitItemPlacement(it.item, it.posX, it.posY) }
+        items.map { OutfitViewModel.OutfitItemPlacement(it.item, it.posX, it.posY, it.scale) }
     } else {
         items.mapIndexed { index, entry ->
             val (x, y) = defaultOutfitGridPosition(index)
-            OutfitViewModel.OutfitItemPlacement(entry.item, x, y)
+            OutfitViewModel.OutfitItemPlacement(entry.item, x, y, entry.scale)
         }
     }
 }
@@ -751,19 +757,20 @@ private fun OutfitCanvasPreview(
 
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
-            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
             items.forEach { placement ->
                 val item = placement.item
                 val imageModel = rememberItemImageModel(item)
+                val scaledSizePx = itemSizePx * placement.scale
+                val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
                 val offsetX = (placement.posX * maxX).roundToInt()
                 val offsetY = (placement.posY * maxY).roundToInt()
 
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(offsetX, offsetY) }
-                        .size(itemSize)
+                        .size(itemSize * placement.scale)
                 ) {
                     if (imageModel != null) {
                         AsyncImage(
@@ -797,6 +804,7 @@ private fun OutfitCanvasEditorDialog(
     onAddItems: () -> Unit,
     onSave: () -> Unit,
     onPositionChange: (String, Float, Float) -> Unit,
+    onScaleChange: (String, Float) -> Unit,
     onDeleteItem: (String) -> Unit
 ) {
     var selectedItemId by remember { mutableStateOf<String?>(null) }
@@ -840,7 +848,8 @@ private fun OutfitCanvasEditorDialog(
                         onDeleteItem(itemId)
                         if (selectedItemId == itemId) selectedItemId = null
                     },
-                    onPositionChange = onPositionChange
+                    onPositionChange = onPositionChange,
+                    onScaleChange = onScaleChange
                 )
 
                 Row(
@@ -882,11 +891,14 @@ private fun OutfitCanvas(
     selectedItemId: String?,
     onSelectItem: (String) -> Unit,
     onDeleteItem: (String) -> Unit,
-    onPositionChange: (String, Float, Float) -> Unit
+    onPositionChange: (String, Float, Float) -> Unit,
+    onScaleChange: (String, Float) -> Unit
 ) {
     val itemSize = 96.dp
     val density = LocalDensity.current
     val itemSizePx = with(density) { itemSize.toPx() }
+    val minScale = 0.4f
+    val maxScale = 2.0f
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -911,8 +923,6 @@ private fun OutfitCanvas(
 
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
-            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
             items.forEach { placement ->
                 val item = placement.item
@@ -921,9 +931,19 @@ private fun OutfitCanvas(
                 var localPos by remember(item.id) {
                     mutableStateOf(Offset(placement.posX, placement.posY))
                 }
+                var localScale by remember(item.id) {
+                    mutableStateOf(placement.scale)
+                }
                 LaunchedEffect(placement.posX, placement.posY) {
                     localPos = Offset(placement.posX, placement.posY)
                 }
+                LaunchedEffect(placement.scale) {
+                    localScale = placement.scale
+                }
+
+                val scaledSizePx = itemSizePx * localScale
+                val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
 
                 val offsetX = (localPos.x * maxX).roundToInt()
                 val offsetY = (localPos.y * maxY).roundToInt()
@@ -931,7 +951,7 @@ private fun OutfitCanvas(
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(offsetX, offsetY) }
-                        .size(itemSize)
+                        .size(itemSize * localScale)
                         .pointerInput(item.id) {
                             detectTapGestures(onTap = { onSelectItem(item.id) })
                         }
@@ -973,6 +993,40 @@ private fun OutfitCanvas(
                                 .matchParentSize()
                                 .border(2.dp, Color(0xFFFFD54F), RoundedCornerShape(12.dp))
                         )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = 6.dp, y = 6.dp)
+                                .size(18.dp)
+                                .background(Color(0xFFFFD54F), CircleShape)
+                                .pointerInput(item.id, canvasWidth, canvasHeight) {
+                                    detectDragGestures(
+                                        onDragStart = { onSelectItem(item.id) },
+                                        onDrag = { change, dragAmount ->
+                                            change.consumePositionChange()
+                                            val currentMaxX = (canvasWidth - itemSizePx * localScale).coerceAtLeast(1f)
+                                            val currentMaxY = (canvasHeight - itemSizePx * localScale).coerceAtLeast(1f)
+                                            val currentPxX = localPos.x * currentMaxX
+                                            val currentPxY = localPos.y * currentMaxY
+                                            val delta = (dragAmount.x + dragAmount.y) / itemSizePx
+                                            val newScale = (localScale + delta).coerceIn(minScale, maxScale)
+                                            val newMaxX = (canvasWidth - itemSizePx * newScale).coerceAtLeast(1f)
+                                            val newMaxY = (canvasHeight - itemSizePx * newScale).coerceAtLeast(1f)
+                                            val newPosX = (currentPxX.coerceIn(0f, newMaxX) / newMaxX)
+                                            val newPosY = (currentPxY.coerceIn(0f, newMaxY) / newMaxY)
+                                            localScale = newScale
+                                            localPos = Offset(newPosX, newPosY)
+                                        },
+                                        onDragEnd = {
+                                            onScaleChange(item.id, localScale)
+                                            onPositionChange(item.id, localPos.x, localPos.y)
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "↘", fontSize = 10.sp, color = Color.Black)
+                        }
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -1094,14 +1148,11 @@ private fun AddItemSelectCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (imageModel != null) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = item.name.ifBlank { item.category },
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-            } else {
+            ItemImageOrFallback(
+                imageModel = imageModel,
+                contentDescription = item.name.ifBlank { item.category },
+                contentScale = ContentScale.Fit
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1339,38 +1390,36 @@ private fun SelectableItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(getCategoryColor(item.category).copy(alpha = bgAlpha)),
-                contentAlignment = Alignment.Center
+            ItemImageOrFallback(
+                imageModel = imageModel,
+                contentDescription = item.name.ifBlank { item.category },
+                contentScale = ContentScale.Crop
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = item.name.ifBlank { item.category },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                    Text(
-                        text = item.color,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(getCategoryColor(item.category).copy(alpha = bgAlpha)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = item.name.ifBlank { item.category },
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        Text(
+                            text = item.color,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
                 }
-            }
-            if (imageModel != null) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = item.name.ifBlank { item.category },
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
             }
             if (isSelected) {
                 Icon(
@@ -1468,32 +1517,29 @@ fun ClothingItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+            ItemImageOrFallback(
+                imageModel = imageModel,
+                contentDescription = item.name.ifBlank { item.category },
+                contentScale = ContentScale.Crop
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 32.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = item.imageOriginal.substringAfterLast("/").take(15),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.DarkGray,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = getCategoryIcon(item.category), fontSize = 32.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = item.imageOriginal.substringAfterLast("/").take(15),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.DarkGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-            }
-
-            if (imageModel != null) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = item.name.ifBlank { item.category },
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
             }
             Column(
                 modifier = Modifier
@@ -1568,6 +1614,31 @@ private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
                 .data(it)
                 .crossfade(true)
                 .build()
+        }
+    }
+}
+
+@Composable
+private fun ItemImageOrFallback(
+    imageModel: ImageRequest?,
+    contentDescription: String,
+    contentScale: ContentScale,
+    fallback: @Composable () -> Unit
+) {
+    if (imageModel == null) {
+        fallback()
+        return
+    }
+    SubcomposeAsyncImage(
+        model = imageModel,
+        contentDescription = contentDescription,
+        modifier = Modifier.fillMaxSize(),
+        contentScale = contentScale
+    ) {
+        when (painter.state) {
+            is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
+            is AsyncImagePainter.State.Error -> fallback()
+            else -> Unit
         }
     }
 }

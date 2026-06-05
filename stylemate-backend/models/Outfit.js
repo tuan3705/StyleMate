@@ -26,6 +26,10 @@ const outfitClothingItemSchema = new mongoose.Schema({
   posY: {
     type: Number,
     default: 0.5
+  },
+  scale: {
+    type: Number,
+    default: 1.0
   }
 }, {
   _id: false // Không cần _id riêng cho sub-document

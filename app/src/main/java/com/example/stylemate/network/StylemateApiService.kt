@@ -193,7 +193,7 @@ interface StylemateApiService {
      * Body gửi lên gồm:
      *   - _id: UUID do Client sinh
      *   - name: String (tên bộ đồ)
-     *   - clothingItems: Mảng [{ clothingItemId, posX, posY }]
+     *   - clothingItems: Mảng [{ clothingItemId, posX, posY, scale }]
      *
      * @param outfit OutfitDto cần tạo
      * @return ApiSingleResponse chứa OutfitDto đã lưu
