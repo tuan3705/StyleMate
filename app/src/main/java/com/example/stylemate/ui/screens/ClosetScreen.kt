@@ -116,7 +116,8 @@ import kotlin.math.roundToInt
 fun ClosetScreen(
     onEditItem: (String) -> Unit,
     refreshSignal: StateFlow<Boolean>,
-    onRefreshConsumed: () -> Unit
+    onRefreshConsumed: () -> Unit,
+    accountMenu: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -256,12 +257,15 @@ fun ClosetScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "My Closet",
+                    text = "Tủ đồ",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = { /* Filter action */ }) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { /* Filter action */ }) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Lọc")
+                    }
+                    accountMenu()
                 }
             }
 

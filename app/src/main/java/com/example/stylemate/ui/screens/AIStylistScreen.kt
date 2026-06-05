@@ -54,7 +54,8 @@ import com.example.stylemate.viewmodel.WeatherViewModel
 
 @Composable
 fun AIStylistScreen(
-    viewModel: AIStylistViewModel = viewModel()
+    viewModel: AIStylistViewModel = viewModel(),
+    accountMenu: @Composable () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -111,7 +112,7 @@ fun AIStylistScreen(
 
     Scaffold(
         topBar = {
-            AIStylistHeader()
+            AIStylistHeader(accountMenu = accountMenu)
         }
     ) { innerPadding ->
         LazyColumn(
@@ -180,7 +181,7 @@ fun AIStylistScreen(
 }
 
 @Composable
-fun AIStylistHeader() {
+fun AIStylistHeader(accountMenu: @Composable () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -200,15 +201,7 @@ fun AIStylistHeader() {
             IconButton(onClick = { /* TODO */ }) {
                 Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
             }
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.Person, contentDescription = "Profile", modifier = Modifier.size(20.dp))
-            }
+            accountMenu()
         }
     }
 }

@@ -84,7 +84,7 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarScreen() {
+fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
     val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
     val calendarRepo = CalendarRepository(apiService)
     val outfitRepo = OutfitRepository(apiService)
@@ -124,6 +124,7 @@ fun CalendarScreen() {
                 IconButton(onClick = { viewModel.selectDate(todayEpochMidnight()) }) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = "Hôm nay", tint = MaterialTheme.colorScheme.primary)
                 }
+                accountMenu()
             }
         }
 
