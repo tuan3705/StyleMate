@@ -159,7 +159,8 @@ interface StylemateApiService {
      */
     @GET("api/outfits")
     suspend fun getAllOutfits(
-        @Query("populate") populate: String? = null
+        @Query("populate") populate: String? = null,
+        @Query("name") name: String? = null
     ): Response<ApiListResponse<OutfitDto>>
 
     /**

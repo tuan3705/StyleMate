@@ -12,14 +12,13 @@ import com.example.stylemate.model.OutfitItemWithPosition
 import kotlin.math.min
 import com.example.stylemate.repository.OutfitRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.flatMapLatest
@@ -70,44 +69,33 @@ class OutfitViewModel(
      * Nho [stateIn] voi [SharingStarted.WhileSubscribed], Flow chi hoat dong
      * khi co UI observer — tiet kiem tai nguyen, tranh memory leak.
      */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val outfits: StateFlow<List<OutfitWithClothingItems>> = _refreshTrigger
-        .flatMapLatest {
-            repository.getAllOutfitsWithItems()
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
-
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
+    @OptIn(FlowPreview::class)
     private val debouncedSearchQuery = _searchQuery
         .map { it.trim() }
         .debounce(250)
         .distinctUntilChanged()
         .onStart { emit("") }
 
-    val filteredOutfits: StateFlow<List<OutfitWithClothingItems>> = combine(
-        outfits,
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val outfits: StateFlow<List<OutfitWithClothingItems>> = combine(
+        _refreshTrigger,
         debouncedSearchQuery
-    ) { currentOutfits, query ->
-        if (query.isBlank()) {
-            currentOutfits
-        } else {
-            currentOutfits.filter { outfit ->
-                outfit.outfit.name.contains(query, ignoreCase = true)
-            }
-        }
+    ) { _, query ->
+        query
     }
-        .flowOn(Dispatchers.Default)
+        .flatMapLatest { query ->
+            repository.getAllOutfitsWithItems(query)
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
         )
+
+    val filteredOutfits: StateFlow<List<OutfitWithClothingItems>> = outfits
 
     // ─────────────────────────────────────────────────────────────
     // 🔷 Draft State: Danh sách items đang chọn để tạo outfit mới

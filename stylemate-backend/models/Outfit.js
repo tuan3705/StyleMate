@@ -65,6 +65,7 @@ const outfitSchema = new mongoose.Schema({
 });
 
 outfitSchema.index({ userId: 1, createdAt: -1 });
+outfitSchema.index({ userId: 1, name: 1 });
 outfitSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Outfit', outfitSchema);

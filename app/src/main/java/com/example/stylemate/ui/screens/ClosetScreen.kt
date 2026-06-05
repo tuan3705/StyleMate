@@ -142,6 +142,7 @@ fun ClosetScreen(
 
     // ── Collect StateFlows (Outfits) ────────────────────────────
     val outfits by outfitVM.outfits.collectAsStateWithLifecycle()
+    val outfitSearchQuery by outfitVM.searchQuery.collectAsStateWithLifecycle()
     val isOutfitLoading by outfitVM.isLoading.collectAsStateWithLifecycle()
     val outfitError by outfitVM.errorMessage.collectAsStateWithLifecycle()
     val editingItems by outfitVM.editingItems.collectAsStateWithLifecycle()
@@ -324,8 +325,11 @@ fun ClosetScreen(
             else {
                 OutfitsTabContent(
                     outfits = outfits,
+                    searchQuery = outfitSearchQuery,
                     isLoading = isOutfitLoading,
                     outfitRepo = outfitRepo,
+                    onQueryChange = outfitVM::updateSearchQuery,
+                    onClearQuery = outfitVM::clearSearchQuery,
                     onDeleteOutfit = { outfitVM.deleteOutfit(it) },
                     onOutfitClick = { outfit ->
                         outfitVM.startEditingOutfit(outfit.outfit.id, outfit.outfit.name)
@@ -426,7 +430,8 @@ fun ClosetScreen(
 private fun ClosetSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    onClearQuery: () -> Unit
+    onClearQuery: () -> Unit,
+    placeholder: String = "Tìm món đồ"
 ) {
     val focusManager = LocalFocusManager.current
     OutlinedTextField(
@@ -435,7 +440,7 @@ private fun ClosetSearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp),
-        placeholder = { Text("Tìm món đồ") },
+        placeholder = { Text(placeholder) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         leadingIcon = {
@@ -566,18 +571,31 @@ private fun ItemsTabContent(
 @Composable
 private fun OutfitsTabContent(
     outfits: List<OutfitWithClothingItems>,
+    searchQuery: String,
     isLoading: Boolean,
     outfitRepo: OutfitRepository,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit,
     onDeleteOutfit: (com.example.stylemate.model.OutfitEntity) -> Unit,
     onOutfitClick: (OutfitWithClothingItems) -> Unit
 ) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        ClosetSearchBar(
+            query = searchQuery,
+            onQueryChange = onQueryChange,
+            onClearQuery = onClearQuery,
+            placeholder = "Tìm bộ đồ"
+        )
+        Spacer(Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
         when {
             isLoading -> CircularProgressIndicator()
             outfits.isEmpty() -> {
+                val isSearching = searchQuery.isNotBlank()
                 // 📝 Empty state
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -588,18 +606,21 @@ private fun OutfitsTabContent(
                     Text(text = "🧥", fontSize = 48.sp)
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "Chưa có bộ đồ nào",
+                        text = if (isSearching) "Không tìm thấy bộ đồ phù hợp" else "Chưa có bộ đồ nào",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Gray
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "Nhấn + để tạo bộ đồ mới từ các món đồ trong tủ",
-                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray,
                         textAlign = TextAlign.Center
                     )
+                    if (!isSearching) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Nhấn + để tạo bộ đồ mới từ các món đồ trong tủ",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
             else -> {
@@ -621,6 +642,7 @@ private fun OutfitsTabContent(
             }
         }
     }
+}
 }
 
 // ═════════════════════════════════════════════════════════════════
