@@ -58,7 +58,7 @@ class AIStylistViewModel(
                 val sdf = SimpleDateFormat("dd 'thg' M", Locale("vi"))
                 val dateStr = sdf.format(Date())
 
-                // 2. Fetch AI Recommendation from Gemini (via backend)
+                // 2. Fetch AI Recommendation from DeepSeek (via backend)
                 val chatMessage = "Gợi ý trang phục street style ngắn gọn cho ngày có thời tiết: ${weather.current.condition.text}, nhiệt độ ${currentTemp}°C tại ${location}."
                 val response = RetrofitClient.stylemateApiService.chatWithAi(
                     ChatRequest(
@@ -85,7 +85,7 @@ class AIStylistViewModel(
                         tempText = "$maxTemp / $minTemp°C",
                         dateText = dateStr,
                         isLoading = false,
-                        error = "Gemini API error: ${response.code()}"
+                        error = "DeepSeek API error: ${response.code()}"
                     )
                 }
 

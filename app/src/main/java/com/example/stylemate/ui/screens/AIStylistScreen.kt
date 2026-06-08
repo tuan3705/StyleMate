@@ -55,6 +55,7 @@ import com.example.stylemate.viewmodel.WeatherViewModel
 @Composable
 fun AIStylistScreen(
     viewModel: AIStylistViewModel = viewModel(),
+    onNavigateToWizard: () -> Unit = {}, // 👈 Thêm parameter này
     accountMenu: @Composable () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -134,7 +135,7 @@ fun AIStylistScreen(
             }
 
             item {
-                AIDesignerSection()
+                AIDesignerSection(onNavigateToWizard = onNavigateToWizard) // 👈 Truyền parameter vào đây
             }
 
             item {
@@ -531,7 +532,7 @@ fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVe
 }
 
 @Composable
-fun AIDesignerSection() {
+fun AIDesignerSection(onNavigateToWizard: () -> Unit) { // 👈 Cập nhật signature
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "Nhà tạo mẫu AI",
@@ -540,7 +541,13 @@ fun AIDesignerSection() {
         )
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AIDesignerLargeCard(modifier = Modifier.weight(1.2f), title = "Gợi ý trang phục", hasUpdate = true)
+            AIDesignerLargeCard(
+                modifier = Modifier
+                    .weight(1.2f)
+                    .clickable { onNavigateToWizard() }, // 👈 Kích hoạt click
+                title = "Gợi ý trang phục",
+                hasUpdate = true
+            )
             Column(modifier = Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AIDesignerMediumCard(title = "Mua sắm", icon = Icons.Default.ShoppingCart)
                 AIDesignerMediumCard(title = "Trò chuyện phong cách", icon = Icons.Default.ChatBubble)

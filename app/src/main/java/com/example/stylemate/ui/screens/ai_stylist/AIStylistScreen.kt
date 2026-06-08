@@ -36,12 +36,22 @@ import androidx.compose.ui.tooling.preview.Preview
 fun AIStylistChatScreen(
     onBack: () -> Unit,
     onNavigateToWizard: () -> Unit,
+    wizardResult: String? = null,
+    onWizardResultConsumed: () -> Unit = {},
     viewModel: AIStylistViewModel = viewModel()
 ) {
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    // ── Listen for Wizard Results ──────────────────────────────
+    LaunchedEffect(wizardResult) {
+        if (wizardResult != null) {
+            viewModel.sendMessage(wizardResult)
+            onWizardResultConsumed()
+        }
+    }
 
     Scaffold(
         topBar = {

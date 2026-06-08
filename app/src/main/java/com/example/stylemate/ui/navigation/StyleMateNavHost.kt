@@ -39,11 +39,16 @@ fun StyleMateNavHost(
             )
         }
 
-        composable(StyleMateRoutes.AI_CHAT) {
+        composable(StyleMateRoutes.AI_CHAT) { backStackEntry ->
+            val wizardResult = backStackEntry.savedStateHandle.get<String>("wizard_result")
             AIStylistChatScreen(
                 onBack = { navController.popBackStack() },
                 onNavigateToWizard = {
                     navController.navigate(StyleMateRoutes.OUTFIT_SUGGESTION)
+                },
+                wizardResult = wizardResult,
+                onWizardResultConsumed = {
+                    backStackEntry.savedStateHandle.remove<String>("wizard_result")
                 }
             )
         }
@@ -68,8 +73,11 @@ fun StyleMateNavHost(
             OutfitSuggestionWizard(
                 onBack = { navController.popBackStack() },
                 onFinish = { items, occasion, style, theme ->
-                    // For now just go back, later we can navigate to a result screen
-                    // or pass these as arguments to AIStylistScreen
+                    // Navigate back to Chat with the selected context
+                    val message = "Hãy gợi ý phối đồ cho dịp $occasion với phong cách $style ${if (theme != "Không có") "tại $theme" else ""}."
+                    // We can pass this through a shared ViewModel or SavedStateHandle
+                    // For now, let's navigate back and we'll ensure the Chat screen can receive this.
+                    navController.previousBackStackEntry?.savedStateHandle?.set("wizard_result", message)
                     navController.popBackStack()
                 }
             )
