@@ -23,6 +23,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.stylemate.notification.NotificationBus
 import androidx.navigation.navArgument
 import com.example.stylemate.ui.navigation.BottomNavItem
+import com.example.stylemate.ui.navigation.StyleMateNavHost
+import com.example.stylemate.ui.navigation.StyleMateRoutes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.TextButton
@@ -136,7 +138,9 @@ fun MainScreen(onLogout: () -> Unit) {
                     }
                 )
             }
-            composable(BottomNavItem.AIStylist.route) { AIStylistScreen() }
+            composable(BottomNavItem.AIStylist.route) {
+                StyleMateNavHost()
+            }
             composable(BottomNavItem.Weather.route) { WeatherScreen() }
             composable(BottomNavItem.Calendar.route) { CalendarScreen() }
             composable(

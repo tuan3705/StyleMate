@@ -42,11 +42,15 @@ const mountRoutes = (app) => {
   // 🖼️ Xử lý ảnh (remove background)
   app.use('/api/images', requireAuth, imageRoutes);
 
+  // 📦 Quản lý Items (upload & extraction)
+  const itemRoutes = require('./itemRoutes');
+  app.use('/api/items', requireAuth, itemRoutes);
+
   // 🤖 AI Stylist
   app.use('/api/ai-stylist', aiStylistRoutes);
 
   // 👗 Virtual Try-On
-  app.use('/api/virtual-tryon', virtualTryOnRoutes);
+  app.use('/api/ai-stylist/virtual-tryon', virtualTryOnRoutes);
 
   // 🏠 Route kiểm tra health
   app.get('/api/health', (req, res) => {

@@ -27,4 +27,16 @@ router.post('/style-assess', aiStylistController.postStyleAssess);
 // POST /api/ai-stylist/color-analyze
 router.post('/color-analyze', aiStylistController.postColorAnalyze);
 
+// POST /api/ai-stylist/style-chat
+router.post('/style-chat', aiStylistController.postStyleChat);
+
+// GET /api/ai-stylist/home-suggestions
+router.get('/home-suggestions', aiStylistController.getHomeSuggestions);
+
+// POST /api/ai-stylist/home-suggestions/refresh
+router.post('/home-suggestions/refresh', aiStylistController.refreshHomeSuggestions);
+
+// POST /api/ai-stylist/home-suggestions/:id/action
+router.post('/home-suggestions/:id/action', aiStylistController.postHomeSuggestionAction);
+
 module.exports = router;

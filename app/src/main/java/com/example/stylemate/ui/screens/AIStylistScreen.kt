@@ -52,9 +52,13 @@ import com.example.stylemate.viewmodel.AIStylistViewModel
 import com.example.stylemate.viewmodel.AIStylistUiState
 import com.example.stylemate.viewmodel.WeatherViewModel
 
+import androidx.compose.foundation.clickable
+import com.example.stylemate.ui.navigation.StyleMateRoutes
+
 @Composable
 fun AIStylistScreen(
-    viewModel: AIStylistViewModel = viewModel()
+    viewModel: AIStylistViewModel = viewModel(),
+    onNavigateToWizard: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -133,7 +137,7 @@ fun AIStylistScreen(
             }
 
             item {
-                AIDesignerSection()
+                AIDesignerSection(onNavigateToWizard = onNavigateToWizard)
             }
 
             item {
@@ -538,7 +542,7 @@ fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVe
 }
 
 @Composable
-fun AIDesignerSection() {
+fun AIDesignerSection(onNavigateToWizard: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "Nhà tạo mẫu AI",
@@ -547,7 +551,13 @@ fun AIDesignerSection() {
         )
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AIDesignerLargeCard(modifier = Modifier.weight(1.2f), title = "Gợi ý trang phục", hasUpdate = true)
+            AIDesignerLargeCard(
+                modifier = Modifier
+                    .weight(1.2f)
+                    .clickable { onNavigateToWizard() },
+                title = "Gợi ý trang phục",
+                hasUpdate = true
+            )
             Column(modifier = Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AIDesignerMediumCard(title = "Mua sắm", icon = Icons.Default.ShoppingCart)
                 AIDesignerMediumCard(title = "Trò chuyện phong cách", icon = Icons.Default.ChatBubble)

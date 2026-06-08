@@ -1,16 +1,30 @@
 package com.example.stylemate.ui.screens.ai_stylist
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.stylemate.ui.components.ChatMessageRow
 import com.example.stylemate.ui.components.OutfitSuggestionCard
@@ -19,64 +33,31 @@ import androidx.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIStylistScreen(
-    viewModel: AIStylistViewModel = viewModel(),
-    onNavigateToDetail: (String) -> Unit = {}
+fun AIStylistChatScreen(
+    onBack: () -> Unit,
+    onNavigateToWizard: () -> Unit,
+    viewModel: AIStylistViewModel = viewModel()
 ) {
-    val messages by viewModel.messages.collectAsState()
-    val uiState by viewModel.uiState.collectAsState()
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    // Auto-scroll to bottom on new messages
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("AI Stylist") }
-            )
-        },
-        bottomBar = {
-            Column {
-                // Quick Prompts
-                val lastMessage = messages.lastOrNull()
-                if (lastMessage != null && !lastMessage.isFromUser && lastMessage.followups.isNotEmpty()) {
-                    QuickPromptsRow(
-                        prompts = lastMessage.followups,
-                        onPromptClick = { viewModel.sendMessage(it) }
-                    )
-                }
-
-                // Input Bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Ask me anything...") },
-                        maxLines = 3
-                    )
-                    IconButton(
-                        onClick = {
-                            viewModel.sendMessage(inputText)
-                            inputText = ""
-                        },
-                        enabled = inputText.isNotBlank() && uiState !is AIStylistUiState.Typing
-                    ) {
-                        Icon(Icons.Default.Send, contentDescription = "Send")
+            TopAppBar(
+                title = {},
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    TextButton(onClick = { /* TODO: Settings */ }) {
+                        Text("Cài đặt Tạo kiểu", color = Color.Gray)
                     }
                 }
-            }
+            )
         }
     ) { padding ->
         LazyColumn(
@@ -86,13 +67,116 @@ fun AIStylistScreen(
                 .padding(padding),
             contentPadding = PaddingValues(16.dp)
         ) {
+            item {
+                Column(modifier = Modifier.padding(bottom = 24.dp)) {
+                    Text(
+                        text = "Nhà tạo mẫu cá nhân",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Người lên kế hoạch phong cách thấu hiểu bạn hơn chính bạn",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                }
+            }
+
+            item {
+                // Custom Search/Chat Bar (matching Screenshot 1)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .height(56.dp)
+                        .border(1.dp, Color.LightGray, RoundedCornerShape(28.dp))
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.padding(start = 12.dp),
+                            tint = Color.Gray
+                        )
+                        TextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Nhập tin nhắn", color = Color.LightGray) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                disabledContainerColor = Color.Transparent,
+                                errorContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                                disabledIndicatorColor = Color.Transparent,
+                                errorIndicatorColor = Color.Transparent
+                            ),
+                            singleLine = true
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(Color(0xFF64B5F6), Color(0xFF7E57C2))
+                                    )
+                                )
+                                .clickable {
+                                    if (inputText.isNotBlank()) {
+                                        viewModel.sendMessage(inputText)
+                                        inputText = ""
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Send", tint = Color.White)
+                        }
+                    }
+                }
+            }
+
+            item {
+                // Coordinate with items button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .clickable { onNavigateToWizard() },
+                        shape = RoundedCornerShape(20.dp),
+                        tonalElevation = 2.dp,
+                        shadowElevation = 4.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Phối đồ với các món đồ", fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+
             items(messages) { message ->
                 ChatMessageRow(
                     message = message.text,
                     isFromUser = message.isFromUser
                 )
                 
-                message.suggestedOutfit?.let { outfit ->
+                message.suggestedOutfits.forEach { outfit ->
                     OutfitSuggestionCard(
                         outfit = outfit,
                         onAction = { action, _ ->
@@ -105,7 +189,7 @@ fun AIStylistScreen(
             if (uiState is AIStylistUiState.Typing) {
                 item {
                     Text(
-                        text = "AI is typing...",
+                        text = "AI đang suy nghĩ...",
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(8.dp)
                     )
@@ -113,10 +197,4 @@ fun AIStylistScreen(
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewAIStylistScreen() {
-    AIStylistScreen()
 }

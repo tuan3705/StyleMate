@@ -14,19 +14,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.stylemate.data.models.SuggestedOutfit
+import com.example.stylemate.network.SuggestedOutfitDto
+import com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL
 import androidx.compose.ui.tooling.preview.Preview
 
 /**
  * OutfitSuggestionCard displays a structured outfit suggestion with items and action buttons.
  * 
- * @param outfit The SuggestedOutfit data object.
+ * @param outfit The SuggestedOutfitDto data object.
  * @param onAction Callback for actions like 'tryon', 'save', 'buy'.
  */
 @Composable
 fun OutfitSuggestionCard(
-    outfit: SuggestedOutfit,
-    onAction: (String, SuggestedOutfit) -> Unit
+    outfit: SuggestedOutfitDto,
+    onAction: (String, SuggestedOutfitDto) -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -37,53 +38,63 @@ fun OutfitSuggestionCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Reason / LLM Summary
-            Text(
-                text = outfit.reason,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+            outfit.reason?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
 
             // Items Grid
-            Box(modifier = Modifier.height(180.dp)) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(outfit.imageUrls) { url ->
-                        AsyncImage(
-                            model = url,
-                            contentDescription = "Outfit item",
-                            modifier = Modifier
-                                .height(80.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentScale = ContentScale.Crop
-                        )
+            val imageUrls = outfit.image_urls?.values?.toList() ?: emptyList()
+            if (imageUrls.isNotEmpty()) {
+                Box(modifier = Modifier.height(180.dp)) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(imageUrls) { url ->
+                            val fullUrl = if (url.startsWith("http")) url 
+                                         else "${STYLEMATE_BASE_URL.removeSuffix("/")}${url}"
+                            AsyncImage(
+                                model = fullUrl,
+                                contentDescription = "Outfit item",
+                                modifier = Modifier
+                                    .height(80.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
                 }
             }
 
             // Confidence Badge
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Confidence: ${(outfit.confidence * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+            outfit.confidence?.let {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Confidence: ${(it * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
             }
 
             // Action Buttons
+            val actions = listOf("tryon", "save", "buy") // Default actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                outfit.actions.forEach { action ->
+                actions.forEach { action ->
                     Button(
                         onClick = { onAction(action, outfit) },
                         modifier = Modifier.weight(1f),
@@ -100,10 +111,10 @@ fun OutfitSuggestionCard(
 @Preview(showBackground = true)
 @Composable
 fun PreviewOutfitSuggestionCard() {
-    val sampleOutfit = SuggestedOutfit(
+    val sampleOutfit = SuggestedOutfitDto(
         id = "o1",
         items = listOf("i1", "i2"),
-        imageUrls = listOf("https://via.placeholder.com/150", "https://via.placeholder.com/150"),
+        image_urls = mapOf("top" to "/uploads/sample.jpg"),
         reason = "Perfect for a rainy day at the office.",
         confidence = 0.92
     )

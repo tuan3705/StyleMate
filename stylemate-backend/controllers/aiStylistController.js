@@ -620,6 +620,53 @@ const postColorAnalyze = asyncHandler(async (req, res) => {
   });
 });
 
+const homeSuggestionService = require('../services/homeSuggestionService');
+const fitAnalysisService = require('../services/fitAnalysisService');
+
+/**
+ * GET /api/ai-stylist/home-suggestions
+ */
+const getHomeSuggestions = asyncHandler(async (req, res) => {
+  const { userId, location } = req.query;
+  const result = await homeSuggestionService.getHomeSuggestions(userId, location);
+  res.json({ success: true, ...result });
+});
+
+/**
+ * POST /api/ai-stylist/home-suggestions/refresh
+ */
+const refreshHomeSuggestions = asyncHandler(async (req, res) => {
+  const { userId, location } = req.body;
+  const result = await homeSuggestionService.refreshHomeSuggestions(userId, location);
+  res.json({ success: true, ...result });
+});
+
+/**
+ * POST /api/ai-stylist/home-suggestions/:id/action
+ */
+const postHomeSuggestionAction = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body;
+  // Stub implementation
+  res.json({ success: true, message: `Action ${action} initiated for ${id}` });
+});
+
+/**
+ * POST /api/ai-stylist/style-chat
+ */
+const postStyleChat = asyncHandler(async (req, res) => {
+  const { userId, message } = req.body;
+  
+  // Call LLM for style chat logic (stub)
+  const response = await llmClient.generateStructuredResponse({
+    message: message || 'Hello, need deep style advice',
+    context: {}, // Ideally contextService.buildContext(...)
+    options: { schemaType: 'style-chat' }
+  });
+  
+  res.json({ success: true, data: response });
+});
+
 module.exports = {
   postChat,
   getClosetItems,
@@ -627,5 +674,9 @@ module.exports = {
   getSession,
   deleteSession,
   postStyleAssess,
-  postColorAnalyze
+  postColorAnalyze,
+  getHomeSuggestions,
+  refreshHomeSuggestions,
+  postHomeSuggestionAction,
+  postStyleChat
 };
