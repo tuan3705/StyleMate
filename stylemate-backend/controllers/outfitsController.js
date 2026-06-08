@@ -11,6 +11,14 @@ const CalendarEvent = require('../models/CalendarEvent');
 const asyncHandler = require('../middleware/asyncHandler');
 const { AppError } = require('../middleware/errorHandler');
 
+const normalizeScale = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1.0;
+  return Math.min(2.0, Math.max(0.4, parsed));
+};
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /**
  * 📋 GET /api/outfits
  * 
@@ -24,14 +32,20 @@ const { AppError } = require('../middleware/errorHandler');
  */
 const getAllOutfits = asyncHandler(async (req, res) => {
   const { populate } = req.query;
+  const nameQuery = typeof req.query.name === 'string' ? req.query.name.trim() : '';
   const currentUserId = req.user._id;
+  const matchQuery = { userId: currentUserId };
+
+  if (nameQuery) {
+    matchQuery.name = { $regex: escapeRegex(nameQuery), $options: 'i' };
+  }
 
   let outfits;
 
   if (populate === 'true') {
     // Aggregate để join với ClothingItem collection
     outfits = await Outfit.aggregate([
-      { $match: { userId: currentUserId } },
+      { $match: matchQuery },
       { $sort: { createdAt: -1 } },
       {
         $lookup: {
@@ -72,7 +86,7 @@ const getAllOutfits = asyncHandler(async (req, res) => {
       { $project: { populatedClothingItems: 0 } }
     ]);
   } else {
-    outfits = await Outfit.find({ userId: currentUserId }).sort({ createdAt: -1 });
+    outfits = await Outfit.find(matchQuery).sort({ createdAt: -1 });
   }
 
   res.status(200).json({
@@ -143,7 +157,8 @@ const createOutfit = asyncHandler(async (req, res) => {
     ? clothingItems.map((item, index) => ({
         clothingItemId: item.clothingItemId,
         posX: item.posX !== undefined ? item.posX : (index % 2 === 0 ? 0.1 : 0.55),
-        posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25
+        posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25,
+        scale: normalizeScale(item.scale)
       }))
     : [];
 
@@ -196,7 +211,8 @@ const updateOutfit = asyncHandler(async (req, res, next) => {
     updateData.clothingItems = req.body.clothingItems.map((item, index) => ({
       clothingItemId: item.clothingItemId,
       posX: item.posX !== undefined ? item.posX : (index % 2 === 0 ? 0.1 : 0.55),
-      posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25
+      posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25,
+      scale: normalizeScale(item.scale)
     }));
   }
 

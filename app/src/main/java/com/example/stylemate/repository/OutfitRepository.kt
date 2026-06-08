@@ -97,10 +97,12 @@ class OutfitRepository(private val apiService: StylemateApiService) {
      *
      * Nho vay anh, ten, category duoc hien thi dung trong Outfit card.
      */
-    fun getAllOutfitsWithItems(): Flow<List<OutfitWithClothingItems>> = flow {
+    fun getAllOutfitsWithItems(nameQuery: String? = null): Flow<List<OutfitWithClothingItems>> = flow {
         try {
             // ── Bước 1: Lấy danh sách Outfit (không populate) ──
-            val outfitsResponse = apiService.getAllOutfits()
+            val outfitsResponse = apiService.getAllOutfits(
+                name = nameQuery?.trim()?.takeIf { it.isNotBlank() }
+            )
 
             // ── Bước 2: Lấy danh sách ClothingItem đầy đủ ────
             val clothesResponse = apiService.getAllClothes()
@@ -246,7 +248,8 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                                         createdAt = fullItem.createdAt
                                     ),
                                     posX = ref.posX,
-                                    posY = ref.posY
+                                    posY = ref.posY,
+                                    scale = ref.scale
                                 )
                             } else null
                         }
@@ -306,7 +309,8 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                     mapOf(
                         "clothingItemId" to ref.clothingItemId,
                         "posX" to ref.posX,
-                        "posY" to ref.posY
+                        "posY" to ref.posY,
+                        "scale" to ref.scale
                     )
                 }
                 val updateMap = mapOf<String, Any>("clothingItems" to itemsPayload)

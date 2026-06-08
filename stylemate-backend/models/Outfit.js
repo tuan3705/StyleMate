@@ -26,6 +26,10 @@ const outfitClothingItemSchema = new mongoose.Schema({
   posY: {
     type: Number,
     default: 0.5
+  },
+  scale: {
+    type: Number,
+    default: 1.0
   }
 }, {
   _id: false // Không cần _id riêng cho sub-document
@@ -61,6 +65,7 @@ const outfitSchema = new mongoose.Schema({
 });
 
 outfitSchema.index({ userId: 1, createdAt: -1 });
+outfitSchema.index({ userId: 1, name: 1 });
 outfitSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Outfit', outfitSchema);

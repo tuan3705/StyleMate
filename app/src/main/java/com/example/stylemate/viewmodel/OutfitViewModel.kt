@@ -12,9 +12,15 @@ import com.example.stylemate.model.OutfitItemWithPosition
 import kotlin.math.min
 import com.example.stylemate.repository.OutfitRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -63,16 +69,33 @@ class OutfitViewModel(
      * Nho [stateIn] voi [SharingStarted.WhileSubscribed], Flow chi hoat dong
      * khi co UI observer — tiet kiem tai nguyen, tranh memory leak.
      */
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    @OptIn(FlowPreview::class)
+    private val debouncedSearchQuery = _searchQuery
+        .map { it.trim() }
+        .debounce(250)
+        .distinctUntilChanged()
+        .onStart { emit("") }
+
     @OptIn(ExperimentalCoroutinesApi::class)
-    val outfits: StateFlow<List<OutfitWithClothingItems>> = _refreshTrigger
-        .flatMapLatest {
-            repository.getAllOutfitsWithItems()
+    val outfits: StateFlow<List<OutfitWithClothingItems>> = combine(
+        _refreshTrigger,
+        debouncedSearchQuery
+    ) { _, query ->
+        query
+    }
+        .flatMapLatest { query ->
+            repository.getAllOutfitsWithItems(query)
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
         )
+
+    val filteredOutfits: StateFlow<List<OutfitWithClothingItems>> = outfits
 
     // ─────────────────────────────────────────────────────────────
     // 🔷 Draft State: Danh sách items đang chọn để tạo outfit mới
@@ -128,7 +151,8 @@ class OutfitViewModel(
     data class OutfitItemPlacement(
         val item: ClothingItemEntity,
         val posX: Float,
-        val posY: Float
+        val posY: Float,
+        val scale: Float
     )
 
     private val _editingItems = MutableStateFlow<List<OutfitItemPlacement>>(emptyList())
@@ -231,7 +255,8 @@ class OutfitViewModel(
                         outfitId = outfitId,
                         clothingItemId = item.id,
                         posX = x,
-                        posY = y
+                        posY = y,
+                        scale = 1f
                     )
                 }
 
@@ -275,11 +300,11 @@ class OutfitViewModel(
         if (items.isEmpty()) return emptyList()
         val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
         if (hasCustomPos) {
-            return items.map { OutfitItemPlacement(it.item, it.posX, it.posY) }
+            return items.map { OutfitItemPlacement(it.item, it.posX, it.posY, it.scale) }
         }
         return items.mapIndexed { index, entry ->
             val (x, y) = defaultGridPosition(index)
-            OutfitItemPlacement(entry.item, x, y)
+            OutfitItemPlacement(entry.item, x, y, entry.scale)
         }
     }
 
@@ -299,6 +324,14 @@ class OutfitViewModel(
         }
     }
 
+    fun updateEditingItemScale(itemId: String, scale: Float) {
+        _editingItems.value = _editingItems.value.map { placement ->
+            if (placement.item.id == itemId) {
+                placement.copy(scale = scale)
+            } else placement
+        }
+    }
+
     fun addItemsToEditing(items: List<ClothingItemEntity>) {
         val existingIds = _editingItems.value.map { it.item.id }.toSet()
         val newItems = items.filterNot { it.id in existingIds }
@@ -306,7 +339,7 @@ class OutfitViewModel(
         val startIndex = _editingItems.value.size
         val appended = newItems.mapIndexed { index, item ->
             val (x, y) = defaultGridPosition(startIndex + index)
-            OutfitItemPlacement(item, x, y)
+            OutfitItemPlacement(item, x, y, 1f)
         }
         _editingItems.value = _editingItems.value + appended
     }
@@ -332,7 +365,8 @@ class OutfitViewModel(
                         outfitId = outfitId,
                         clothingItemId = placement.item.id,
                         posX = placement.posX,
-                        posY = placement.posY
+                        posY = placement.posY,
+                        scale = placement.scale
                     )
                 }
                 repository.insertOutfitClothingCrossRefs(crossRefs)
@@ -384,6 +418,14 @@ class OutfitViewModel(
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun clearSearchQuery() {
+        _searchQuery.value = ""
     }
 }
 

@@ -68,6 +68,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
@@ -113,7 +116,8 @@ import kotlin.math.roundToInt
 fun ClosetScreen(
     onEditItem: (String) -> Unit,
     refreshSignal: StateFlow<Boolean>,
-    onRefreshConsumed: () -> Unit
+    onRefreshConsumed: () -> Unit,
+    accountMenu: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -139,6 +143,7 @@ fun ClosetScreen(
 
     // ── Collect StateFlows (Outfits) ────────────────────────────
     val outfits by outfitVM.outfits.collectAsStateWithLifecycle()
+    val outfitSearchQuery by outfitVM.searchQuery.collectAsStateWithLifecycle()
     val isOutfitLoading by outfitVM.isLoading.collectAsStateWithLifecycle()
     val outfitError by outfitVM.errorMessage.collectAsStateWithLifecycle()
     val editingItems by outfitVM.editingItems.collectAsStateWithLifecycle()
@@ -252,12 +257,15 @@ fun ClosetScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "My Closet",
+                    text = "Tủ đồ",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = { /* Filter action */ }) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { /* Filter action */ }) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Lọc")
+                    }
+                    accountMenu()
                 }
             }
 
@@ -321,8 +329,11 @@ fun ClosetScreen(
             else {
                 OutfitsTabContent(
                     outfits = outfits,
+                    searchQuery = outfitSearchQuery,
                     isLoading = isOutfitLoading,
                     outfitRepo = outfitRepo,
+                    onQueryChange = outfitVM::updateSearchQuery,
+                    onClearQuery = outfitVM::clearSearchQuery,
                     onDeleteOutfit = { outfitVM.deleteOutfit(it) },
                     onOutfitClick = { outfit ->
                         outfitVM.startEditingOutfit(outfit.outfit.id, outfit.outfit.name)
@@ -397,6 +408,9 @@ fun ClosetScreen(
             onPositionChange = { itemId, posX, posY ->
                 outfitVM.updateEditingItemPosition(itemId, posX, posY)
             },
+            onScaleChange = { itemId, scale ->
+                outfitVM.updateEditingItemScale(itemId, scale)
+            },
             onDeleteItem = { itemId ->
                 outfitVM.removeEditingItem(itemId)
             }
@@ -420,7 +434,8 @@ fun ClosetScreen(
 private fun ClosetSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    onClearQuery: () -> Unit
+    onClearQuery: () -> Unit,
+    placeholder: String = "Tìm món đồ"
 ) {
     val focusManager = LocalFocusManager.current
     OutlinedTextField(
@@ -429,7 +444,7 @@ private fun ClosetSearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp),
-        placeholder = { Text("Tìm món đồ") },
+        placeholder = { Text(placeholder) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         leadingIcon = {
@@ -560,18 +575,31 @@ private fun ItemsTabContent(
 @Composable
 private fun OutfitsTabContent(
     outfits: List<OutfitWithClothingItems>,
+    searchQuery: String,
     isLoading: Boolean,
     outfitRepo: OutfitRepository,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit,
     onDeleteOutfit: (com.example.stylemate.model.OutfitEntity) -> Unit,
     onOutfitClick: (OutfitWithClothingItems) -> Unit
 ) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.TopCenter
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        ClosetSearchBar(
+            query = searchQuery,
+            onQueryChange = onQueryChange,
+            onClearQuery = onClearQuery,
+            placeholder = "Tìm bộ đồ"
+        )
+        Spacer(Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
         when {
             isLoading -> CircularProgressIndicator()
             outfits.isEmpty() -> {
+                val isSearching = searchQuery.isNotBlank()
                 // 📝 Empty state
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -582,18 +610,21 @@ private fun OutfitsTabContent(
                     Text(text = "🧥", fontSize = 48.sp)
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "Chưa có bộ đồ nào",
+                        text = if (isSearching) "Không tìm thấy bộ đồ phù hợp" else "Chưa có bộ đồ nào",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Gray
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "Nhấn + để tạo bộ đồ mới từ các món đồ trong tủ",
-                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray,
                         textAlign = TextAlign.Center
                     )
+                    if (!isSearching) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Nhấn + để tạo bộ đồ mới từ các món đồ trong tủ",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
             else -> {
@@ -615,6 +646,7 @@ private fun OutfitsTabContent(
             }
         }
     }
+}
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -703,11 +735,11 @@ private fun mapOutfitPreviewPositions(
     if (items.isEmpty()) return emptyList()
     val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
     return if (hasCustomPos) {
-        items.map { OutfitViewModel.OutfitItemPlacement(it.item, it.posX, it.posY) }
+        items.map { OutfitViewModel.OutfitItemPlacement(it.item, it.posX, it.posY, it.scale) }
     } else {
         items.mapIndexed { index, entry ->
             val (x, y) = defaultOutfitGridPosition(index)
-            OutfitViewModel.OutfitItemPlacement(entry.item, x, y)
+            OutfitViewModel.OutfitItemPlacement(entry.item, x, y, entry.scale)
         }
     }
 }
@@ -751,19 +783,20 @@ private fun OutfitCanvasPreview(
 
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
-            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
             items.forEach { placement ->
                 val item = placement.item
                 val imageModel = rememberItemImageModel(item)
+                val scaledSizePx = itemSizePx * placement.scale
+                val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
                 val offsetX = (placement.posX * maxX).roundToInt()
                 val offsetY = (placement.posY * maxY).roundToInt()
 
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(offsetX, offsetY) }
-                        .size(itemSize)
+                        .size(itemSize * placement.scale)
                 ) {
                     if (imageModel != null) {
                         AsyncImage(
@@ -797,6 +830,7 @@ private fun OutfitCanvasEditorDialog(
     onAddItems: () -> Unit,
     onSave: () -> Unit,
     onPositionChange: (String, Float, Float) -> Unit,
+    onScaleChange: (String, Float) -> Unit,
     onDeleteItem: (String) -> Unit
 ) {
     var selectedItemId by remember { mutableStateOf<String?>(null) }
@@ -840,7 +874,8 @@ private fun OutfitCanvasEditorDialog(
                         onDeleteItem(itemId)
                         if (selectedItemId == itemId) selectedItemId = null
                     },
-                    onPositionChange = onPositionChange
+                    onPositionChange = onPositionChange,
+                    onScaleChange = onScaleChange
                 )
 
                 Row(
@@ -882,11 +917,14 @@ private fun OutfitCanvas(
     selectedItemId: String?,
     onSelectItem: (String) -> Unit,
     onDeleteItem: (String) -> Unit,
-    onPositionChange: (String, Float, Float) -> Unit
+    onPositionChange: (String, Float, Float) -> Unit,
+    onScaleChange: (String, Float) -> Unit
 ) {
     val itemSize = 96.dp
     val density = LocalDensity.current
     val itemSizePx = with(density) { itemSize.toPx() }
+    val minScale = 0.4f
+    val maxScale = 2.0f
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -911,8 +949,6 @@ private fun OutfitCanvas(
 
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
-            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
             items.forEach { placement ->
                 val item = placement.item
@@ -921,9 +957,19 @@ private fun OutfitCanvas(
                 var localPos by remember(item.id) {
                     mutableStateOf(Offset(placement.posX, placement.posY))
                 }
+                var localScale by remember(item.id) {
+                    mutableStateOf(placement.scale)
+                }
                 LaunchedEffect(placement.posX, placement.posY) {
                     localPos = Offset(placement.posX, placement.posY)
                 }
+                LaunchedEffect(placement.scale) {
+                    localScale = placement.scale
+                }
+
+                val scaledSizePx = itemSizePx * localScale
+                val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
 
                 val offsetX = (localPos.x * maxX).roundToInt()
                 val offsetY = (localPos.y * maxY).roundToInt()
@@ -931,7 +977,7 @@ private fun OutfitCanvas(
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(offsetX, offsetY) }
-                        .size(itemSize)
+                        .size(itemSize * localScale)
                         .pointerInput(item.id) {
                             detectTapGestures(onTap = { onSelectItem(item.id) })
                         }
@@ -973,6 +1019,40 @@ private fun OutfitCanvas(
                                 .matchParentSize()
                                 .border(2.dp, Color(0xFFFFD54F), RoundedCornerShape(12.dp))
                         )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = 6.dp, y = 6.dp)
+                                .size(18.dp)
+                                .background(Color(0xFFFFD54F), CircleShape)
+                                .pointerInput(item.id, canvasWidth, canvasHeight) {
+                                    detectDragGestures(
+                                        onDragStart = { onSelectItem(item.id) },
+                                        onDrag = { change, dragAmount ->
+                                            change.consumePositionChange()
+                                            val currentMaxX = (canvasWidth - itemSizePx * localScale).coerceAtLeast(1f)
+                                            val currentMaxY = (canvasHeight - itemSizePx * localScale).coerceAtLeast(1f)
+                                            val currentPxX = localPos.x * currentMaxX
+                                            val currentPxY = localPos.y * currentMaxY
+                                            val delta = (dragAmount.x + dragAmount.y) / itemSizePx
+                                            val newScale = (localScale + delta).coerceIn(minScale, maxScale)
+                                            val newMaxX = (canvasWidth - itemSizePx * newScale).coerceAtLeast(1f)
+                                            val newMaxY = (canvasHeight - itemSizePx * newScale).coerceAtLeast(1f)
+                                            val newPosX = (currentPxX.coerceIn(0f, newMaxX) / newMaxX)
+                                            val newPosY = (currentPxY.coerceIn(0f, newMaxY) / newMaxY)
+                                            localScale = newScale
+                                            localPos = Offset(newPosX, newPosY)
+                                        },
+                                        onDragEnd = {
+                                            onScaleChange(item.id, localScale)
+                                            onPositionChange(item.id, localPos.x, localPos.y)
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "↘", fontSize = 10.sp, color = Color.Black)
+                        }
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -1094,14 +1174,11 @@ private fun AddItemSelectCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (imageModel != null) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = item.name.ifBlank { item.category },
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-            } else {
+            ItemImageOrFallback(
+                imageModel = imageModel,
+                contentDescription = item.name.ifBlank { item.category },
+                contentScale = ContentScale.Fit
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -1339,38 +1416,36 @@ private fun SelectableItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(getCategoryColor(item.category).copy(alpha = bgAlpha)),
-                contentAlignment = Alignment.Center
+            ItemImageOrFallback(
+                imageModel = imageModel,
+                contentDescription = item.name.ifBlank { item.category },
+                contentScale = ContentScale.Crop
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = item.name.ifBlank { item.category },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                    Text(
-                        text = item.color,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(getCategoryColor(item.category).copy(alpha = bgAlpha)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = item.name.ifBlank { item.category },
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        Text(
+                            text = item.color,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
                 }
-            }
-            if (imageModel != null) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = item.name.ifBlank { item.category },
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
             }
             if (isSelected) {
                 Icon(
@@ -1468,32 +1543,29 @@ fun ClothingItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+            ItemImageOrFallback(
+                imageModel = imageModel,
+                contentDescription = item.name.ifBlank { item.category },
+                contentScale = ContentScale.Crop
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 32.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = item.imageOriginal.substringAfterLast("/").take(15),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.DarkGray,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = getCategoryIcon(item.category), fontSize = 32.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = item.imageOriginal.substringAfterLast("/").take(15),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.DarkGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-            }
-
-            if (imageModel != null) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = item.name.ifBlank { item.category },
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
             }
             Column(
                 modifier = Modifier
@@ -1572,6 +1644,31 @@ private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     }
 }
 
+@Composable
+private fun ItemImageOrFallback(
+    imageModel: ImageRequest?,
+    contentDescription: String,
+    contentScale: ContentScale,
+    fallback: @Composable () -> Unit
+) {
+    if (imageModel == null) {
+        fallback()
+        return
+    }
+    SubcomposeAsyncImage(
+        model = imageModel,
+        contentDescription = contentDescription,
+        modifier = Modifier.fillMaxSize(),
+        contentScale = contentScale
+    ) {
+        when (painter.state) {
+            is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
+            is AsyncImagePainter.State.Error -> fallback()
+            else -> Unit
+        }
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════
 // 🎨 HELPERS: Màu & Icon theo category
 // ═════════════════════════════════════════════════════════════════
@@ -1628,6 +1725,7 @@ fun NewClothingItemSheet(
     )
     val aiFillState by imageProcessingViewModel.aiFillState.collectAsState()
     val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsState()
+    val removeBgState by imageProcessingViewModel.removeBgState.collectAsState()
 
     // ── State ────────────────────────────────────────────────────
     var category by remember { mutableStateOf("") }
@@ -1648,6 +1746,38 @@ fun NewClothingItemSheet(
     val isLoading by viewModel.isLoading.collectAsState()
     val imagePickerState = rememberImagePickerState(onError = onError)
     val imagePath by imagePickerState.imagePath
+    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
+
+    val canRemoveBackground = imagePath?.let { current ->
+        lastRemoveBgPath == null || current != lastRemoveBgPath
+    } ?: false
+
+    val onRemoveBackgroundClick = {
+        val currentPath = imagePath
+        if (currentPath.isNullOrBlank()) {
+            onError("Please select an image")
+        } else {
+            imageProcessingViewModel.removeBackground(currentPath)
+        }
+        Unit
+    }
+
+    LaunchedEffect(removeBgState.resultPath) {
+        val newPath = removeBgState.resultPath
+        if (!newPath.isNullOrBlank()) {
+            imagePickerState.setImagePath(newPath)
+            lastRemoveBgPath = newPath
+            imageProcessingViewModel.clearResult()
+        }
+    }
+
+    LaunchedEffect(removeBgState.errorMessage) {
+        val message = removeBgState.errorMessage
+        if (!message.isNullOrBlank()) {
+            onError(message)
+            imageProcessingViewModel.clearResult()
+        }
+    }
 
     LaunchedEffect(aiFillState.suggestion) {
         val suggestion = aiFillState.suggestion
@@ -1703,7 +1833,9 @@ fun NewClothingItemSheet(
             onCameraClick = imagePickerState.onCameraClick,
             onGalleryClick = imagePickerState.onGalleryClick,
             titleStyle = MaterialTheme.typography.labelLarge,
-            onRemoveBgClick = imagePickerState.onRemoveBackgroundClick
+            onRemoveBgClick = onRemoveBackgroundClick,
+            isProcessing = removeBgState.isProcessing,
+            canRemoveBg = canRemoveBackground
         )
 
         Spacer(Modifier.height(24.dp))
@@ -1779,7 +1911,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── CATEGORY ─────────────────────────────────────────────
-        Text("Category", style = MaterialTheme.typography.labelLarge)
+        Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         ExposedDropdownMenuBox(
             expanded = expandedMenu,
@@ -1819,7 +1951,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── COLOR ───────────────────────────────────────────────
-        Text("Color", style = MaterialTheme.typography.labelLarge)
+        Text("Color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = color,
@@ -1834,7 +1966,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── ITEM NAME ────────────────────────────────────────────
-        Text("Item Name", style = MaterialTheme.typography.labelLarge)
+        Text("Item Name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = itemName,
@@ -1850,7 +1982,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── BRAND ────────────────────────────────────────────────
-        Text("Brand", style = MaterialTheme.typography.labelLarge)
+        Text("Brand", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = brand,
@@ -1866,7 +1998,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── PRICE ───────────────────────────────────────────────
-        Text("Price", style = MaterialTheme.typography.labelLarge)
+        Text("Price", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = price,
@@ -1888,7 +2020,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── SEASON ───────────────────────────────────────────────
-        Text("Season", style = MaterialTheme.typography.labelLarge)
+        Text("Season", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier
@@ -1910,7 +2042,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ─ OCCASION ─────────────────────────────────────────────
-        Text("Occasion", style = MaterialTheme.typography.labelLarge)
+        Text("Occasion", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier
@@ -1932,7 +2064,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── PURCHASE DATE ───────────────────────────────────────
-        Text("Purchase Date", style = MaterialTheme.typography.labelLarge)
+        Text("Purchase Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),

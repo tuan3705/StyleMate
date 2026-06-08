@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +40,10 @@ import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.OutfitRepository
 import com.example.stylemate.viewmodel.OutfitViewModel
 import com.example.stylemate.viewmodel.OutfitViewModelFactory
+import com.example.stylemate.ui.components.OutfitCanvasEditorDialog
+import com.example.stylemate.ui.components.AddItemsBottomSheet
+import com.example.stylemate.ui.components.getCategoryColor
+import com.example.stylemate.ui.components.getCategoryIcon
 import androidx.compose.ui.platform.LocalContext
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -74,10 +79,17 @@ fun OutfitScreen() {
     )
 
     // ── Collect StateFlows ──────────────────────────────────────
-    val outfits by viewModel.outfits.collectAsStateWithLifecycle()
+    val filteredOutfits by viewModel.filteredOutfits.collectAsStateWithLifecycle()
+    val outfitSearchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val draftItems by viewModel.draftOutfitItems.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+
+    // 📦 Canvas editor states
+    val editingItems by viewModel.editingItems.collectAsStateWithLifecycle()
+    val editingOutfitName by viewModel.editingOutfitName.collectAsStateWithLifecycle()
+    val isOutfitLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val editSaveSuccess by viewModel.editSaveSuccess.collectAsStateWithLifecycle()
 
     // 📦 Lấy toàn bộ ClothingItem từ DB (dùng trực tiếp Repository qua collectAsState)
     val allClothingItems by clothingRepo.getAllItems()
@@ -85,6 +97,8 @@ fun OutfitScreen() {
 
     // ── Local state ─────────────────────────────────────────────
     var outfitName by remember { mutableStateOf("") }
+    var showOutfitEditor by remember { mutableStateOf(false) }
+    var showAddItemsSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // ── Hiển thị lỗi qua Snackbar ───────────────────────────────
@@ -92,6 +106,15 @@ fun OutfitScreen() {
         errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
             viewModel.clearError()
+        }
+    }
+
+    // ── Auto close editor khi save thành công ──────────────────
+    LaunchedEffect(editSaveSuccess) {
+        if (editSaveSuccess) {
+            showOutfitEditor = false
+            showAddItemsSheet = false
+            viewModel.clearEditSaveSuccess()
         }
     }
 
@@ -160,20 +183,127 @@ fun OutfitScreen() {
             // KHU VỰC 3: DANH SÁCH OUTFIT ĐÃ LƯU
             // ═══════════════════════════════════════════════════════
             item {
-                SavedOutfitsHeader(outfitsCount = outfits.size)
+                OutfitSearchBar(
+                    query = outfitSearchQuery,
+                    onQueryChange = { viewModel.updateSearchQuery(it) },
+                    onClearQuery = { viewModel.clearSearchQuery() }
+                )
             }
 
-            items(outfits, key = { it.outfit.id }) { outfitWithItems ->
-                SavedOutfitCard(
-                    outfitWithItems = outfitWithItems,
-                    onDelete = { viewModel.deleteOutfit(outfitWithItems.outfit) }
-                )
+            item {
+                SavedOutfitsHeader(outfitsCount = filteredOutfits.size)
+            }
+
+            if (filteredOutfits.isEmpty()) {
+                item {
+                    val emptyMessage = if (outfitSearchQuery.isNotBlank()) {
+                        "Không tìm thấy bộ đồ phù hợp"
+                    } else {
+                        "Chưa có bộ đồ nào"
+                    }
+                    Text(
+                        text = emptyMessage,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(filteredOutfits, key = { it.outfit.id }) { outfitWithItems ->
+                    SavedOutfitCard(
+                        outfitWithItems = outfitWithItems,
+                        onDelete = { viewModel.deleteOutfit(outfitWithItems.outfit) },
+                        onClick = {
+                            viewModel.startEditingOutfit(outfitWithItems.outfit.id, outfitWithItems.outfit.name)
+                            showOutfitEditor = true
+                        }
+                    )
+                }
             }
 
             // Spacer bottom
             item { Spacer(Modifier.height(24.dp)) }
         }
     }
+
+    // ═════════════════════════════════════════════════════════════
+    // 🎨 Outfit Canvas Editor Dialog
+    // ═════════════════════════════════════════════════════════════
+    if (showOutfitEditor) {
+        OutfitCanvasEditorDialog(
+            outfitName = editingOutfitName,
+            items = editingItems,
+            isSaving = isOutfitLoading,
+            onDismiss = {
+                showOutfitEditor = false
+                showAddItemsSheet = false
+            },
+            onAddItems = { showAddItemsSheet = true },
+            onSave = { viewModel.saveEditingOutfit() },
+            onPositionChange = { itemId, posX, posY ->
+                viewModel.updateEditingItemPosition(itemId, posX, posY)
+            },
+            onScaleChange = { itemId, scale ->
+                viewModel.updateEditingItemScale(itemId, scale)
+            },
+            onDeleteItem = { itemId ->
+                viewModel.removeEditingItem(itemId)
+            }
+        )
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // 📋 Add Items BottomSheet (thêm items vào canvas editor)
+    // ═════════════════════════════════════════════════════════════
+    if (showOutfitEditor && showAddItemsSheet) {
+        AddItemsBottomSheet(
+            allItems = allClothingItems,
+            existingIds = editingItems.map { it.item.id }.toSet(),
+            onDismiss = { showAddItemsSheet = false },
+            onConfirm = { selectedItems ->
+                viewModel.addItemsToEditing(selectedItems)
+                showAddItemsSheet = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun OutfitSearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClearQuery: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text("Tìm bộ đồ") },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = "Search")
+        },
+        trailingIcon = {
+            if (query.isNotBlank()) {
+                IconButton(
+                    onClick = {
+                        onClearQuery()
+                        focusManager.clearFocus()
+                    }
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                }
+            }
+        },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(
+            onSearch = { focusManager.clearFocus() }
+        )
+    )
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -610,7 +740,8 @@ private fun SavedOutfitsHeader(outfitsCount: Int) {
 @Composable
 private fun SavedOutfitCard(
     outfitWithItems: OutfitWithClothingItems,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit = {}
 ) {
     val outfit = outfitWithItems.outfit
     val items = outfitWithItems.clothingItems
@@ -622,7 +753,9 @@ private fun SavedOutfitCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -734,32 +867,5 @@ private fun OutfitItemThumbnail(item: ClothingItemEntity) {
     }
 }
 
-// ═════════════════════════════════════════════════════════════════
-// 🎨 HELPER: Màu nền theo category
-// ═════════════════════════════════════════════════════════════════
-
-private fun getCategoryColor(category: String): Color = when (category) {
-    "Tops" -> Color(0xFF42A5F5)      // Xanh dương
-    "Bottoms" -> Color(0xFF66BB6A)    // Xanh lá
-    "Dresses" -> Color(0xFFEC407A)    // Hồng
-    "Footwear" -> Color(0xFF8D6E63)   // Nâu
-    "Bags" -> Color(0xFFAB47BC)       // Tím
-    "Accessories" -> Color(0xFFFFA726) // Cam
-    "Jewelry" -> Color(0xFFD4E157)     // Vàng chanh
-    else -> Color(0xFFBDBDBD)          // Xám
-}
-
-// ═════════════════════════════════════════════════════════════════
-// 🎨 HELPER: Icon emoji theo category
-// ═════════════════════════════════════════════════════════════════
-
-private fun getCategoryIcon(category: String): String = when (category) {
-    "Tops" -> "👕"
-    "Bottoms" -> "👖"
-    "Dresses" -> "👗"
-    "Footwear" -> "👟"
-    "Bags" -> "👜"
-    "Accessories" -> "⌚"
-    "Jewelry" -> "💍"
-    else -> "🧥"
-}
+// 🎨 Helpers getCategoryColor & getCategoryIcon
+// được import từ com.example.stylemate.ui.components

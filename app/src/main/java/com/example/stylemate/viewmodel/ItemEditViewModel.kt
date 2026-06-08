@@ -156,7 +156,7 @@ class ItemEditViewModel(
                     val imagePath = newImageFile.absolutePath
                     baseItem.copy(
                         imageOriginal = imagePath,
-                        imageNoBg = imagePath
+                        imageNoBg = ""
                     )
                 } else {
                     baseItem.copy(

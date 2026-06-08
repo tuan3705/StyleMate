@@ -207,7 +207,7 @@ class ClothingRepository(
             val uploadedNoBg = if (item.imageNoBg.isNotBlank()) {
                 uploadImageToServer(item.imageNoBg)
             } else {
-                uploadedOriginal
+                ""
             }
             val dto = item.toDto().copy(
                 imageOriginal = uploadedOriginal,
@@ -225,7 +225,7 @@ class ClothingRepository(
             val uploadedNoBg = if (item.imageNoBg.isNotBlank()) {
                 uploadImageToServer(item.imageNoBg)
             } else {
-                uploadedOriginal
+                ""
             }
             val updateMap = mapOf<String, Any>(
                 "imageOriginal" to uploadedOriginal,

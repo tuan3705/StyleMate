@@ -159,7 +159,8 @@ interface StylemateApiService {
      */
     @GET("api/outfits")
     suspend fun getAllOutfits(
-        @Query("populate") populate: String? = null
+        @Query("populate") populate: String? = null,
+        @Query("name") name: String? = null
     ): Response<ApiListResponse<OutfitDto>>
 
     /**
@@ -193,7 +194,7 @@ interface StylemateApiService {
      * Body gửi lên gồm:
      *   - _id: UUID do Client sinh
      *   - name: String (tên bộ đồ)
-     *   - clothingItems: Mảng [{ clothingItemId, posX, posY }]
+     *   - clothingItems: Mảng [{ clothingItemId, posX, posY, scale }]
      *
      * @param outfit OutfitDto cần tạo
      * @return ApiSingleResponse chứa OutfitDto đã lưu

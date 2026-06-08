@@ -76,7 +76,7 @@ class ClothingViewModel(
         if (query.isBlank()) {
             currentItems
         } else {
-            currentItems.filter { it.name.contains(query, ignoreCase = true) }
+            currentItems.filter { matchesSearchQuery(it, query) }
         }
     }
         .flowOn(Dispatchers.Default)
@@ -119,7 +119,7 @@ class ClothingViewModel(
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),
                     imageOriginal = imagePath,
-                    imageNoBg = imagePath, // Dùng ảnh gốc cho cả 2 trường
+                    imageNoBg = "",
                     category = category,
                     color = color,
                     name = name,
@@ -162,7 +162,7 @@ class ClothingViewModel(
                     val imagePath = newImageFile.absolutePath
                     updatedItem.copy(
                         imageOriginal = imagePath,
-                        imageNoBg = imagePath
+                        imageNoBg = ""
                     )
                 } else {
                     updatedItem.copy(
@@ -232,6 +232,31 @@ class ClothingViewModel(
                 _errorMessage.value = "Không thể cập nhật vị trí item: ${e.message}"
             }
         }
+    }
+
+    private fun matchesSearchQuery(item: ClothingItemEntity, query: String): Boolean {
+        val tokens = query.trim()
+            .lowercase()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+
+        if (tokens.isEmpty()) {
+            return true
+        }
+
+        val searchableText = buildString {
+            append(item.name)
+            append(' ')
+            append(item.color)
+            append(' ')
+            append(item.season)
+            append(' ')
+            append(item.occasion)
+            append(' ')
+            append(item.brand)
+        }.lowercase()
+
+        return tokens.all { searchableText.contains(it) }
     }
 }
 

@@ -79,7 +79,8 @@ fun WeatherScreen(
         factory = WeatherViewModelFactory(
             WeatherRepository()
         )
-    )
+    ),
+    accountMenu: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as StyleMateApp
@@ -216,7 +217,8 @@ fun WeatherScreen(
                     weatherData = weatherData!!,
                     weatherAnalysis = weatherAnalysis,
                     isLoading = isLoading,
-                    onRefresh = { viewModel.refresh() }
+                    onRefresh = { viewModel.refresh() },
+                    accountMenu = accountMenu
                 )
             }
         }
@@ -285,7 +287,8 @@ private fun WeatherContent(
     weatherData: WeatherApiResponse,
     weatherAnalysis: WeatherAnalysis?,
     isLoading: Boolean,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    accountMenu: @Composable () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -326,12 +329,15 @@ private fun WeatherContent(
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
-            IconButton(onClick = onRefresh, enabled = !isLoading) {
-                Icon(
-                    imageVector = Icons.Filled.Refresh,
-                    contentDescription = "Làm mới",
-                    tint = Color.White
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onRefresh, enabled = !isLoading) {
+                    Icon(
+                        imageVector = Icons.Filled.Refresh,
+                        contentDescription = "Làm mới",
+                        tint = Color.White
+                    )
+                }
+                accountMenu()
             }
         }
 

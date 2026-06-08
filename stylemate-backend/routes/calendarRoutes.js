@@ -13,7 +13,8 @@ const {
   createOrReplaceCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
-  deleteCalendarEventByDate
+  deleteCalendarEventByDate,
+  bulkDeleteCalendarEvents
 } = require('../controllers/calendarController');
 const { requireAuth } = require('../middleware/authMiddleware');
 
@@ -31,6 +32,10 @@ router.post('/', createOrReplaceCalendarEvent);
 
 // PUT /api/calendar/:id — Cập nhật sự kiện
 router.put('/:id', updateCalendarEvent);
+
+// ❌ DELETE routes — Đặt route tĩnh trước route động để tránh lỗi match
+// DELETE /api/calendar/bulk — Xoá nhiều sự kiện cùng lúc
+router.delete('/bulk', bulkDeleteCalendarEvents);
 
 // DELETE /api/calendar/by-date/:date — Xoá sự kiện theo ngày
 router.delete('/by-date/:date', deleteCalendarEventByDate);

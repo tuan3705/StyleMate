@@ -52,13 +52,10 @@ import com.example.stylemate.viewmodel.AIStylistViewModel
 import com.example.stylemate.viewmodel.AIStylistUiState
 import com.example.stylemate.viewmodel.WeatherViewModel
 
-import androidx.compose.foundation.clickable
-import com.example.stylemate.ui.navigation.StyleMateRoutes
-
 @Composable
 fun AIStylistScreen(
     viewModel: AIStylistViewModel = viewModel(),
-    onNavigateToWizard: () -> Unit = {}
+    accountMenu: @Composable () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -115,7 +112,7 @@ fun AIStylistScreen(
 
     Scaffold(
         topBar = {
-            AIStylistHeader()
+            AIStylistHeader(accountMenu = accountMenu)
         }
     ) { innerPadding ->
         LazyColumn(
@@ -137,7 +134,7 @@ fun AIStylistScreen(
             }
 
             item {
-                AIDesignerSection(onNavigateToWizard = onNavigateToWizard)
+                AIDesignerSection()
             }
 
             item {
@@ -184,7 +181,7 @@ fun AIStylistScreen(
 }
 
 @Composable
-fun AIStylistHeader() {
+fun AIStylistHeader(accountMenu: @Composable () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -204,15 +201,7 @@ fun AIStylistHeader() {
             IconButton(onClick = { /* TODO */ }) {
                 Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
             }
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.Person, contentDescription = "Profile", modifier = Modifier.size(20.dp))
-            }
+            accountMenu()
         }
     }
 }
@@ -542,7 +531,7 @@ fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVe
 }
 
 @Composable
-fun AIDesignerSection(onNavigateToWizard: () -> Unit) {
+fun AIDesignerSection() {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "Nhà tạo mẫu AI",
@@ -551,13 +540,7 @@ fun AIDesignerSection(onNavigateToWizard: () -> Unit) {
         )
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AIDesignerLargeCard(
-                modifier = Modifier
-                    .weight(1.2f)
-                    .clickable { onNavigateToWizard() },
-                title = "Gợi ý trang phục",
-                hasUpdate = true
-            )
+            AIDesignerLargeCard(modifier = Modifier.weight(1.2f), title = "Gợi ý trang phục", hasUpdate = true)
             Column(modifier = Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AIDesignerMediumCard(title = "Mua sắm", icon = Icons.Default.ShoppingCart)
                 AIDesignerMediumCard(title = "Trò chuyện phong cách", icon = Icons.Default.ChatBubble)
