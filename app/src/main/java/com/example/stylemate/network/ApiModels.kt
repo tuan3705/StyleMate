@@ -298,6 +298,7 @@ data class SuggestedOutfitDto(
 
 data class ChatResponse(
     val sessionId: String? = null,
+    val headline: String? = null, // Tiêu đề bắt mắt cho gợi ý trang chủ
     val message: String? = null,
     val suggested_outfits: List<SuggestedOutfitDto>? = null,
     val followups: List<String>? = null

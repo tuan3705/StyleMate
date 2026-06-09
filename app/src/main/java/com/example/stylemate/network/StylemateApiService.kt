@@ -372,6 +372,16 @@ interface StylemateApiService {
         @Body request: ChatRequest
     ): Response<ChatResponse>
 
+    /**
+     * GET /api/ai-stylist/home-suggestions
+     */
+    @GET("api/ai-stylist/home-suggestions")
+    suspend fun getHomeSuggestions(
+        @Query("userId") userId: String,
+        @Query("lat") lat: Double?,
+        @Query("lon") lon: Double?
+    ): Response<ChatResponse>
+
     // ═════════════════════════════════════════════════════════════
     // 🌤️ WEATHER — /api/weather/forecast (Proxy)
     // ═════════════════════════════════════════════════════════════

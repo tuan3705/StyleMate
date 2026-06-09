@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -54,10 +55,18 @@ import com.example.stylemate.viewmodel.WeatherViewModel
 
 @Composable
 fun AIStylistScreen(
-    viewModel: AIStylistViewModel = viewModel(),
-    onNavigateToWizard: () -> Unit = {}, // 👈 Thêm parameter này
+    onNavigateToChat: () -> Unit = {},
+    onNavigateToPersonalStylist: () -> Unit = {},
     accountMenu: @Composable () -> Unit = {}
 ) {
+    val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
+    val viewModel: com.example.stylemate.viewmodel.AIStylistViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return com.example.stylemate.viewmodel.AIStylistViewModel(app.authStorage) as T
+            }
+        }
+    )
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
@@ -126,7 +135,9 @@ fun AIStylistScreen(
             item {
                 WeatherRecommendationSection(
                     uiState = uiState,
-                    onRefresh = { refreshWithLocation() }
+                    onRefresh = { refreshWithLocation() },
+                    onNavigateToChat = onNavigateToChat,
+                    onNavigateToPersonalStylist = onNavigateToPersonalStylist
                 )
             }
 
@@ -135,7 +146,10 @@ fun AIStylistScreen(
             }
 
             item {
-                AIDesignerSection(onNavigateToWizard = onNavigateToWizard) // 👈 Truyền parameter vào đây
+                AIDesignerSection(
+                    onNavigateToPersonalStylist = onNavigateToPersonalStylist,
+                    onNavigateToChat = onNavigateToChat
+                )
             }
 
             item {
@@ -209,8 +223,10 @@ fun AIStylistHeader(accountMenu: @Composable () -> Unit = {}) {
 
 @Composable
 fun WeatherRecommendationSection(
-    uiState: AIStylistUiState,
-    onRefresh: () -> Unit
+    uiState: com.example.stylemate.viewmodel.AIStylistUiState,
+    onRefresh: () -> Unit,
+    onNavigateToChat: () -> Unit,
+    onNavigateToPersonalStylist: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -219,7 +235,7 @@ fun WeatherRecommendationSection(
             verticalAlignment = Alignment.Top
         ) {
             Text(
-                text = uiState.recommendationText,
+                text = uiState.headline,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
@@ -266,69 +282,49 @@ fun WeatherRecommendationSection(
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            // Display top and bottom if available, or just the first image
-                            val imageUrl = outfit.image_urls?.values?.firstOrNull()
-                            if (imageUrl != null) {
-                                val fullUrl = if (imageUrl.startsWith("http")) imageUrl else "${STYLEMATE_BASE_URL.removeSuffix("/")}${imageUrl}"
+                        Column(
+                            modifier = Modifier.fillMaxSize().padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            val imageUrls = outfit.image_urls?.values?.toList() ?: emptyList()
+                            imageUrls.forEach { url ->
+                                val fullUrl = if (url.startsWith("http")) url else "${STYLEMATE_BASE_URL.removeSuffix("/")}${url}"
                                 AsyncImage(
                                     model = fullUrl,
                                     contentDescription = null,
-                                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                                    modifier = Modifier.weight(1f).fillMaxWidth().padding(4.dp),
                                     contentScale = ContentScale.Fit
                                 )
-                            } else {
-                                Icon(
-                                    Icons.Default.Checkroom,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(80.dp),
-                                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                                )
+                            }
+                            if (imageUrls.isEmpty()) {
+                                Icon(Icons.Default.Checkroom, null, modifier = Modifier.size(60.dp), tint = Color.LightGray)
                             }
                         }
                     }
                 }
-            } else {
-                // Placeholder cards if no AI outfits yet
-                items(2) {
-                    Card(
-                        modifier = Modifier
-                            .width(160.dp)
-                            .height(200.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Default.Checkroom,
-                                contentDescription = null,
-                                modifier = Modifier.size(80.dp),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-                            )
-                        }
-                    }
-                }
             }
 
-            // Card 3: Ask Personal Stylist
+            // Ask Personal Stylist Card
             item {
-                StylistActionCard()
+                StylistActionCard(onNavigate = onNavigateToChat)
             }
 
-            // Card 4: See More
+            // See More Card
             item {
-                SeeMoreCard()
+                SeeMoreCard(onNavigate = onNavigateToPersonalStylist)
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StylistActionCard() {
+fun StylistActionCard(onNavigate: () -> Unit) {
     Card(
+        onClick = onNavigate,
         modifier = Modifier
-            .width(160.dp)
+            .width(180.dp)
             .height(200.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -337,28 +333,29 @@ fun StylistActionCard() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                Icons.Default.Face, // Replacing custom icon with a suitable Material one
+                Icons.Default.Face,
                 contentDescription = null,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(32.dp),
                 tint = Color.Black
             )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Hỏi nhà tạo mẫu cá nhân",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+            Spacer(modifier = Modifier.height(16.dp))
             Button(
-                onClick = { /* TODO */ },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF212121)),
+                onClick = onNavigate,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 4.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Thử ngay", color = Color.White, fontSize = 12.sp)
             }
@@ -367,11 +364,12 @@ fun StylistActionCard() {
 }
 
 @Composable
-fun SeeMoreCard() {
+fun SeeMoreCard(onNavigate: () -> Unit) {
     Column(
         modifier = Modifier
             .width(100.dp)
-            .height(200.dp),
+            .height(200.dp)
+            .clickable { onNavigate() },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -380,20 +378,10 @@ fun SeeMoreCard() {
                 .size(48.dp)
                 .clip(CircleShape)
                 .background(Color.White)
-                .padding(1.dp)
-                .clip(CircleShape)
-                .background(Color.White)
-                .padding(8.dp),
+                .border(1.dp, Color.LightGray, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            IconButton(
-                onClick = { /* TODO */ },
-                modifier = Modifier
-                    .size(40.dp)
-                    .border(1.dp, Color.LightGray, CircleShape)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "See More")
-            }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "See More", modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text("Xem thêm", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -532,7 +520,10 @@ fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVe
 }
 
 @Composable
-fun AIDesignerSection(onNavigateToWizard: () -> Unit) { // 👈 Cập nhật signature
+fun AIDesignerSection(
+    onNavigateToPersonalStylist: () -> Unit,
+    onNavigateToChat: () -> Unit
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
             text = "Nhà tạo mẫu AI",
@@ -542,15 +533,21 @@ fun AIDesignerSection(onNavigateToWizard: () -> Unit) { // 👈 Cập nhật sig
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             AIDesignerLargeCard(
-                modifier = Modifier
-                    .weight(1.2f)
-                    .clickable { onNavigateToWizard() }, // 👈 Kích hoạt click
+                modifier = Modifier.weight(1.2f),
                 title = "Gợi ý trang phục",
-                hasUpdate = true
+                hasUpdate = true,
+                onClick = onNavigateToPersonalStylist
             )
             Column(modifier = Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                AIDesignerMediumCard(title = "Mua sắm", icon = Icons.Default.ShoppingCart)
-                AIDesignerMediumCard(title = "Trò chuyện phong cách", icon = Icons.Default.ChatBubble)
+                AIDesignerMediumCard(
+                    title = "Mua sắm",
+                    icon = Icons.Default.ShoppingCart
+                )
+                AIDesignerMediumCard(
+                    title = "Trò chuyện phong cách",
+                    icon = Icons.Default.ChatBubble,
+                    onClick = onNavigateToChat
+                )
             }
         }
 
@@ -563,9 +560,11 @@ fun AIDesignerSection(onNavigateToWizard: () -> Unit) { // 👈 Cập nhật sig
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIDesignerLargeCard(modifier: Modifier, title: String, hasUpdate: Boolean) {
+fun AIDesignerLargeCard(modifier: Modifier, title: String, hasUpdate: Boolean, onClick: () -> Unit = {}) {
     Card(
+        onClick = onClick,
         modifier = modifier.height(160.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
@@ -601,10 +600,14 @@ fun AIDesignerLargeCard(modifier: Modifier, title: String, hasUpdate: Boolean) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIDesignerMediumCard(title: String, icon: ImageVector) {
+fun AIDesignerMediumCard(title: String, icon: ImageVector, onClick: () -> Unit = {}) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(74.dp),
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(74.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
     ) {

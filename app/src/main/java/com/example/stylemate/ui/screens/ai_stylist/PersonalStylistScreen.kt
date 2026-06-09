@@ -13,7 +13,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,18 +34,25 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.stylemate.ui.components.ChatMessageRow
 import com.example.stylemate.ui.components.OutfitSuggestionCard
-import com.example.stylemate.ui.components.QuickPromptsRow
-import androidx.compose.ui.tooling.preview.Preview
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AIStylistChatScreen(
+fun PersonalStylistScreen(
     onBack: () -> Unit,
     onNavigateToWizard: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     wizardResult: String? = null,
-    onWizardResultConsumed: () -> Unit = {},
-    viewModel: AIStylistViewModel = viewModel()
+    onWizardResultConsumed: () -> Unit = {}
 ) {
+    val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
+    val viewModel: AIChatViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                @Suppress("UNCHECKED_CAST")
+                return AIChatViewModel(app.authStorage) as T
+            }
+        }
+    )
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var inputText by remember { mutableStateOf("") }
@@ -63,8 +76,8 @@ fun AIStylistChatScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { /* TODO: Settings */ }) {
-                        Text("Cài đặt Tạo kiểu", color = Color.Gray)
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Gray)
                     }
                 }
             )
@@ -93,7 +106,7 @@ fun AIStylistChatScreen(
             }
 
             item {
-                // Custom Search/Chat Bar (matching Screenshot 1)
+                // Custom Search/Chat Bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -180,6 +193,26 @@ fun AIStylistChatScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
+            // --- Sections from Screenshots 5-10 ---
+            item {
+                SectionHeader(title = "Trang phục cho thời tiết hôm nay")
+                Row(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    WeatherInfoSmall(Icons.Default.CalendarToday, "18 thg 5") 
+                    WeatherInfoSmall(Icons.Default.LocationOn, "Hà Nội")
+                    WeatherInfoSmall(Icons.Default.Cloud, "32 / 25°C")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            item {
+                SectionHeader(title = "Cảm hứng trang phục")
+                Text(text = "Dịp", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+            }
+
             items(messages) { message ->
                 ChatMessageRow(
                     message = message.text,
@@ -196,7 +229,7 @@ fun AIStylistChatScreen(
                 }
             }
             
-            if (uiState is AIStylistUiState.Typing) {
+            if (uiState is AIChatUiState.Typing) {
                 item {
                     Text(
                         text = "AI đang suy nghĩ...",
@@ -206,5 +239,25 @@ fun AIStylistChatScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SectionHeader(title: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Icon(Icons.Outlined.Refresh, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+    }
+}
+
+@Composable
+fun WeatherInfoSmall(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+        Text(text = text, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
     }
 }

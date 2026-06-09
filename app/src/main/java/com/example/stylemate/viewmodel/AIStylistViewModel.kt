@@ -6,8 +6,10 @@ import com.example.stylemate.network.ChatRequest
 import com.example.stylemate.network.RetrofitClient
 import com.example.stylemate.model.weather.WeatherApiResponse
 import com.example.stylemate.repository.WeatherRepository
+import com.example.stylemate.data.auth.AuthStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -15,16 +17,18 @@ import java.util.*
 import com.example.stylemate.network.SuggestedOutfitDto
 
 data class AIStylistUiState(
-    val recommendationText: String = "Gợi ý trang phục street style thoải mái cho ngày mua sắm dưới trời mưa",
-    val dateText: String = "26 thg 5",
-    val locationText: String = "Thành phố Đồng Nai",
-    val tempText: String = "36 / 27°C",
+    val headline: String = "Phong cách thể thao năng động, thoải mái cho ngày mưa",
+    val recommendationText: String = "",
+    val dateText: String = "9 thg 6",
+    val locationText: String = "Thành phố Hà Nội",
+    val tempText: String = "26 / 22°C",
     val suggestedOutfits: List<SuggestedOutfitDto> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
 
 class AIStylistViewModel(
+    private val authStorage: AuthStorage,
     private val weatherRepository: WeatherRepository = WeatherRepository()
 ) : ViewModel() {
 
@@ -32,7 +36,7 @@ class AIStylistViewModel(
     val uiState: StateFlow<AIStylistUiState> = _uiState
 
     init {
-        // Initial load with default coordinates if needed, 
+        // Initial load with default coordinates if needed,
         // or wait for explicit refresh.
         // For now, let's just keep the default dummy state.
         val sdf = SimpleDateFormat("dd 'thg' M", Locale("vi"))
@@ -41,6 +45,12 @@ class AIStylistViewModel(
 
     fun refreshWeatherAndRecommendation(lat: Double? = null, lon: Double? = null) {
         viewModelScope.launch {
+            val userId = authStorage.userIdFlow.firstOrNull()
+            if (userId == null) {
+                _uiState.value = _uiState.value.copy(error = "Vui lòng đăng nhập lại")
+                return@launch
+            }
+
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
                 // Use provided coordinates or fallback to a sensible default if null.
@@ -54,26 +64,23 @@ class AIStylistViewModel(
                 val currentTemp = weather.current.tempC.toInt()
                 val minTemp = weather.forecast.forecastDay.firstOrNull()?.day?.minTempC?.toInt() ?: (currentTemp - 5)
                 val maxTemp = weather.forecast.forecastDay.firstOrNull()?.day?.maxTempC?.toInt() ?: (currentTemp + 5)
-                
+
                 val sdf = SimpleDateFormat("dd 'thg' M", Locale("vi"))
                 val dateStr = sdf.format(Date())
 
-                // 2. Fetch AI Recommendation from DeepSeek (via backend)
-                val chatMessage = "Gợi ý trang phục street style ngắn gọn cho ngày có thời tiết: ${weather.current.condition.text}, nhiệt độ ${currentTemp}°C tại ${location}."
-                val response = RetrofitClient.stylemateApiService.chatWithAi(
-                    ChatRequest(
-                        userId = "HungBu", // Stub user ID
-                        message = chatMessage,
-                        lat = finalLat,
-                        lon = finalLon
-                    )
+                // 2. Fetch AI Recommendation from Home Suggestions API
+                val response = RetrofitClient.stylemateApiService.getHomeSuggestions(
+                    userId = userId,
+                    lat = finalLat,
+                    lon = finalLon
                 )
 
                 if (response.isSuccessful) {
-                    val chatData = response.body()
+                    val data = response.body()
                     _uiState.value = _uiState.value.copy(
-                        recommendationText = chatData?.message ?: _uiState.value.recommendationText,
-                        suggestedOutfits = chatData?.suggested_outfits ?: emptyList(),
+                        headline = data?.headline ?: "Gợi ý hôm nay",
+                        recommendationText = data?.message ?: _uiState.value.recommendationText,
+                        suggestedOutfits = data?.suggested_outfits ?: emptyList(),
                         locationText = location,
                         tempText = "$maxTemp / $minTemp°C",
                         dateText = dateStr,
@@ -85,7 +92,7 @@ class AIStylistViewModel(
                         tempText = "$maxTemp / $minTemp°C",
                         dateText = dateStr,
                         isLoading = false,
-                        error = "DeepSeek API error: ${response.code()}"
+                        error = "Home Suggestions API error: ${response.code()}"
                     )
                 }
 

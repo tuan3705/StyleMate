@@ -14,6 +14,8 @@ import com.example.stylemate.ui.screens.MainScreen
 import com.example.stylemate.viewmodel.AuthViewModel
 import com.example.stylemate.viewmodel.AuthViewModelFactory
 
+import android.util.Log
+
 @Composable
 fun AppNavigation() {
     val app = LocalContext.current.applicationContext as StyleMateApp
@@ -22,8 +24,11 @@ fun AppNavigation() {
     )
     val uiState by authViewModel.uiState.collectAsState()
 
+    Log.d("AppNavigation", "isLoggedIn: ${uiState.isLoggedIn}, isLoading: ${uiState.isLoading}")
+
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
+            Log.d("AppNavigation", "User logged in, fetching FCM token...")
             val token = fetchFcmToken()
             if (!token.isNullOrBlank()) {
                 app.fcmRepository.cacheFcmToken(token)
@@ -35,13 +40,22 @@ fun AppNavigation() {
     }
 
     when {
-        uiState.isLoading -> LoadingScreen()
-        uiState.isLoggedIn -> MainScreen(onLogout = authViewModel::logout)
-        else -> LoginScreen(
-            uiState = uiState,
-            onLogin = authViewModel::login,
-            onRegister = authViewModel::register,
-            onClearError = authViewModel::clearError
-        )
+        uiState.isLoading -> {
+            Log.d("AppNavigation", "Showing LoadingScreen")
+            LoadingScreen()
+        }
+        uiState.isLoggedIn -> {
+            Log.d("AppNavigation", "Showing MainScreen")
+            MainScreen(onLogout = authViewModel::logout)
+        }
+        else -> {
+            Log.d("AppNavigation", "Showing LoginScreen")
+            LoginScreen(
+                uiState = uiState,
+                onLogin = authViewModel::login,
+                onRegister = authViewModel::register,
+                onClearError = authViewModel::clearError
+            )
+        }
     }
 }

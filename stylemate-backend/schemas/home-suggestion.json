@@ -1,10 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Optimized AI Stylist Schema",
+  "title": "Home Suggestion Schema",
   "type": "object",
-  "required": ["message", "suggested_outfits"],
+  "required": ["headline", "message", "suggested_outfits"],
   "properties": {
-    "message": { "type": "string", "description": "Lưu ý hoặc lời khuyên chính từ AI" },
+    "headline": { "type": "string", "description": "Short catchy title for the day's suggestion" },
+    "message": { "type": "string", "description": "Brief commentary on the day's style" },
     "suggested_outfits": {
       "type": "array",
       "items": {
@@ -17,7 +18,6 @@
           "confidence": { "type": "number" }
         }
       }
-    },
-    "followups": { "type": "array", "items": { "type": "string" } }
+    }
   }
 }

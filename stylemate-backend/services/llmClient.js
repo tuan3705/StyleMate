@@ -1,32 +1,37 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * 🧠 LLM CLIENT SERVICE — DeepSeek Migration
+ * 🧠 HYBRID LLM CLIENT — StyleMate Core (DeepSeek + Gemini)
  * ═══════════════════════════════════════════════════════════════
- *
- * Chuyển đổi từ Google Gemini sang DeepSeek (OpenAI Compatible API).
- * Hỗ trợ: Structured Output (JSON), Retry Mechanism, Mock Mode.
- *
- * ───────────────────────────────────────────────────────────────
  */
 
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const axios = require('axios');
 const { jsonrepair } = require('jsonrepair');
 
-// ⚙️ Cấu hình API
+// ⚙️ Cấu hình API Keys
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GGL_API_KEY;
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_BASE_URL = process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com';
-const DEFAULT_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
-const MAX_RETRIES = Number(process.env.LLM_MAX_RETRIES || 3);
+// ⚙️ Khởi tạo SDK
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+
+// ⚙️ Cấu hình Model
+const DEEPSEEK_CONFIG = {
+  baseURL: process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com',
+  model: process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+};
+
+const GEMINI_CONFIG = {
+  model: process.env.GEMINI_MODEL || 'gemini-2.0-flash'
+};
+
 const DEFAULT_MOCK_DELAY = 300;
+const MAX_RETRIES = Number(process.env.LLM_MAX_RETRIES || 3);
 
-/**
- * Tiện ích tạm dừng (Sleep)
- */
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Kiểm tra cấu trúc Schema bắt buộc cho StyleMate
+ * Kiểm tra cấu trúc Schema Phase 1 bắt buộc
  */
 function validatePhase1Schema(obj) {
   if (!obj || typeof obj !== 'object') return false;
@@ -38,170 +43,207 @@ function validatePhase1Schema(obj) {
 /**
  * Làm sạch văn bản phản hồi để chuẩn bị parse JSON
  */
-function normalizeResponseText(text) {
-  return String(text || '')
+function normalizeResponseText(responseText) {
+  if (!responseText) return '';
+  return String(responseText)
+    .replace(/^\uFEFF/, '') // Loại bỏ Byte Order Mark (BOM)
+    .replace(/[\u200B-\u200D\uFEFF]/g, '') // Loại bỏ Zero Width Spaces
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim();
 }
 
-/**
- * Trích xuất JSON từ chuỗi văn bản hỗn hợp
- */
 function extractJsonCandidate(text) {
-  if (!text) return null;
-  const firstBrace = text.indexOf('{');
-  const lastBrace = text.lastIndexOf('}');
-  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) return null;
+  if (!text || typeof text !== 'string') return null;
+  // Sử dụng Regex để tìm khối { ... } lớn nhất, bỏ qua rác bên ngoài
+  const match = text.match(/\{[\s\S]*\}/);
+  return match ? match[0] : null;
+}
 
-  const candidate = text.slice(firstBrace, lastBrace + 1);
+function parseStrictJson(text) {
+  // 🔍 LOG RAW RESPONSE FOR DEBUGGING
+  console.log('\n--- [AI RAW RESPONSE START] ---');
+  console.log(text);
+  console.log('--- [AI RAW RESPONSE END] ---\n');
+
+  const cleaned = normalizeResponseText(text);
+  if (!cleaned) throw new Error('AI returned an empty response');
+
   try {
-    return JSON.parse(candidate);
+    return JSON.parse(cleaned);
   } catch (e) {
-    try {
-      return JSON.parse(jsonrepair(candidate));
-    } catch (err) {
-      return null;
+    // Thử trích xuất JSON bằng Regex
+    const candidate = extractJsonCandidate(cleaned);
+    if (candidate) {
+      try {
+        return JSON.parse(candidate);
+      } catch (e2) {
+        // Log chi tiết lỗi vị trí để soi ký tự lạ
+        console.error(`❌ [JSON Parse Error]: ${e2.message} at "${candidate.substring(0, 20)}..."`);
+        // Thử sửa lỗi JSON bằng jsonrepair
+        try {
+          return JSON.parse(jsonrepair(candidate));
+        } catch (e3) {
+          console.error('❌ [JSON Repair Error]: Could not fix the JSON structure.');
+          throw new Error('Failed to parse and repair AI JSON response');
+        }
+      }
     }
+    throw e;
   }
 }
 
 /**
- * Gửi yêu cầu đến DeepSeek API
+ * 🧠 Gọi DeepSeek API (REST)
  */
-async function callDeepSeek({ messages, temperature = 0.3, responseFormat = { type: 'json_object' } }) {
-  if (!DEEPSEEK_API_KEY) {
-    throw Object.assign(new Error('DEEPSEEK_API_KEY chưa được cấu hình trong .env'), { statusCode: 500 });
-  }
+async function callDeepSeek({ messages, temperature = 0.3 }) {
+  if (!DEEPSEEK_API_KEY) throw new Error('DEEPSEEK_API_KEY chưa được cấu hình');
 
-  try {
-    const response = await axios.post(`${DEEPSEEK_BASE_URL}/chat/completions`, {
-      model: DEFAULT_MODEL,
-      messages,
-      temperature,
-      response_format: responseFormat,
-      max_tokens: 4096
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 60000 // 60s timeout cho AI phản hồi
-    });
+  const response = await axios.post(`${DEEPSEEK_CONFIG.baseURL}/chat/completions`, {
+    model: DEEPSEEK_CONFIG.model,
+    messages,
+    temperature,
+    response_format: { type: 'json_object' },
+    max_tokens: 4096
+  }, {
+    headers: {
+      'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    timeout: 60000
+  });
 
-    return response.data;
-  } catch (error) {
-    const status = error.response?.status || 500;
-    const errorData = error.response?.data?.error?.message || error.message;
-    throw Object.assign(new Error(`DeepSeek API Error (${status}): ${errorData}`), { statusCode: status });
-  }
+  const content = response.data.choices?.[0]?.message?.content;
+  if (!content) throw new Error('DeepSeek returned an empty completion choice');
+  return content;
 }
 
 /**
- * Hàm lõi tạo phản hồi cấu trúc (JSON) với cơ chế Retry
+ * 👁️ Gọi Gemini API (SDK)
+ */
+async function callGemini({ prompt, mediaParts = [], temperature = 0.3 }) {
+  if (!genAI) throw new Error('GEMINI_API_KEY chưa được cấu hình');
+
+  const model = genAI.getGenerativeModel({ model: GEMINI_CONFIG.model });
+  const userContent = [{ text: prompt }, ...mediaParts];
+
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts: userContent }],
+    generationConfig: {
+      temperature,
+      maxOutputTokens: 4096,
+      responseMimeType: 'application/json'
+    }
+  });
+
+  return result.response.text();
+}
+
+/**
+ * 🚀 Cỗ máy điều phối Hybrid thông minh
  */
 async function generateStructuredResponse({
   message,
   context = {},
+  options = {},
   systemPrompt = '',
   validator = null,
-  mockResponse = {},
-  options = {}
+  mockResponse = {}
 }) {
-  // 1. Chế độ giả lập (Mock Mode)
   if (process.env.MOCK_LLM === 'true') {
     await sleep(DEFAULT_MOCK_DELAY);
     return mockResponse;
   }
 
-  // 2. Chuẩn bị Messages cho DeepSeek
-  const messages = [];
+  const mediaParts = Array.isArray(options.mediaParts) ? options.mediaParts : [];
+  let provider = options.provider || (mediaParts.length > 0 ? 'gemini' : 'deepseek');
 
-  // System Prompt (Rất quan trọng để ép kiểu JSON)
-  const finalSystemPrompt = systemPrompt || 'You are a helpful assistant. You MUST always respond with a valid JSON object.';
-  messages.push({ role: 'system', content: finalSystemPrompt });
-
-  // Thêm Context (nếu có)
-  if (context && Object.keys(context).length > 0) {
-    messages.push({
-      role: 'user',
-      content: `Context for the request:\n${JSON.stringify(context, null, 2)}`
-    });
-  }
-
-  // User Message chính
-  messages.push({ role: 'user', content: message });
-
-  // 3. Thực thi với Retry "Bọc thép"
   let attempt = 0;
   while (attempt < MAX_RETRIES) {
     attempt++;
     try {
-      const result = await callDeepSeek({
-        messages,
-        temperature: options.temperature || 0.3
-      });
+      let rawResponse = '';
 
-      const content = result.choices?.[0]?.message?.content;
-      if (!content) throw new Error('AI không trả về nội dung phản hồi.');
+      // Build a clean context for the AI
+      const contextSummary = context.closet?.items?.length > 0
+        ? `Relevant Clothes available:\n${JSON.stringify(context.closet.items)}\n`
+        : 'No relevant clothes found in the search context.\n';
 
-      // Parse JSON từ phản hồi
-      let parsedData = null;
-      try {
-        parsedData = JSON.parse(normalizeResponseText(content));
-      } catch (e) {
-        parsedData = extractJsonCandidate(content);
-        if (!parsedData) throw new Error('Không thể parse JSON từ kết quả của AI.');
+      const promptContext = `${contextSummary}User Input: ${message}`;
+
+      // Hyper-strict system prompt
+      const finalSystemPrompt = systemPrompt +
+        "\n\nOUTPUT INSTRUCTION: You are a JSON engine. You MUST output a valid JSON object ONLY. " +
+        "NO markdown code blocks (NO ```json). NO explanations. NO preamble. " +
+        "Start your response directly with '{' and end with '}'.";
+
+      if (provider === 'gemini') {
+        try {
+          rawResponse = await callGemini({
+            prompt: `${finalSystemPrompt}\n\n${promptContext}`,
+            mediaParts,
+            temperature: options.temperature || 0.3
+          });
+        } catch (geminiErr) {
+          if (geminiErr.message.includes('429') || geminiErr.message.includes('quota')) {
+            console.warn('⚠️ Gemini Quota Exceeded. Falling back to DeepSeek (text-only mode)...');
+            provider = 'deepseek';
+            throw geminiErr;
+          }
+          throw geminiErr;
+        }
+      } else {
+        const messages = [
+          { role: 'system', content: finalSystemPrompt },
+          { role: 'user', content: promptContext }
+        ];
+        rawResponse = await callDeepSeek({ messages, temperature: options.temperature || 0.3 });
       }
 
-      // Kiểm tra tính hợp lệ của dữ liệu (Validation)
+      const parsedData = parseStrictJson(rawResponse);
+
       if (typeof validator === 'function' && !validator(parsedData)) {
-        throw new Error('Dữ liệu AI trả về không khớp với cấu trúc yêu cầu (Validation failed).');
+        console.error('❌ [Validation Failed] Data:', JSON.stringify(parsedData));
+        throw new Error('AI Response validation failed');
       }
 
       return parsedData;
 
-    } catch (error) {
-      console.warn(`⚠️ [DeepSeek Retry ${attempt}/${MAX_RETRIES}]: ${error.message}`);
-
+    } catch (err) {
+      console.warn(`❌ [LLM Hybrid Retry ${attempt}/${MAX_RETRIES}]: ${err.message}`);
       if (attempt >= MAX_RETRIES) {
-        // Nếu thất bại hoàn toàn, trả về fallback nếu có
         if (options.fallbackResponse) return options.fallbackResponse;
-        throw Object.assign(new Error(`Thất bại sau ${MAX_RETRIES} lần thử gọi DeepSeek: ${error.message}`), { statusCode: 502 });
+        throw err;
       }
-
-      // Đợi trước khi thử lại (Exponential Backoff)
-      const delay = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 500);
-      await sleep(delay);
+      await sleep(Math.pow(2, attempt) * 1000);
     }
   }
 }
 
 /**
- * 🎨 CHAT API — Chức năng chính cho AI Stylist Chat
+ * 🎨 CHAT API chính — Phối đồ và tư vấn
  */
-async function generateChatResponse({ userId, message, context = {} }) {
-  const systemPrompt = `You are StyleMate, a professional fashion stylist AI. 
-You MUST respond with a SINGLE JSON object matching the following schema:
+async function generateChatResponse({ userId, message, context = {}, options = {} }) {
+  const systemPrompt = `You are StyleMate, a professional fashion stylist AI.
+Provide styling advice and suggest outfits from the user's closet.
+You MUST respond with a SINGLE JSON object:
 {
-  "message": "Your styling advice (max 2 sentences)",
-  "suggested_outfits": [
-    { "id": "closet_item_id", "reason": "Why this matches (max 2 sentences)" }
-  ],
-  "followups": ["Short follow-up question 1", "Short follow-up question 2"]
+  "message": "Styling advice (max 2 sentences)",
+  "suggested_outfits": [ { "id": "id", "reason": "Reason (max 2 sentences)" } ],
+  "followups": ["Followup 1", "Followup 2"]
 }
-DO NOT include any markdown code blocks (like \`\`\`json) or extra text outside the JSON.`;
+Keep it extremely concise.`;
 
   return generateStructuredResponse({
     message,
     context,
+    options,
     systemPrompt,
     validator: validatePhase1Schema,
     mockResponse: {
-      message: `(Mock) Đây là gợi ý phối đồ cho bạn!`,
-      suggested_outfits: [{ id: "mock_1", reason: "Phù hợp với sở thích của bạn." }],
-      followups: ["Bạn có muốn đổi phong cách không?", "Thêm phụ kiện nhé?"]
+      message: `(Mock) Gợi ý cho bạn!`,
+      suggested_outfits: [{ id: "mock_1", reason: "Phù hợp với bối cảnh." }]
     }
   });
 }
