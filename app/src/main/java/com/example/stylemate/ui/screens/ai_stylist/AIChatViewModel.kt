@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.stylemate.network.ChatRequest
 import com.example.stylemate.network.RetrofitClient
 import com.example.stylemate.network.SuggestedOutfitDto
+import com.example.stylemate.network.OutfitSectionDto
 import com.example.stylemate.data.auth.AuthStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -72,13 +73,15 @@ class AIChatViewModel(
 
                     // Transition to recommendation view if outfits are present
                     if (chatData?.suggested_outfits?.isNotEmpty() == true) {
+                        val outfit = chatData.suggested_outfits.first()
                         _currentRecommendation.value = AiRecommendation(
-                            styleTitle = "Phong cách phù hợp", // Should come from AI ideally
-                            description = responseText,
-                            date = "09 thg 6", // Mock
-                            location = "Hà Nội", // Mock
-                            temp = "26 / 22°C", // Mock
-                            outfit = chatData.suggested_outfits.first()
+                            styleTitle = outfit.style_title ?: "Phong cách phù hợp",
+                            description = outfit.description ?: responseText,
+                            date = outfit.date ?: "09 thg 6",
+                            location = outfit.location ?: "Hà Nội",
+                            temp = outfit.temp ?: "26 / 22°C",
+                            sections = outfit.sections ?: emptyList(),
+                            outfit = outfit
                         )
                         _uiState.value = AIChatUiState.Recommendation
                     } else {
@@ -120,6 +123,7 @@ data class AiRecommendation(
     val date: String,
     val location: String,
     val temp: String,
+    val sections: List<OutfitSectionDto>,
     val outfit: SuggestedOutfitDto
 )
 

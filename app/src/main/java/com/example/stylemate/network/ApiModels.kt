@@ -287,8 +287,20 @@ data class ChatRequest(
     val lon: Double? = null
 )
 
+data class OutfitSectionDto(
+    val label: String,
+    val item_description: String,
+    val matching_item_ids: List<String> = emptyList()
+)
+
 data class SuggestedOutfitDto(
     val id: String? = null,
+    val style_title: String? = null,
+    val description: String? = null,
+    val date: String? = null,
+    val location: String? = null,
+    val temp: String? = null,
+    val sections: List<OutfitSectionDto>? = null,
     val name: String? = null,
     val reason: String? = null,
     val confidence: Double? = null,

@@ -229,11 +229,27 @@ async function generateChatResponse({ userId, message, context = {}, options = {
 Provide styling advice and suggest outfits from the user's closet.
 You MUST respond with a SINGLE JSON object:
 {
-  "message": "Styling advice (max 2 sentences)",
-  "suggested_outfits": [ { "id": "id", "reason": "Reason (max 2 sentences)" } ],
+  "message": "Immediate short response (1 sentence)",
+  "suggested_outfits": [
+    {
+      "id": "unique_outfit_id",
+      "style_title": "Attractive Style Title",
+      "description": "Detailed description of the style and why it works (3-4 sentences)",
+      "date": "09 thg 6",
+      "location": "Hà Nội",
+      "temp": "26 / 22°C",
+      "sections": [
+        {
+          "label": "Category Label (e.g. Áo lớp trong, Quần, Giày)",
+          "item_description": "Specific item type (e.g. áo nỉ dài tay, quần chinos)",
+          "matching_item_ids": ["item_id_1", "item_id_2"]
+        }
+      ]
+    }
+  ],
   "followups": ["Followup 1", "Followup 2"]
 }
-Keep it extremely concise.`;
+If matching items are not found in the provided closet, return empty "matching_item_ids" but STILL provide "label" and "item_description".`;
 
   return generateStructuredResponse({
     message,

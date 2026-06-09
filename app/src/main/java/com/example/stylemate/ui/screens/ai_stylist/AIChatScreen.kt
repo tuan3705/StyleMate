@@ -2,9 +2,7 @@ package com.example.stylemate.ui.screens.ai_stylist
 
 import android.util.Log
 import androidx.compose.animation.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -34,9 +32,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,6 +46,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL
+import com.example.stylemate.network.OutfitSectionDto
+import com.example.stylemate.network.SuggestedOutfitDto
 import com.example.stylemate.ui.components.ChatMessageRow
 import com.example.stylemate.ui.components.OutfitSuggestionCard
 import com.example.stylemate.viewmodel.ClothingViewModel
@@ -74,105 +78,179 @@ fun AIChatScreen(
     var inputText by remember { mutableStateOf("") }
     var showWizard by remember { mutableStateOf(false) }
     var showSaveSheet by remember { mutableStateOf(false) }
+    var isChatHistoryVisible by remember { mutableStateOf(false) }
     
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    0.0f to Color.White,
+                    0.4f to Color.White,
+                    1.0f to Color(0xFFD9EBFF)
+                )
+            )
+    ) {
+        Scaffold(
+            topBar = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
                     }
-                },
-                actions = {
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Black)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        },
-        bottomBar = {
-            Column {
+                }
+            },
+            bottomBar = {
                 if (uiState is AIChatUiState.Welcome) {
                     val prompts = listOf("Hàng ngày", "Trường học", "Làm việc", "Du lịch", "Bữa tiệc", "Hẹn hò", "Đám cưới")
-                    LazyRow(
+                    Column {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(horizontal = 24.dp)
+                        ) {
+                            items(prompts) { prompt ->
+                                Surface(
+                                    onClick = { 
+                                        inputText = "Gợi ý trang phục đi $prompt"
+                                        showWizard = true 
+                                    },
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = Color.Gray.copy(alpha = 0.05f)
+                                ) {
+                                    Text(
+                                        text = prompt,
+                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                                        fontSize = 16.sp,
+                                        color = Color.Black.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                        ChatInputBar(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            onSend = {
+                                if (inputText.isNotBlank()) {
+                                    viewModel.sendMessage(inputText)
+                                    inputText = ""
+                                }
+                            },
+                            focusRequester = focusRequester
+                        )
+                    }
+                } else if (uiState is AIChatUiState.Recommendation || uiState is AIChatUiState.Idle) {
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp)
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                        color = Color.White,
+                        shadowElevation = 16.dp
                     ) {
-                        items(prompts) { prompt ->
-                            Surface(
-                                onClick = { 
-                                    inputText = "Gợi ý trang phục đi $prompt"
-                                    showWizard = true 
-                                },
-                                shape = RoundedCornerShape(24.dp),
-                                color = Color.Gray.copy(alpha = 0.05f)
-                            ) {
-                                Text(
-                                    text = prompt,
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                                    fontSize = 16.sp,
-                                    color = Color.Black.copy(alpha = 0.7f)
+                        Column(
+                            modifier = Modifier.padding(top = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            IconButton(onClick = { isChatHistoryVisible = !isChatHistoryVisible }) {
+                                Icon(
+                                    imageVector = if (isChatHistoryVisible) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                    contentDescription = "Toggle Chat",
+                                    tint = Color.Gray.copy(alpha = 0.5f)
                                 )
                             }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .animateContentSize()
+                            ) {
+                                if (isChatHistoryVisible) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 400.dp)
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                                    ) {
+                                        messages.forEach { msg ->
+                                            ChatMessageRow(
+                                                message = msg.text,
+                                                isFromUser = msg.isFromUser
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                        }
+                                    }
+                                } else {
+                                    val lastAiMessage = messages.lastOrNull { !it.isFromUser }
+                                    if (lastAiMessage != null) {
+                                        Text(
+                                            text = lastAiMessage.text,
+                                            textAlign = TextAlign.Center,
+                                            fontSize = 15.sp,
+                                            lineHeight = 22.sp,
+                                            modifier = Modifier.padding(vertical = 16.dp, horizontal = 24.dp),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+
+                            ChatInputBar(
+                                value = inputText,
+                                onValueChange = { inputText = it },
+                                onSend = {
+                                    if (inputText.isNotBlank()) {
+                                        viewModel.sendMessage(inputText)
+                                        inputText = ""
+                                    }
+                                },
+                                focusRequester = focusRequester
+                            )
                         }
                     }
                 }
-                
-                if (uiState is AIChatUiState.Welcome || uiState is AIChatUiState.Recommendation || uiState is AIChatUiState.Idle) {
-                    ChatInputBar(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        onSend = {
-                            if (inputText.isNotBlank()) {
-                                viewModel.sendMessage(inputText)
-                                inputText = ""
-                            }
-                        },
-                        focusRequester = focusRequester
-                    )
-                }
-            }
-        },
-        containerColor = Color.Transparent
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.White, Color(0xFFF0F7FF))
-                    )
-                )
-                .padding(padding)
-        ) {
-            when (val state = uiState) {
-                is AIChatUiState.Welcome -> {
-                    WelcomeView()
-                }
-                is AIChatUiState.Typing -> {
-                    LoadingView(lastMessageText = messages.lastOrNull { it.isFromUser }?.text ?: "")
-                }
-                is AIChatUiState.Recommendation -> {
-                    recommendation?.let { rec ->
-                        RecommendationView(
-                            recommendation = rec,
-                            onSave = { showSaveSheet = true }
-                        )
+            },
+            containerColor = Color.Transparent
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                when (val state = uiState) {
+                    is AIChatUiState.Welcome -> {
+                        WelcomeView()
                     }
-                }
-                is AIChatUiState.Idle -> {
-                    // Chat history view
-                    ChatHistoryView(messages = messages)
-                }
-                is AIChatUiState.Error -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(state.message, color = Color.Red)
+                    is AIChatUiState.Typing -> {
+                        LoadingView(lastMessageText = messages.lastOrNull { it.isFromUser }?.text ?: "")
+                    }
+                    is AIChatUiState.Recommendation -> {
+                        recommendation?.let { rec ->
+                            RecommendationView(
+                                recommendation = rec,
+                                onSave = { showSaveSheet = true }
+                            )
+                        }
+                    }
+                    is AIChatUiState.Idle -> {
+                        // Chat history view
+                        ChatHistoryView(messages = messages)
+                    }
+                    is AIChatUiState.Error -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(state.message, color = Color.Red)
+                        }
                     }
                 }
             }
@@ -219,6 +297,13 @@ fun WelcomeView() {
 
 @Composable
 fun LoadingView(lastMessageText: String) {
+    var showDetails by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        delay(500)
+        showDetails = true
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -233,45 +318,54 @@ fun LoadingView(lastMessageText: String) {
             Text(
                 lastMessageText,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                fontSize = 16.sp
+                fontSize = 16.sp,
+                color = Color.Black.copy(alpha = 0.8f)
             )
         }
 
-        // Robot Icon (Placeholder for now)
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFE3F2FD)),
-            contentAlignment = Alignment.Center
+        AnimatedVisibility(
+            visible = showDetails,
+            enter = fadeIn() + slideInVertically { it / 2 }
         ) {
-            Icon(Icons.Default.Face, contentDescription = null, tint = Color(0xFF2196F3), modifier = Modifier.size(32.dp))
-        }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Robot Icon
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE3F2FD)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Face, contentDescription = null, tint = Color(0xFF2196F3), modifier = Modifier.size(32.dp))
+                }
 
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text(
-            "Đang tạo kiểu trang phục cho bạn...",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    "Đang tạo kiểu trang phục cho bạn...",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
 
-        Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-        // Tip Box
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            Text("Mẹo", color = Color(0xFF2196F3), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "Bạn có thể chọn tủ đồ để Nhà tạo mẫu AI tham khảo cho các trang phục của bạn.",
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                color = Color.Black.copy(alpha = 0.7f)
-            )
+                // Tip Box
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Text("Mẹo", color = Color(0xFF2196F3), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Bạn có thể chọn tủ đồ để Nhà tạo mẫu AI tham khảo cho các trang phục của bạn.",
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        color = Color.Black.copy(alpha = 0.7f)
+                    )
+                }
+            }
         }
     }
 }
@@ -281,9 +375,23 @@ fun RecommendationView(
     recommendation: AiRecommendation,
     onSave: () -> Unit
 ) {
+    val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
+    val clothingViewModel: ClothingViewModel = viewModel(
+        factory = ClothingViewModelFactory(
+            com.example.stylemate.repository.ClothingRepository(
+                com.example.stylemate.network.RetrofitClient.stylemateApiService,
+                app
+            )
+        )
+    )
+    val allItems by clothingViewModel.items.collectAsStateWithLifecycle()
+    val itemMap = remember(allItems) { allItems.associateBy { it.id } }
+
+    var isExpanded by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 100.dp)
+        contentPadding = PaddingValues(bottom = 140.dp)
     ) {
         item {
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
@@ -297,12 +405,21 @@ fun RecommendationView(
                     text = recommendation.description,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Black.copy(alpha = 0.7f),
-                    maxLines = 3,
+                    lineHeight = 22.sp,
+                    maxLines = if (isExpanded) Int.MAX_VALUE else 3,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text("Xem thêm", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    text = if (isExpanded) "Thu gọn" else "Xem thêm", 
+                    color = Color.Gray, 
+                    fontSize = 14.sp, 
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .clickable { isExpanded = !isExpanded }
+                )
                 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -313,101 +430,111 @@ fun RecommendationView(
                     WeatherInfoItem(Icons.Outlined.Cloud, recommendation.temp)
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(40.dp))
                 
-                Text(
-                    text = "Gợi ý hàng đầu từ Tất cả quần áo",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Gợi ý hàng đầu từ ",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Tất cả quần áo",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2196F3)
+                    )
+                }
             }
         }
 
-        // Categories & Items
-        item {
-            CategoryItemSection("Áo khoác ngoài", "áo khoác mỏng chống...", recommendation.outfit.image_urls?.get("coat"))
-            CategoryItemSection("Áo lớp trong", "áo nỉ dài tay cổ tròn", recommendation.outfit.image_urls?.get("top"))
-            CategoryItemSection("Quần", "quần chinos", recommendation.outfit.image_urls?.get("bottom"))
-            CategoryItemSection("Giày", "giày sneakers hoặc gi...", recommendation.outfit.image_urls?.get("shoes"))
+        // Dynamic sections from AI
+        items(recommendation.sections) { section ->
+            val matchedItems = section.matching_item_ids.mapNotNull { itemMap[it] }
+            CategoryItemSection(
+                label = section.label,
+                detail = section.item_description,
+                items = matchedItems
+            )
         }
 
         item {
             Spacer(modifier = Modifier.height(32.dp))
-            // Action Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+            
+            Button(
+                onClick = { /* Refresh/New suggest */ },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                IconButton(
-                    onClick = { /* Dislike */ },
-                    modifier = Modifier.size(48.dp).border(1.dp, Color.LightGray, CircleShape)
-                ) {
-                    Icon(Icons.Default.ThumbDown, contentDescription = null, modifier = Modifier.size(20.dp))
-                }
-                
-                Button(
-                    onClick = { /* Edit */ },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.1f)),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Text("Chỉnh sửa", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-
-                Button(
-                    onClick = onSave,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold)
-                }
+                Text("Nhận gợi ý trang phục", color = Color.White, fontWeight = FontWeight.Bold)
             }
+            
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }
 
 @Composable
-fun CategoryItemSection(label: String, detail: String, imageUrl: String?) {
-    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+fun CategoryItemSection(label: String, detail: String, items: List<ClothingItemEntity>) {
+    Column(modifier = Modifier.padding(vertical = 12.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(label, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(label, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(detail, color = Color.Gray, fontSize = 13.sp)
+                Text(detail, color = Color.Gray, fontSize = 14.sp)
                 Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
             }
         }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        if (imageUrl != null) {
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier.size(100.dp).border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+        if (items.isNotEmpty()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val fullUrl = if (imageUrl.startsWith("http")) imageUrl 
-                             else "${STYLEMATE_BASE_URL.removeSuffix("/")}${imageUrl}"
-                AsyncImage(
-                    model = fullUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize().padding(8.dp),
-                    contentScale = ContentScale.Fit
-                )
+                items(items) { item ->
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        modifier = Modifier
+                            .size(100.dp)
+                            .border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        val fullUrl = if (item.imageNoBg.startsWith("http")) item.imageNoBg 
+                                     else "${STYLEMATE_BASE_URL.removeSuffix("/")}${item.imageNoBg}"
+                        AsyncImage(
+                            model = fullUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize().padding(8.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
             }
         } else {
+            // "Chúng tôi không tìm thấy áo khoác mỏng chống nước nào trong tủ đồ của bạn"
             Text(
-                "Chúng tôi không tìm thấy $label nào trong tủ đồ của bạn",
+                text = buildAnnotatedString {
+                    append("Chúng tôi không tìm thấy ")
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append(detail)
+                    }
+                    append(" nào trong tủ đồ của bạn")
+                },
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 24.dp),
                 color = Color.Gray,
-                fontSize = 14.sp,
-                lineHeight = 20.sp
+                fontSize = 15.sp,
+                lineHeight = 22.sp
             )
         }
     }
@@ -435,6 +562,24 @@ fun ChatInputBar(
     onSend: () -> Unit,
     focusRequester: FocusRequester
 ) {
+    val placeholders = listOf(
+        "Gợi ý trang phục đi hẹn hò",
+        "Cách phối đồ với áo len?",
+        "Trang phục semi-formal đi đám cưới",
+        "Phối đồ với chiếc áo này thế nào?",
+        "Tối thứ 6 nên mặc gì?",
+        "Hôm nay mặc gì?",
+        "Trang phục thường ngày thoải mái"
+    )
+    var placeholderIndex by remember { mutableIntStateOf(0) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(3000)
+            placeholderIndex = (placeholderIndex + 1) % placeholders.size
+        }
+    }
+
     Box(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 24.dp)
@@ -465,7 +610,24 @@ fun ChatInputBar(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.weight(1f).focusRequester(focusRequester),
-                placeholder = { Text("Gợi ý trang phục đi hẹn hò", color = Color.Gray.copy(alpha = 0.5f), fontSize = 16.sp) },
+                placeholder = {
+                    AnimatedContent(
+                        targetState = placeholders[placeholderIndex],
+                        transitionSpec = {
+                            (slideInVertically { height -> height } + fadeIn())
+                                .togetherWith(slideOutVertically { height -> -height } + fadeOut())
+                        },
+                        label = "PlaceholderAnimation"
+                    ) { text ->
+                        Text(
+                            text = text, 
+                            color = Color.Gray.copy(alpha = 0.5f), 
+                            fontSize = 16.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,

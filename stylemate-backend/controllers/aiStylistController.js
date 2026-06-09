@@ -38,20 +38,42 @@ function buildItemPayload(item) {
 }
 
 async function hydrateOutfits(rawOutfits = [], userId) {
-  const allItemIds = [...new Set(rawOutfits.flatMap(o => o.item_ids || []))];
+  // Extract all item IDs from sections if present, otherwise from item_ids
+  const allItemIds = [...new Set(rawOutfits.flatMap(o => {
+    if (o.sections) {
+      return o.sections.flatMap(s => s.matching_item_ids || []);
+    }
+    return o.item_ids || [];
+  }))];
+
   const itemsInDb = await ClothingItem.find({ _id: { $in: allItemIds } }).lean();
   const itemMap = new Map(itemsInDb.map(i => [String(i._id), i]));
 
   return rawOutfits.map(outfit => {
+    // Legacy support for top-level item_ids
     const detail = (outfit.item_ids || []).map(id => {
       const dbItem = itemMap.get(String(id));
       return dbItem ? buildItemPayload(dbItem) : null;
     }).filter(Boolean);
 
+    // Hydrate sections if they exist
+    const hydratedSections = (outfit.sections || []).map(section => {
+      const matched = (section.matching_item_ids || []).map(id => {
+        const dbItem = itemMap.get(String(id));
+        return dbItem ? buildItemPayload(dbItem) : null;
+      }).filter(Boolean);
+
+      return {
+        ...section,
+        matching_items: matched
+      };
+    });
+
     return {
       ...outfit,
-      image_urls: detail.map(d => d.image_url),
-      items_detail: detail
+      image_urls: detail.length > 0 ? detail.map(d => d.image_url) : {}, // Can be object map if LLM used it
+      items_detail: detail,
+      sections: hydratedSections
     };
   });
 }
