@@ -20,11 +20,14 @@ class AIChatViewModel(
     private val authStorage: AuthStorage
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<AIChatUiState>(AIChatUiState.Idle)
+    private val _uiState = MutableStateFlow<AIChatUiState>(AIChatUiState.Welcome)
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _currentRecommendation = MutableStateFlow<AiRecommendation?>(null)
+    val currentRecommendation: StateFlow<AiRecommendation?> = _currentRecommendation.asStateFlow()
 
     private var currentSessionId: String? = null
 
@@ -59,20 +62,41 @@ class AIChatViewModel(
                     currentSessionId = chatData?.sessionId
                     val responseText = chatData?.message ?: "Tôi xin lỗi, tôi gặp chút trục trặc."
                     
-                    _messages.value += ChatMessage(
+                    val newMessage = ChatMessage(
                         text = responseText,
                         isFromUser = false,
                         suggestedOutfits = chatData?.suggested_outfits ?: emptyList(),
                         followups = chatData?.followups ?: emptyList()
                     )
-                    _uiState.value = AIChatUiState.Idle
+                    _messages.value += newMessage
+
+                    // Transition to recommendation view if outfits are present
+                    if (chatData?.suggested_outfits?.isNotEmpty() == true) {
+                        _currentRecommendation.value = AiRecommendation(
+                            styleTitle = "Phong cách phù hợp", // Should come from AI ideally
+                            description = responseText,
+                            date = "09 thg 6", // Mock
+                            location = "Hà Nội", // Mock
+                            temp = "26 / 22°C", // Mock
+                            outfit = chatData.suggested_outfits.first()
+                        )
+                        _uiState.value = AIChatUiState.Recommendation
+                    } else {
+                        _uiState.value = AIChatUiState.Idle
+                    }
                 } else {
-                    _uiState.value = AIChatUiState.Error("Lỗi từ server: \${response.code()}")
+                    _uiState.value = AIChatUiState.Error("Lỗi từ server: ${response.code()}")
                 }
             } catch (e: Exception) {
                 _uiState.value = AIChatUiState.Error(e.message ?: "Lỗi không xác định")
             }
         }
+    }
+
+    fun startOver() {
+        _messages.value = emptyList()
+        _currentRecommendation.value = null
+        _uiState.value = AIChatUiState.Welcome
     }
 
     fun handleAction(action: String, outfit: SuggestedOutfitDto) {
@@ -83,10 +107,21 @@ class AIChatViewModel(
 }
 
 sealed class AIChatUiState {
-    object Idle : AIChatUiState()
+    object Welcome : AIChatUiState()
     object Typing : AIChatUiState()
+    object Recommendation : AIChatUiState()
+    object Idle : AIChatUiState()
     data class Error(val message: String) : AIChatUiState()
 }
+
+data class AiRecommendation(
+    val styleTitle: String,
+    val description: String,
+    val date: String,
+    val location: String,
+    val temp: String,
+    val outfit: SuggestedOutfitDto
+)
 
 data class ChatMessage(
     val text: String,

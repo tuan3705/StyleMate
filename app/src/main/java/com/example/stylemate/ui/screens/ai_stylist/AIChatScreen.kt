@@ -1,10 +1,16 @@
 package com.example.stylemate.ui.screens.ai_stylist
 
 import android.util.Log
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -12,8 +18,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,17 +28,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.example.stylemate.model.ClothingItemEntity
+import com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL
 import com.example.stylemate.ui.components.ChatMessageRow
 import com.example.stylemate.ui.components.OutfitSuggestionCard
+import com.example.stylemate.viewmodel.ClothingViewModel
+import com.example.stylemate.viewmodel.ClothingViewModelFactory
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +57,6 @@ fun AIChatScreen(
     onBack: () -> Unit,
     onNavigateToSettings: () -> Unit
 ) {
-    Log.d("AIChatScreen", "Screen loaded")
     val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
     val viewModel: AIChatViewModel = viewModel(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -49,16 +66,17 @@ fun AIChatScreen(
             }
         }
     )
-    val messages by viewModel.messages.collectAsStateWithLifecycle()
-    var inputText by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
-    val focusRequester = remember { FocusRequester() }
 
-    // Auto-focus keyboard on entry
-    LaunchedEffect(Unit) {
-        delay(300)
-        focusRequester.requestFocus()
-    }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val recommendation by viewModel.currentRecommendation.collectAsStateWithLifecycle()
+
+    var inputText by remember { mutableStateOf("") }
+    var showWizard by remember { mutableStateOf(false) }
+    var showSaveSheet by remember { mutableStateOf(false) }
+    
+    val focusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -66,131 +84,791 @@ fun AIChatScreen(
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
                     }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Gray)
+                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Black)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            Box(modifier = Modifier.weight(1f)) {
-                if (messages.isEmpty() || (messages.size == 1 && !messages[0].isFromUser)) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
+        },
+        bottomBar = {
+            Column {
+                if (uiState is AIChatUiState.Welcome) {
+                    val prompts = listOf("Hàng ngày", "Trường học", "Làm việc", "Du lịch", "Bữa tiệc", "Hẹn hò", "Đám cưới")
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp)
                     ) {
-                        Text(
-                            text = "Chào, HungBu\nBạn cần trang phục nào?",
-                            style = MaterialTheme.typography.headlineSmall,
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Medium,
-                            lineHeight = 32.sp
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp)
-                    ) {
-                        items(messages) { message ->
-                            ChatMessageRow(
-                                message = message.text,
-                                isFromUser = message.isFromUser
-                            )
-                            
-                            message.suggestedOutfits.forEach { outfit ->
-                                OutfitSuggestionCard(
-                                    outfit = outfit,
-                                    onAction = { action, _ ->
-                                        viewModel.handleAction(action, outfit)
-                                    }
+                        items(prompts) { prompt ->
+                            Surface(
+                                onClick = { 
+                                    inputText = "Gợi ý trang phục đi $prompt"
+                                    showWizard = true 
+                                },
+                                shape = RoundedCornerShape(24.dp),
+                                color = Color.Gray.copy(alpha = 0.05f)
+                            ) {
+                                Text(
+                                    text = prompt,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                                    fontSize = 16.sp,
+                                    color = Color.Black.copy(alpha = 0.7f)
                                 )
                             }
                         }
                     }
                 }
+                
+                if (uiState is AIChatUiState.Welcome || uiState is AIChatUiState.Recommendation || uiState is AIChatUiState.Idle) {
+                    ChatInputBar(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        onSend = {
+                            if (inputText.isNotBlank()) {
+                                viewModel.sendMessage(inputText)
+                                inputText = ""
+                            }
+                        },
+                        focusRequester = focusRequester
+                    )
+                }
             }
-
-            // Bottom Input Section
-            Column(modifier = Modifier.padding(16.dp)) {
-                // Quick Prompts
-                if (messages.isEmpty() || (messages.size == 1 && !messages[0].isFromUser)) {
-                    val prompts = listOf("Hàng ngày", "Trường học", "Làm việc")
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        prompts.forEach { prompt ->
-                            FilterChip(
-                                selected = false,
-                                onClick = { viewModel.sendMessage(prompt) },
-                                label = { Text(prompt) },
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                        }
+        },
+        containerColor = Color.Transparent
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.White, Color(0xFFF0F7FF))
+                    )
+                )
+                .padding(padding)
+        ) {
+            when (val state = uiState) {
+                is AIChatUiState.Welcome -> {
+                    WelcomeView()
+                }
+                is AIChatUiState.Typing -> {
+                    LoadingView(lastMessageText = messages.lastOrNull { it.isFromUser }?.text ?: "")
+                }
+                is AIChatUiState.Recommendation -> {
+                    recommendation?.let { rec ->
+                        RecommendationView(
+                            recommendation = rec,
+                            onSave = { showSaveSheet = true }
+                        )
                     }
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(32.dp),
-                    tonalElevation = 2.dp,
-                    shadowElevation = 8.dp,
-                    color = Color.White
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { /* Add media */ }) {
-                            Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.Gray)
-                        }
-                        TextField(
-                            value = inputText,
-                            onValueChange = { inputText = it },
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            placeholder = { Text("Tối thứ Sáu nên mặc gì?", color = Color.Gray) },
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            singleLine = true
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.LightGray.copy(alpha = 0.3f))
-                                .clickable {
-                                    if (inputText.isNotBlank()) {
-                                        viewModel.sendMessage(inputText)
-                                        inputText = ""
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Send", tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
+                is AIChatUiState.Idle -> {
+                    // Chat history view
+                    ChatHistoryView(messages = messages)
+                }
+                is AIChatUiState.Error -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(state.message, color = Color.Red)
                     }
                 }
             }
         }
+    }
+
+    if (showWizard) {
+        OutfitWizardSheet(
+            onDismiss = { showWizard = false },
+            onFinish = { topic, style, items ->
+                val wizardResult = "Tôi muốn tìm trang phục cho dịp này.\nChủ đề: $topic\nPhong cách: $style\nMón đồ tôi muốn dùng: ${items.joinToString { it.name }}"
+                viewModel.sendMessage(wizardResult)
+                showWizard = false
+            }
+        )
+    }
+
+    if (showSaveSheet) {
+        SaveOutfitSheet(
+            onDismiss = { showSaveSheet = false },
+            onSaveToLookbook = { /* Handle */ showSaveSheet = false },
+            onSaveToCalendar = { /* Handle */ showSaveSheet = false }
+        )
+    }
+}
+
+@Composable
+fun WelcomeView() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Chào, HungBu\nBạn cần trang phục nào?",
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Normal,
+            lineHeight = 40.sp,
+            color = Color.Black
+        )
+    }
+}
+
+@Composable
+fun LoadingView(lastMessageText: String) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        // User's request bubble
+        Surface(
+            color = Color.Gray.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.align(Alignment.End).padding(bottom = 48.dp)
+        ) {
+            Text(
+                lastMessageText,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                fontSize = 16.sp
+            )
+        }
+
+        // Robot Icon (Placeholder for now)
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE3F2FD)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Face, contentDescription = null, tint = Color(0xFF2196F3), modifier = Modifier.size(32.dp))
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text(
+            "Đang tạo kiểu trang phục cho bạn...",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Tip Box
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text("Mẹo", color = Color(0xFF2196F3), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Bạn có thể chọn tủ đồ để Nhà tạo mẫu AI tham khảo cho các trang phục của bạn.",
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+                color = Color.Black.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+@Composable
+fun RecommendationView(
+    recommendation: AiRecommendation,
+    onSave: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 100.dp)
+    ) {
+        item {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                Text(
+                    text = recommendation.styleTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = recommendation.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Black.copy(alpha = 0.7f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text("Xem thêm", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    WeatherInfoItem(Icons.Default.CalendarToday, recommendation.date)
+                    WeatherInfoItem(Icons.Default.LocationOn, recommendation.location)
+                    WeatherInfoItem(Icons.Outlined.Cloud, recommendation.temp)
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Text(
+                    text = "Gợi ý hàng đầu từ Tất cả quần áo",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Categories & Items
+        item {
+            CategoryItemSection("Áo khoác ngoài", "áo khoác mỏng chống...", recommendation.outfit.image_urls?.get("coat"))
+            CategoryItemSection("Áo lớp trong", "áo nỉ dài tay cổ tròn", recommendation.outfit.image_urls?.get("top"))
+            CategoryItemSection("Quần", "quần chinos", recommendation.outfit.image_urls?.get("bottom"))
+            CategoryItemSection("Giày", "giày sneakers hoặc gi...", recommendation.outfit.image_urls?.get("shoes"))
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(32.dp))
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { /* Dislike */ },
+                    modifier = Modifier.size(48.dp).border(1.dp, Color.LightGray, CircleShape)
+                ) {
+                    Icon(Icons.Default.ThumbDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                }
+                
+                Button(
+                    onClick = { /* Edit */ },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray.copy(alpha = 0.1f)),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Text("Chỉnh sửa", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryItemSection(label: String, detail: String, imageUrl: String?) {
+    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(detail, color = Color.Gray, fontSize = 13.sp)
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (imageUrl != null) {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                modifier = Modifier.size(100.dp).border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+            ) {
+                val fullUrl = if (imageUrl.startsWith("http")) imageUrl 
+                             else "${STYLEMATE_BASE_URL.removeSuffix("/")}${imageUrl}"
+                AsyncImage(
+                    model = fullUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().padding(8.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        } else {
+            Text(
+                "Chúng tôi không tìm thấy $label nào trong tủ đồ của bạn",
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                color = Color.Gray,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun ChatHistoryView(messages: List<ChatMessage>) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp)
+    ) {
+        items(messages) { message ->
+            ChatMessageRow(
+                message = message.text,
+                isFromUser = message.isFromUser
+            )
+        }
+    }
+}
+
+@Composable
+fun ChatInputBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSend: () -> Unit,
+    focusRequester: FocusRequester
+) {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 24.dp)
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                width = 1.dp,
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color(0xFF64B5F6), Color(0xFFBA68C8))
+                ),
+                shape = RoundedCornerShape(28.dp)
+            )
+            .background(Color.White, shape = RoundedCornerShape(28.dp))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { /* Add media */ }) {
+                Icon(
+                    imageVector = Icons.Default.Add, 
+                    contentDescription = "Add", 
+                    tint = Color.Gray,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                placeholder = { Text("Gợi ý trang phục đi hẹn hò", color = Color.Gray.copy(alpha = 0.5f), fontSize = 16.sp) },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = Color(0xFF64B5F6)
+                ),
+                singleLine = true
+            )
+            
+            IconButton(
+                onClick = onSend,
+                enabled = value.isNotBlank(),
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(if (value.isNotBlank()) Color(0xFF64B5F6) else Color.LightGray.copy(alpha = 0.3f))
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward, 
+                    contentDescription = "Send", 
+                    tint = Color.White, 
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WeatherInfoItem(icon: ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black.copy(alpha = 0.6f))
+        Text(text, fontSize = 14.sp, color = Color.Black.copy(alpha = 0.6f))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SaveOutfitSheet(
+    onDismiss: () -> Unit,
+    onSaveToLookbook: () -> Unit,
+    onSaveToCalendar: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var showCalendar by remember { mutableStateOf(false) }
+
+    if (showCalendar) {
+        CalendarPickerSheet(
+            onDismiss = { showCalendar = false },
+            onDateSelected = { /* Handle date */ onDismiss() }
+        )
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Lưu", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    SaveOptionCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.Book,
+                        label = "Sách trang phục",
+                        onClick = onSaveToLookbook
+                    )
+                    SaveOptionCard(
+                        modifier = Modifier.weight(1f),
+                        icon = Icons.Outlined.CalendarToday,
+                        label = "Lịch",
+                        onClick = { showCalendar = true }
+                    )
+                }
+                Spacer(modifier = Modifier.height(48.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun SaveOptionCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.height(140.dp).clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(label, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CalendarPickerSheet(
+    onDismiss: () -> Unit,
+    onDateSelected: (Long) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    val datePickerState = rememberDatePickerState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Chọn ngày", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 16.dp))
+            
+            DatePicker(
+                state = datePickerState,
+                showModeToggle = false,
+                title = null,
+                headline = null
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = { datePickerState.selectedDateMillis?.let { onDateSelected(it) } },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = if (datePickerState.selectedDateMillis != null) Color.Black else Color.LightGray),
+                shape = RoundedCornerShape(12.dp),
+                enabled = datePickerState.selectedDateMillis != null
+            ) {
+                Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+// ── OUTFIT WIZARD ────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OutfitWizardSheet(
+    onDismiss: () -> Unit,
+    onFinish: (String, String, List<ClothingItemEntity>) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var step by remember { mutableIntStateOf(1) }
+    
+    var selectedTopic by remember { mutableStateOf("Không có") }
+    var selectedStyle by remember { mutableStateOf("Không có") }
+    var selectedItems by remember { mutableStateOf(setOf<ClothingItemEntity>()) }
+    
+    val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
+    val clothingViewModel: ClothingViewModel = viewModel(
+        factory = ClothingViewModelFactory(
+            com.example.stylemate.repository.ClothingRepository(
+                com.example.stylemate.network.RetrofitClient.stylemateApiService,
+                app
+            )
+        )
+    )
+    val allItems by clothingViewModel.items.collectAsStateWithLifecycle()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = Color.White,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(horizontal = 20.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (step == 2) {
+                    IconButton(onClick = { step = 1 }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                } else {
+                    Spacer(modifier = Modifier.size(48.dp))
+                }
+                
+                Text(
+                    text = "$step / 2",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (step == 1) {
+                WizardStepOne(
+                    selectedTopic = selectedTopic,
+                    onTopicSelected = { selectedTopic = it },
+                    selectedStyle = selectedStyle,
+                    onStyleSelected = { selectedStyle = it },
+                    onNext = { step = 2 },
+                    onSkip = { onFinish("Không có", "Không có", emptyList()) }
+                )
+            } else {
+                WizardStepTwo(
+                    allItems = allItems,
+                    selectedItems = selectedItems,
+                    onItemSelected = { item ->
+                        selectedItems = if (selectedItems.contains(item)) {
+                            selectedItems - item
+                        } else {
+                            selectedItems + item
+                        }
+                    },
+                    onFinish = { onFinish(selectedTopic, selectedStyle, selectedItems.toList()) }
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun WizardStepOne(
+    selectedTopic: String,
+    onTopicSelected: (String) -> Unit,
+    selectedStyle: String,
+    onStyleSelected: (String) -> Unit,
+    onNext: () -> Unit,
+    onSkip: () -> Unit
+) {
+    val topics = listOf("Không có", "Ở nhà/Thư giãn", "Đồ mặc ở nhà", "Quán cà phê/Tụ tập", "Triển lẫm", "Phim")
+    val styles = listOf(
+        "Không có", "Thường ngày", "Cổ điển", "Đường phố", "Hiện đại", "Tối giản", 
+        "Nữ tính", "Bohemian", "công sở thoải mái", "Bán trang trọng", "Trang trọng", "Dự tiệc"
+    )
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text("Chủ đề", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        FlowRow(
+            modifier = Modifier.padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            topics.forEach { topic ->
+                FilterChip(
+                    selected = selectedTopic == topic,
+                    onClick = { onTopicSelected(topic) },
+                    label = { Text(topic) },
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Phong cách", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        FlowRow(
+            modifier = Modifier.padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            styles.forEach { style ->
+                FilterChip(
+                    selected = selectedStyle == style,
+                    onClick = { onStyleSelected(style) },
+                    label = { Text(style) },
+                    shape = RoundedCornerShape(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Button(
+            onClick = onNext,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+        ) {
+            Text("Tiếp theo", color = Color.White, fontWeight = FontWeight.Bold)
+        }
+        
+        TextButton(
+            onClick = onSkip,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        ) {
+            Text("Bỏ qua", color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun WizardStepTwo(
+    allItems: List<ClothingItemEntity>,
+    selectedItems: Set<ClothingItemEntity>,
+    onItemSelected: (ClothingItemEntity) -> Unit,
+    onFinish: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            "Những món đồ không thể thiếu cho trang phục của bạn",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("Tất cả", color = Color.Gray)
+            Column {
+                Text("Áo", fontWeight = FontWeight.Bold)
+                Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+            }
+            Text("Quần dài", color = Color.Gray)
+        }
+        
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            gridItems(allItems) { item ->
+                Box(
+                    modifier = Modifier
+                        .aspectRatio(0.8f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.White)
+                        .clickable { onItemSelected(item) }
+                        .border(if (selectedItems.contains(item)) 2.dp else 0.dp, Color.Black, RoundedCornerShape(8.dp))
+                ) {
+                    val fullUrl = if (item.imageNoBg.startsWith("http")) item.imageNoBg 
+                                 else "${STYLEMATE_BASE_URL.removeSuffix("/")}${item.imageNoBg}"
+                    AsyncImage(
+                        model = fullUrl,
+                        contentDescription = item.name,
+                        modifier = Modifier.fillMaxSize().padding(4.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                    
+                    if (selectedItems.contains(item)) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onFinish,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+        ) {
+            Text("Nhận gợi ý trang phục", color = Color.White, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun FlowRow(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    content: @Composable () -> Unit
+) {
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = modifier,
+        horizontalArrangement = horizontalArrangement,
+        verticalArrangement = verticalArrangement
+    ) {
+        content()
     }
 }
