@@ -31,8 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import com.example.stylemate.R
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -82,6 +83,7 @@ fun AIChatScreen(
     
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -105,16 +107,24 @@ fun AIChatScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc), tint = Color.Black)
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Black)
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_content_desc), tint = Color.Black)
                     }
                 }
             },
             bottomBar = {
                 if (uiState is AIChatUiState.Welcome) {
-                    val prompts = listOf("Hàng ngày", "Trường học", "Làm việc", "Du lịch", "Bữa tiệc", "Hẹn hò", "Đám cưới")
+                    val prompts = listOf(
+                        stringResource(R.string.prompt_daily),
+                        stringResource(R.string.prompt_school),
+                        stringResource(R.string.prompt_work),
+                        stringResource(R.string.prompt_travel),
+                        stringResource(R.string.prompt_party),
+                        stringResource(R.string.prompt_date),
+                        stringResource(R.string.prompt_wedding)
+                    )
                     Column {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -124,7 +134,7 @@ fun AIChatScreen(
                             items(prompts) { prompt ->
                                 Surface(
                                     onClick = { 
-                                        inputText = "Gợi ý trang phục đi $prompt"
+                                        inputText = context.getString(R.string.prompt_suggest_prefix) + prompt
                                         showWizard = true 
                                     },
                                     shape = RoundedCornerShape(24.dp),
@@ -165,7 +175,7 @@ fun AIChatScreen(
                             IconButton(onClick = { isChatHistoryVisible = !isChatHistoryVisible }) {
                                 Icon(
                                     imageVector = if (isChatHistoryVisible) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                    contentDescription = "Toggle Chat",
+                                    contentDescription = stringResource(R.string.toggle_chat_content_desc),
                                     tint = Color.Gray.copy(alpha = 0.5f)
                                 )
                             }
@@ -261,7 +271,8 @@ fun AIChatScreen(
         OutfitWizardSheet(
             onDismiss = { showWizard = false },
             onFinish = { topic, style, items ->
-                val wizardResult = "Tôi muốn tìm trang phục cho dịp này.\nChủ đề: $topic\nPhong cách: $style\nMón đồ tôi muốn dùng: ${items.joinToString { it.name }}"
+                val itemList = items.joinToString { it.name }
+                val wizardResult = context.getString(R.string.wizard_result_message, topic, style, itemList)
                 viewModel.sendMessage(wizardResult)
                 showWizard = false
             }
@@ -285,7 +296,7 @@ fun WelcomeView() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Chào, HungBu\nBạn cần trang phục nào?",
+            text = stringResource(R.string.welcome_greeting),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Normal,
@@ -342,7 +353,7 @@ fun LoadingView(lastMessageText: String) {
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    "Đang tạo kiểu trang phục cho bạn...",
+                    stringResource(R.string.loading_generating_outfit),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -356,10 +367,10 @@ fun LoadingView(lastMessageText: String) {
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    Text("Mẹo", color = Color(0xFF2196F3), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(stringResource(R.string.tip_title), color = Color(0xFF2196F3), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "Bạn có thể chọn tủ đồ để Nhà tạo mẫu AI tham khảo cho các trang phục của bạn.",
+                        stringResource(R.string.tip_content),
                         fontSize = 14.sp,
                         lineHeight = 20.sp,
                         color = Color.Black.copy(alpha = 0.7f)
@@ -410,7 +421,7 @@ fun RecommendationView(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = if (isExpanded) "Thu gọn" else "Xem thêm", 
+                    text = if (isExpanded) stringResource(R.string.collapse) else stringResource(R.string.see_more), 
                     color = Color.Gray, 
                     fontSize = 14.sp, 
                     fontWeight = FontWeight.Medium,
@@ -434,12 +445,12 @@ fun RecommendationView(
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Gợi ý hàng đầu từ ",
+                        text = stringResource(R.string.top_recommendations_from),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Tất cả quần áo",
+                        text = stringResource(R.string.all_clothes),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF2196F3)
@@ -470,7 +481,7 @@ fun RecommendationView(
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Nhận gợi ý trang phục", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.get_outfit_suggestion), color = Color.White, fontWeight = FontWeight.Bold)
             }
             
             Spacer(modifier = Modifier.height(48.dp))
@@ -521,14 +532,14 @@ fun CategoryItemSection(label: String, detail: String, items: List<ClothingItemE
                 }
             }
         } else {
-            // "Chúng tôi không tìm thấy áo khoác mỏng chống nước nào trong tủ đồ của bạn"
+            val context = LocalContext.current
             Text(
                 text = buildAnnotatedString {
-                    append("Chúng tôi không tìm thấy ")
+                    append(context.getString(R.string.wizard_not_found_prefix))
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                         append(detail)
                     }
-                    append(" nào trong tủ đồ của bạn")
+                    append(context.getString(R.string.wizard_not_found_suffix))
                 },
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 24.dp),
@@ -562,14 +573,15 @@ fun ChatInputBar(
     onSend: () -> Unit,
     focusRequester: FocusRequester
 ) {
+    val context = LocalContext.current
     val placeholders = listOf(
-        "Gợi ý trang phục đi hẹn hò",
-        "Cách phối đồ với áo len?",
-        "Trang phục semi-formal đi đám cưới",
-        "Phối đồ với chiếc áo này thế nào?",
-        "Tối thứ 6 nên mặc gì?",
-        "Hôm nay mặc gì?",
-        "Trang phục thường ngày thoải mái"
+        context.getString(R.string.wizard_chat_placeholder_date),
+        context.getString(R.string.wizard_chat_placeholder_len),  
+        context.getString(R.string.wizard_chat_placeholder_semi),
+        context.getString(R.string.wizard_chat_placeholder_style),
+        context.getString(R.string.wizard_chat_placeholder_friday),
+        context.getString(R.string.wizard_chat_placeholder_today),
+        context.getString(R.string.wizard_chat_placeholder_casual)
     )
     var placeholderIndex by remember { mutableIntStateOf(0) }
     
@@ -601,7 +613,7 @@ fun ChatInputBar(
             IconButton(onClick = { /* Add media */ }) {
                 Icon(
                     imageVector = Icons.Default.Add, 
-                    contentDescription = "Add", 
+                    contentDescription = stringResource(R.string.chat_add_content_desc), 
                     tint = Color.Gray,
                     modifier = Modifier.size(24.dp)
                 )
@@ -649,7 +661,7 @@ fun ChatInputBar(
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowForward, 
-                    contentDescription = "Send", 
+                    contentDescription = stringResource(R.string.chat_send_content_desc), 
                     tint = Color.White, 
                     modifier = Modifier.size(18.dp)
                 )
@@ -691,20 +703,20 @@ fun SaveOutfitSheet(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Lưu", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.save_button), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     SaveOptionCard(
                         modifier = Modifier.weight(1f),
                         icon = Icons.Outlined.Book,
-                        label = "Sách trang phục",
+                        label = stringResource(R.string.save_to_lookbook),
                         onClick = onSaveToLookbook
                     )
                     SaveOptionCard(
                         modifier = Modifier.weight(1f),
                         icon = Icons.Outlined.CalendarToday,
-                        label = "Lịch",
+                        label = stringResource(R.string.save_to_calendar),
                         onClick = { showCalendar = true }
                     )
                 }
@@ -757,7 +769,7 @@ fun CalendarPickerSheet(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Chọn ngày", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 16.dp))
+            Text(stringResource(R.string.select_date_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 16.dp))
             
             DatePicker(
                 state = datePickerState,
@@ -775,7 +787,7 @@ fun CalendarPickerSheet(
                 shape = RoundedCornerShape(12.dp),
                 enabled = datePickerState.selectedDateMillis != null
             ) {
-                Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.save_date_button), color = Color.White, fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -793,8 +805,9 @@ fun OutfitWizardSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var step by remember { mutableIntStateOf(1) }
     
-    var selectedTopic by remember { mutableStateOf("Không có") }
-    var selectedStyle by remember { mutableStateOf("Không có") }
+    val context2 = LocalContext.current
+    var selectedTopic by remember { mutableStateOf(context2.getString(R.string.no_topic_option)) }
+    var selectedStyle by remember { mutableStateOf(context2.getString(R.string.wizard_style_none)) }
     var selectedItems by remember { mutableStateOf(setOf<ClothingItemEntity>()) }
     
     val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
@@ -828,14 +841,14 @@ fun OutfitWizardSheet(
             ) {
                 if (step == 2) {
                     IconButton(onClick = { step = 1 }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 } else {
                     Spacer(modifier = Modifier.size(48.dp))
                 }
                 
                 Text(
-                    text = "$step / 2",
+                    text = stringResource(R.string.wizard_step_format, step),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -852,7 +865,7 @@ fun OutfitWizardSheet(
                     selectedStyle = selectedStyle,
                     onStyleSelected = { selectedStyle = it },
                     onNext = { step = 2 },
-                    onSkip = { onFinish("Không có", "Không có", emptyList()) }
+                    onSkip = { onFinish(context2.getString(R.string.no_topic_option), context2.getString(R.string.wizard_style_none), emptyList()) }
                 )
             } else {
                 WizardStepTwo(
@@ -883,14 +896,32 @@ fun WizardStepOne(
     onNext: () -> Unit,
     onSkip: () -> Unit
 ) {
-    val topics = listOf("Không có", "Ở nhà/Thư giãn", "Đồ mặc ở nhà", "Quán cà phê/Tụ tập", "Triển lẫm", "Phim")
+    val context = LocalContext.current
+    val topics = listOf(
+        context.getString(R.string.no_topic_option),
+        context.getString(R.string.topic_home_relax),
+        context.getString(R.string.topic_loungewear),
+        context.getString(R.string.topic_cafe_hangout),
+        context.getString(R.string.topic_exhibition),
+        context.getString(R.string.topic_movie)
+    )
     val styles = listOf(
-        "Không có", "Thường ngày", "Cổ điển", "Đường phố", "Hiện đại", "Tối giản", 
-        "Nữ tính", "Bohemian", "công sở thoải mái", "Bán trang trọng", "Trang trọng", "Dự tiệc"
+        context.getString(R.string.wizard_style_none),
+        context.getString(R.string.style_casual),
+        context.getString(R.string.style_classic),
+        context.getString(R.string.style_street),
+        context.getString(R.string.style_modern),
+        context.getString(R.string.style_minimalist),
+        context.getString(R.string.style_feminine),
+        context.getString(R.string.style_bohemian),
+        context.getString(R.string.style_smart_casual),
+        context.getString(R.string.style_semi_formal),
+        context.getString(R.string.style_formal),
+        context.getString(R.string.style_party)
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Text("Chủ đề", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(stringResource(R.string.topic_title), fontWeight = FontWeight.Bold, fontSize = 16.sp)
         FlowRow(
             modifier = Modifier.padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -907,7 +938,7 @@ fun WizardStepOne(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text("Phong cách", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(stringResource(R.string.style_title), fontWeight = FontWeight.Bold, fontSize = 16.sp)
         FlowRow(
             modifier = Modifier.padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -930,14 +961,14 @@ fun WizardStepOne(
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
         ) {
-            Text("Tiếp theo", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.next_button), color = Color.White, fontWeight = FontWeight.Bold)
         }
         
         TextButton(
             onClick = onSkip,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
         ) {
-            Text("Bỏ qua", color = Color.Gray)
+            Text(stringResource(R.string.skip_button), color = Color.Gray)
         }
     }
 }
@@ -951,7 +982,7 @@ fun WizardStepTwo(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            "Những món đồ không thể thiếu cho trang phục của bạn",
+            stringResource(R.string.wizard_step_two_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -959,12 +990,12 @@ fun WizardStepTwo(
         Spacer(modifier = Modifier.height(16.dp))
         
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("Tất cả", color = Color.Gray)
+            Text(stringResource(R.string.wizard_all_label), color = Color.Gray)
             Column {
-                Text("Áo", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.wizard_category_tops), fontWeight = FontWeight.Bold)
                 Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
             }
-            Text("Quần dài", color = Color.Gray)
+            Text(stringResource(R.string.wizard_category_bottoms), color = Color.Gray)
         }
         
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -1013,7 +1044,7 @@ fun WizardStepTwo(
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
         ) {
-            Text("Nhận gợi ý trang phục", color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.get_outfit_suggestion), color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }

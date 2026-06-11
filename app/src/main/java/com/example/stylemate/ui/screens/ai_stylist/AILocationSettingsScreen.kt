@@ -14,9 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stylemate.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,12 +35,12 @@ fun AILocationSettingsScreen(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         modifier = Modifier.fillMaxWidth().padding(end = 16.dp),
-                        placeholder = { Text("Tìm kiếm theo thành phố", color = Color.Gray) },
+                        placeholder = { Text(stringResource(R.string.ai_location_search_placeholder), color = Color.Gray) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear")
+                                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.ai_location_search_clear))
                                 }
                             }
                         },
@@ -54,7 +56,7 @@ fun AILocationSettingsScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -75,7 +77,7 @@ fun AILocationSettingsScreen(
                 Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "Sử dụng vị trí hiện tại",
+                    text = stringResource(R.string.ai_location_use_current),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f)
                 )
@@ -87,7 +89,7 @@ fun AILocationSettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             Text(
-                text = "Tìm kiếm gần đây",
+                text = stringResource(R.string.ai_location_recent_title),
                 modifier = Modifier.padding(horizontal = 16.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
@@ -110,7 +112,7 @@ fun AILocationSettingsScreen(
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Hà Nội, Việt Nam",
+                    text = stringResource(R.string.ai_location_default_result),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }

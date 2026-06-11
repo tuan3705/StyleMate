@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.layout.ContentScale
@@ -69,6 +70,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.stylemate.R
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitItemWithPosition
@@ -161,7 +163,7 @@ fun ClosetScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val allCategories = listOf(Categories.ALL) + Categories.list
-    val tabs = listOf("Món đồ", "Bộ đồ")
+    val tabs = listOf(context.getString(R.string.tab_items), context.getString(R.string.tab_outfits))
     val isItemsAtTop by remember {
         derivedStateOf {
             itemsGridState.firstVisibleItemIndex == 0 &&
@@ -233,7 +235,7 @@ fun ClosetScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = if (selectedTab == 0) "Thêm món đồ" else "Tạo bộ đồ"
+                    contentDescription = if (selectedTab == 0) stringResource(R.string.add_item_fab_desc) else stringResource(R.string.create_outfit_fab_desc)
                 )
             }
         },
@@ -253,13 +255,13 @@ fun ClosetScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "My Closet",
+                    text = stringResource(R.string.closet_title),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { /* Filter action */ }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                        Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.filter_content_desc))
                     }
                     accountMenu()
                 }
@@ -433,11 +435,11 @@ private fun ClosetSearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp),
-        placeholder = { Text("Tìm món đồ") },
+        placeholder = { Text(stringResource(R.string.search_hint)) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search")
+            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_content_desc))
         },
         trailingIcon = {
             if (query.isNotBlank()) {
@@ -447,7 +449,7 @@ private fun ClosetSearchBar(
                         focusManager.clearFocus()
                     }
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search_content_desc))
                 }
             }
         },
@@ -474,6 +476,7 @@ private fun ItemsTabContent(
     nestedScrollConnection: NestedScrollConnection,
     onItemClick: (String) -> Unit
 ) {
+    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Category Filter Buttons ──────────────────────────────
         LazyRow(
@@ -504,6 +507,12 @@ private fun ItemsTabContent(
             if (isLoading) {
                 CircularProgressIndicator()
             } else {
+                val isSearching = searchQuery.isNotBlank()
+                val emptyMessage = if (isSearching) {
+                    context.getString(R.string.empty_search_result)
+                } else {
+                    context.getString(R.string.empty_closet_no_items)
+                }
                 LazyVerticalGrid(
                     state = gridState,
                     modifier = Modifier
@@ -515,12 +524,6 @@ private fun ItemsTabContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (items.isEmpty()) {
-                        val isSearching = searchQuery.isNotBlank()
-                        val emptyMessage = if (isSearching) {
-                            "Không tìm thấy món đồ phù hợp"
-                        } else {
-                            "No items in ${selectedCategory.takeIf { it != Categories.ALL } ?: "your closet"}\nTap + to add your first item!"
-                        }
                         item(span = { GridItemSpan(maxLineSpan) }) {
                             Column(
                                 modifier = Modifier
@@ -586,14 +589,14 @@ private fun OutfitsTabContent(
                     Text(text = "🧥", fontSize = 48.sp)
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = "Chưa có bộ đồ nào",
+                        text = stringResource(R.string.empty_outfits_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.Gray
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "Nhấn + để tạo bộ đồ mới từ các món đồ trong tủ",
+                        text = stringResource(R.string.empty_outfits_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray,
                         textAlign = TextAlign.Center
@@ -682,7 +685,7 @@ private fun SavedOutfitCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "📅 $formattedDate · ${items.size} món",
+                        text = stringResource(R.string.closet_outfit_card_info_format, formattedDate, items.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -690,7 +693,7 @@ private fun SavedOutfitCard(
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Xoá bộ đồ",
+                        contentDescription = stringResource(R.string.delete_outfit_content_desc),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -745,7 +748,7 @@ private fun OutfitCanvasPreview(
             if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "Chưa có món đồ nào",
+                        text = stringResource(R.string.no_items_in_outfit),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -826,13 +829,13 @@ private fun OutfitCanvasEditorDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = outfitName.ifBlank { "Outfit Canvas" },
+                        text = outfitName.ifBlank { stringResource(R.string.outfit_canvas_title) },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_content_desc))
                     }
                 }
 
@@ -855,7 +858,7 @@ private fun OutfitCanvasEditorDialog(
                         onClick = onAddItems,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Add Items")
+                        Text(stringResource(R.string.add_items_button))
                     }
                     Button(
                         onClick = onSave,
@@ -869,9 +872,9 @@ private fun OutfitCanvasEditorDialog(
                                 strokeWidth = 2.dp
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text("Saving...")
+                            Text(stringResource(R.string.saving_label))
                         } else {
-                            Text("Save Outfit")
+                            Text(stringResource(R.string.save_outfit_button))
                         }
                     }
                 }
@@ -905,7 +908,7 @@ private fun OutfitCanvas(
             if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "Chưa có món đồ nào",
+                        text = stringResource(R.string.no_items_in_outfit),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -989,7 +992,7 @@ private fun OutfitCanvas(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Remove item",
+                                contentDescription = stringResource(R.string.remove_item_content_desc),
                                 tint = Color.White,
                                 modifier = Modifier.size(10.dp)
                             )
@@ -1020,8 +1023,8 @@ private fun AddItemsBottomSheet(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Add Items",
+                Text(
+                text = stringResource(R.string.add_items_button),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -1062,7 +1065,7 @@ private fun AddItemsBottomSheet(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel_outfit_button))
                 }
                 Button(
                     onClick = {
@@ -1072,7 +1075,7 @@ private fun AddItemsBottomSheet(
                     modifier = Modifier.weight(1f),
                     enabled = selectedIds.isNotEmpty()
                 ) {
-                    Text("Add")
+                    Text(stringResource(R.string.add_outfit_button))
                 }
             }
         }
@@ -1118,7 +1121,7 @@ private fun AddItemSelectCard(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Selected",
+                    contentDescription = stringResource(R.string.selected_content_desc),
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -1193,7 +1196,7 @@ private fun CreateOutfitBottomSheetContent(
     ) {
         // ── Header ──────────────────────────────────────────────
         Text(
-            text = "Tạo Bộ Đồ Mới",
+            text = stringResource(R.string.new_outfit_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
@@ -1203,8 +1206,8 @@ private fun CreateOutfitBottomSheetContent(
         OutlinedTextField(
             value = outfitName,
             onValueChange = { outfitName = it },
-            label = { Text("Tên bộ đồ") },
-            placeholder = { Text("VD: Đi biển mùa hè") },
+            label = { Text(stringResource(R.string.outfit_name_label)) },
+            placeholder = { Text(stringResource(R.string.outfit_name_placeholder)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -1219,7 +1222,7 @@ private fun CreateOutfitBottomSheetContent(
         // ── Badge hiển thị số lượng đã chọn ───────────────────
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Chọn món đồ",
+                text = stringResource(R.string.select_items_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold
             )
@@ -1250,7 +1253,7 @@ private fun CreateOutfitBottomSheetContent(
                 )
             ) {
                 Text(
-                    text = "Tủ đồ đang trống. Hãy thêm quần áo trước nhé!",
+                    text = stringResource(R.string.empty_closet_warning),
                     modifier = Modifier.padding(24.dp).fillMaxWidth(),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
@@ -1302,9 +1305,9 @@ private fun CreateOutfitBottomSheetContent(
                     strokeWidth = 2.dp
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Đang lưu...")
+                Text(stringResource(R.string.saving_label))
             } else {
-                Text("Lưu Bộ Đồ", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.save_outfit_vn_button), fontWeight = FontWeight.SemiBold)
             }
         }
 
@@ -1379,7 +1382,7 @@ private fun SelectableItemCard(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Đã chọn",
+                    contentDescription = stringResource(R.string.selected_vn_content_desc),
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -1440,7 +1443,7 @@ private fun SelectableItemCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete item",
+                    contentDescription = stringResource(R.string.delete_item_content_desc),
                         tint = Color.White,
                         modifier = Modifier
                             .background(Color.Red.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
@@ -1550,7 +1553,7 @@ fun ClothingItemCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete item",
+                    contentDescription = stringResource(R.string.delete_item_content_desc),
                     tint = Color.White,
                     modifier = Modifier
                         .background(Color.Red.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
@@ -1662,7 +1665,7 @@ fun NewClothingItemSheet(
     val onRemoveBackgroundClick = {
         val currentPath = imagePath
         if (currentPath.isNullOrBlank()) {
-            onError("Please select an image")
+            onError(context.getString(R.string.please_select_image))
         } else {
             imageProcessingViewModel.removeBackground(currentPath)
         }
@@ -1728,14 +1731,14 @@ fun NewClothingItemSheet(
             .verticalScroll(rememberScrollState())
     ) {
         Text(
-            "Quick Add Item",
+            stringResource(R.string.quick_add_item_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
         ImagePickerSection(
-            title = "Item Image",
+            title = stringResource(R.string.item_image_label),
             imagePath = imagePath,
             onCameraClick = imagePickerState.onCameraClick,
             onGalleryClick = imagePickerState.onGalleryClick,
@@ -1754,7 +1757,7 @@ fun NewClothingItemSheet(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                "Item details",
+                stringResource(R.string.quick_add_item_details),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -1764,7 +1767,7 @@ fun NewClothingItemSheet(
                     onClick = {
                         val currentPath = imagePath
                         if (currentPath.isNullOrBlank()) {
-                            onError("Please select an image")
+                            onError(context.getString(R.string.please_select_image_error))
                         } else {
                             imageProcessingViewModel.autoTagging(currentPath)
                         }
@@ -1778,9 +1781,9 @@ fun NewClothingItemSheet(
                             strokeWidth = 2.dp
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Tagging...")
+                        Text(stringResource(R.string.tagging_label))
                     } else {
-                        Text("Auto tagging", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.auto_tagging_label), style = MaterialTheme.typography.labelLarge)
                     }
                 }
                 Spacer(Modifier.width(8.dp))
@@ -1788,7 +1791,7 @@ fun NewClothingItemSheet(
                     onClick = {
                         val currentPath = imagePath
                         if (currentPath.isNullOrBlank()) {
-                            onError("Please select an image")
+                            onError(context.getString(R.string.please_select_image_error))
                         } else {
                             imageProcessingViewModel.fillWithAi(currentPath)
                         }
@@ -1802,7 +1805,7 @@ fun NewClothingItemSheet(
                             strokeWidth = 2.dp
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Filling...")
+                        Text(stringResource(R.string.filling_label))
                     } else {
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
@@ -1810,7 +1813,7 @@ fun NewClothingItemSheet(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.fill_with_ai_label), style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -1818,7 +1821,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── CATEGORY ─────────────────────────────────────────────
-        Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.category_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         ExposedDropdownMenuBox(
             expanded = expandedMenu,
@@ -1828,7 +1831,7 @@ fun NewClothingItemSheet(
                 value = category,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Select category") },
+                label = { Text(stringResource(R.string.select_category_hint)) },
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMenu)
                 },
@@ -1858,12 +1861,12 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── COLOR ───────────────────────────────────────────────
-        Text("Color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.color_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = color,
             onValueChange = { color = it },
-            label = { Text("Color (e.g. Red)") },
+            label = { Text(stringResource(R.string.color_hint)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -1873,15 +1876,15 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── ITEM NAME ────────────────────────────────────────────
-        Text("Item Name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.item_name_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = itemName,
             onValueChange = { itemName = it },
-            label = { Text("Enter item name") },
+            label = { Text(stringResource(R.string.enter_item_name_hint)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. White Shirt") },
+            placeholder = { Text(stringResource(R.string.item_name_placeholder)) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
         )
@@ -1889,15 +1892,15 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── BRAND ────────────────────────────────────────────────
-        Text("Brand", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.brand_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = brand,
             onValueChange = { brand = it },
-            label = { Text("Enter brand") },
+            label = { Text(stringResource(R.string.enter_brand_hint)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. Uniqlo, Nike") },
+            placeholder = { Text(stringResource(R.string.brand_placeholder_short)) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) })
         )
@@ -1905,15 +1908,15 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── PRICE ───────────────────────────────────────────────
-        Text("Price", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.price_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = price,
             onValueChange = { price = it },
-            label = { Text("Enter price") },
+            label = { Text(stringResource(R.string.enter_price_hint)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("e.g. 250000") },
+            placeholder = { Text(stringResource(R.string.price_placeholder)) },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Done
@@ -1927,7 +1930,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── SEASON ───────────────────────────────────────────────
-        Text("Season", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.season_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier
@@ -1949,7 +1952,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ─ OCCASION ─────────────────────────────────────────────
-        Text("Occasion", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.occasion_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier
@@ -1971,7 +1974,7 @@ fun NewClothingItemSheet(
         Spacer(Modifier.height(12.dp))
 
         // ── PURCHASE DATE ───────────────────────────────────────
-        Text("Purchase Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(stringResource(R.string.purchase_date_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(4.dp))
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
@@ -1991,7 +1994,7 @@ fun NewClothingItemSheet(
                 Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Tap to select date",
+                        text = stringResource(R.string.tap_to_select_date),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2010,7 +2013,7 @@ fun NewClothingItemSheet(
         Button(
             onClick = {
                 if (imagePath == null) {
-                    onError("Please select an image")
+                onError(context.getString(R.string.please_select_image_error))
                     return@Button
                 }
                 if (category.isBlank() || color.isBlank()) return@Button
@@ -2038,9 +2041,9 @@ fun NewClothingItemSheet(
                     strokeWidth = 2.dp
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Adding...")
+                Text(stringResource(R.string.adding_item))
             } else {
-                Text("Add Item")
+                Text(stringResource(R.string.add_item))
             }
         }
 
@@ -2065,10 +2068,10 @@ fun NewClothingItemSheet(
                         purchaseDateText = dateFormat.format(Date(selectedMillis))
                     }
                     showDatePicker = false
-                }) { Text("Chọn") }
+                }) { Text(stringResource(R.string.select_date_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Huỷ") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.cancel_button)) }
             }
         ) {
             DatePicker(state = datePickerState)

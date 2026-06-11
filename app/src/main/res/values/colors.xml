@@ -1,10 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
+    <!-- Light Theme - Pastel Palette -->
+    <color name="primary_light">#FFC5B4E3</color>
+    <color name="on_primary_light">#FFFFFFFF</color>
+    <color name="primary_container_light">#FFE8DEFF</color>
+    <color name="on_primary_container_light">#FF2B1B4A</color>
+    <color name="secondary_light">#FFA1C4D4</color>
+    <color name="on_secondary_light">#FFFFFFFF</color>
+    <color name="secondary_container_light">#FFCDE8F6</color>
+    <color name="on_secondary_container_light">#FF1B313C</color>
+    <color name="tertiary_light">#FFF1C0B9</color>
+    <color name="on_tertiary_light">#FFFFFFFF</color>
+    <color name="tertiary_container_light">#FFFFDFDA</color>
+    <color name="on_tertiary_container_light">#FF421E17</color>
+    <color name="background_light">#FFFAFDFF</color>
+    <color name="on_background_light">#FF191C1E</color>
+    <color name="surface_light">#FFFAFDFF</color>
+    <color name="on_surface_light">#FF191C1E</color>
+
+    <!-- Dark Theme - Pastel Palette -->
+    <color name="primary_dark">#FFD3BFFF</color>
+    <color name="on_primary_dark">#FF38235C</color>
+    <color name="primary_container_dark">#FF4F3A75</color>
+    <color name="on_primary_container_dark">#FFE8DEFF</color>
+    <color name="secondary_dark">#FFB1D4E6</color>
+    <color name="on_secondary_dark">#FF1E333F</color>
+    <color name="secondary_container_dark">#FF354A57</color>
+    <color name="on_secondary_container_dark">#FFCDE8F6</color>
+    <color name="tertiary_dark">#FFFFB4A8</color>
+    <color name="on_tertiary_dark">#FF552219</color>
+    <color name="tertiary_container_dark">#FF72382D</color>
+    <color name="on_tertiary_container_dark">#FFFFDFDA</color>
+    <color name="background_dark">#FF191C1E</color>
+    <color name="on_background_dark">#FFE1E2E4</color>
+    <color name="surface_dark">#FF191C1E</color>
+    <color name="on_surface_dark">#FFE1E2E4</color>
+
+    <!-- Category Colors -->
+    <color name="category_tops">#FF42A5F5</color>
+    <color name="category_bottoms">#FF66BB6A</color>
+    <color name="category_dresses">#FFEC407A</color>
+    <color name="category_footwear">#FF8D6E63</color>
+    <color name="category_bags">#FFAB47BC</color>
+    <color name="category_accessories">#FFFFA726</color>
+    <color name="category_jewelry">#FFD4E157</color>
+    <color name="category_other">#FFBDBDBD</color>
+
+    <!-- Status Colors -->
+    <color name="success_green">#FF4CAF50</color>
+    <color name="error_red">#FFF44336</color>
+    <color name="info_blue">#FF2196F3</color>
+    <color name="warning_orange">#FFFF9800</color>
+
+    <!-- Common UI Colors -->
     <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="light_gray">#FFD3D3D3</color>
+    <color name="dark_gray">#FF757575</color>
+    <color name="transparent">#00000000</color>
 </resources>

@@ -27,9 +27,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stylemate.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.stylemate.ui.components.ChatMessageRow
@@ -72,12 +74,12 @@ fun PersonalStylistScreen(
                 title = {},
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Gray)
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_content_desc), tint = Color.Gray)
                     }
                 }
             )
@@ -93,12 +95,12 @@ fun PersonalStylistScreen(
             item {
                 Column(modifier = Modifier.padding(bottom = 24.dp)) {
                     Text(
-                        text = "Nhà tạo mẫu cá nhân",
+                        text = stringResource(R.string.ai_stylist_chat_title),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Người lên kế hoạch phong cách thấu hiểu bạn hơn chính bạn",
+                        text = stringResource(R.string.ai_stylist_chat_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )
@@ -130,7 +132,7 @@ fun PersonalStylistScreen(
                             value = inputText,
                             onValueChange = { inputText = it },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("Nhập tin nhắn", color = Color.LightGray) },
+                            placeholder = { Text(stringResource(R.string.ai_stylist_chat_placeholder), color = Color.LightGray) },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
@@ -160,7 +162,7 @@ fun PersonalStylistScreen(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Send", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.chat_send_content_desc), tint = Color.White)
                         }
                     }
                 }
@@ -184,7 +186,7 @@ fun PersonalStylistScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Phối đồ với các món đồ", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.ai_stylist_chat_coordinate), fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
@@ -195,22 +197,22 @@ fun PersonalStylistScreen(
 
             // --- Sections from Screenshots 5-10 ---
             item {
-                SectionHeader(title = "Trang phục cho thời tiết hôm nay")
+                SectionHeader(title = stringResource(R.string.personal_stylist_outfit_weather))
                 Row(
                     modifier = Modifier.padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    WeatherInfoSmall(Icons.Default.CalendarToday, "18 thg 5") 
-                    WeatherInfoSmall(Icons.Default.LocationOn, "Hà Nội")
-                    WeatherInfoSmall(Icons.Default.Cloud, "32 / 25°C")
+                    WeatherInfoSmall(Icons.Default.CalendarToday, stringResource(R.string.personal_stylist_mock_date)) 
+                    WeatherInfoSmall(Icons.Default.LocationOn, stringResource(R.string.ai_settings_location_default))
+                    WeatherInfoSmall(Icons.Default.Cloud, stringResource(R.string.personal_stylist_mock_temp))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
             item {
-                SectionHeader(title = "Cảm hứng trang phục")
-                Text(text = "Dịp", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                SectionHeader(title = stringResource(R.string.personal_stylist_inspiration))
+                Text(text = stringResource(R.string.personal_stylist_occasion), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
             }
 
             items(messages) { message ->
@@ -232,7 +234,7 @@ fun PersonalStylistScreen(
             if (uiState is AIChatUiState.Typing) {
                 item {
                     Text(
-                        text = "AI đang suy nghĩ...",
+                        text = stringResource(R.string.ai_stylist_chat_thinking),
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(8.dp)
                     )

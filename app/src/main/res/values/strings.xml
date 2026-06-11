@@ -1,5 +1,560 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">StyleMate</string>
+
+    <!-- Notification -->
     <string name="weather_channel_name">Weather updates</string>
     <string name="weather_channel_description">Daily weather notification</string>
+
+    <!-- ===================== LOGIN SCREEN ===================== -->
+    <string name="login_title">StyleMate Login</string>
+    <string name="signup_title">StyleMate Sign Up</string>
+    <string name="email_label">Email</string>
+    <string name="password_label">Mật khẩu</string>
+    <string name="confirm_password_label">Xác nhận mật khẩu</string>
+    <string name="password_mismatch">Mật khẩu xác nhận không khớp</string>
+    <string name="login_button">Đăng nhập</string>
+    <string name="register_button">Đăng ký</string>
+    <string name="toggle_password_content_desc">Hiện/Ẩn mật khẩu</string>
+    <string name="no_account_prompt">Chưa có tài khoản? Đăng ký</string>
+    <string name="has_account_prompt">Đã có tài khoản? Đăng nhập</string>
+
+    <!-- ===================== ADD ITEM SCREEN ===================== -->
+    <string name="add_item_title">Add New Item</string>
+    <string name="item_image_label">Item Image</string>
+    <string name="take_photo_label">Take Photo</string>
+    <string name="from_gallery_label">From Gallery</string>
+    <string name="remove_bg_label">Remove Background</string>
+    <string name="removing_label">Removing…</string>
+    <string name="auto_tagging_label">Auto tagging</string>
+    <string name="tagging_label">Tagging…</string>
+    <string name="fill_with_ai_label">Fill with AI</string>
+    <string name="filling_label">Filling…</string>
+    <string name="category_title">Category</string>
+    <string name="select_category_hint">Select category</string>
+    <string name="color_title">Color</string>
+    <string name="enter_color_hint">Enter color (e.g. Red, Blue)</string>
+    <string name="item_name_title">Item Name</string>
+    <string name="enter_item_name_hint">Enter item name (e.g. White Shirt)</string>
+    <string name="item_name_placeholder">e.g. Áo sơ mi trắng</string>
+    <string name="brand_title">Brand</string>
+    <string name="enter_brand_hint">Enter brand (e.g. Nike, Uniqlo)</string>
+    <string name="brand_placeholder">e.g. Uniqlo, Nike, Adidas</string>
+    <string name="price_title">Price</string>
+    <string name="enter_price_hint">Enter price</string>
+    <string name="price_placeholder">e.g. 250000</string>
+    <string name="season_title">Season</string>
+    <string name="occasion_title">Occasion</string>
+    <string name="purchase_date_title">Purchase Date</string>
+    <string name="tap_to_select_date">Tap to select date</string>
+    <string name="add_to_closet_button">Add to Closet</string>
+    <string name="adding_to_closet">Adding to Closet…</string>
+    <string name="please_select_image_error">Please select an image first</string>
+    <string name="please_select_category_error">Please select a category</string>
+    <string name="please_enter_color_error">Please enter a color</string>
+    <string name="please_enter_item_name_error">Please enter item name</string>
+    <string name="uploading_item_progress">⏳ Đang tải ảnh lên hệ thống cho \"%1$s\"…</string>
+    <string name="select_date_button">Chọn</string>
+    <string name="cancel_button">Huỷ</string>
+
+    <!-- Categories -->
+    <string name="category_tops">Tops</string>
+    <string name="category_bottoms">Bottoms</string>
+    <string name="category_dresses">Dresses</string>
+    <string name="category_footwear">Footwear</string>
+    <string name="category_bags">Bags</string>
+    <string name="category_accessories">Accessories</string>
+    <string name="category_jewelry">Jewelry</string>
+
+    <!-- Seasons -->
+    <string name="season_spring">Spring</string>
+    <string name="season_summer">Summer</string>
+    <string name="season_autumn">Autumn</string>
+    <string name="season_winter">Winter</string>
+
+    <!-- Occasions -->
+    <string name="occasion_casual">Casual</string>
+    <string name="occasion_work">Work</string>
+    <string name="occasion_sports">Sports</string>
+    <string name="occasion_formal">Formal</string>
+
+    <!-- ===================== CLOSET SCREEN ===================== -->
+    <string name="closet_title">My Closet</string>
+    <string name="search_hint">Tìm món đồ</string>
+    <string name="tab_items">Món đồ</string>
+    <string name="tab_outfits">Bộ đồ</string>
+    <string name="empty_closet_no_items">No items in your closet\nTap + to add your first item!</string>
+    <string name="empty_search_result">Không tìm thấy món đồ phù hợp</string>
+    <string name="empty_outfits_title">Chưa có bộ đồ nào</string>
+    <string name="empty_outfits_hint">Nhấn + để tạo bộ đồ mới từ các món đồ trong tủ</string>
+    <string name="total_items_count">%1$d items</string>
+    <string name="items_count_format">%1$d món</string>
+    <string name="filter_content_desc">Filter</string>
+    <string name="search_content_desc">Search</string>
+    <string name="clear_search_content_desc">Clear search</string>
+    <string name="add_item_fab_desc">Thêm món đồ</string>
+    <string name="create_outfit_fab_desc">Tạo bộ đồ</string>
+    <string name="no_items_in_outfit">Chưa có món đồ nào</string>
+
+    <!-- Outfit -->
+    <string name="outfit_canvas_title">Outfit Canvas</string>
+    <string name="new_outfit_title">Tạo Bộ Đồ Mới</string>
+    <string name="outfit_name_label">Tên bộ đồ</string>
+    <string name="outfit_name_placeholder">VD: Đi biển mùa hè</string>
+    <string name="select_items_title">Chọn món đồ</string>
+    <string name="add_items_button">Add Items</string>
+    <string name="save_outfit_button">Save Outfit</string>
+    <string name="save_outfit_vn_button">Lưu Bộ Đồ</string>
+    <string name="saving_label">Đang lưu…</string>
+    <string name="empty_closet_warning">Tủ đồ đang trống. Hãy thêm quần áo trước nhé!</string>
+    <string name="cancel_outfit_button">Cancel</string>
+    <string name="add_outfit_button">Add</string>
+    <string name="delete_outfit_content_desc">Xoá bộ đồ</string>
+    <string name="delete_item_content_desc">Delete item</string>
+    <string name="close_content_desc">Close</string>
+    <string name="remove_item_content_desc">Remove item</string>
+    <string name="selected_content_desc">Selected</string>
+    <string name="selected_vn_content_desc">Đã chọn</string>
+    <string name="no_items_to_select">Chưa có món đồ nào</string>
+
+    <!-- ===================== AI STYLIST / AI CHAT ===================== -->
+    <string name="ai_chat_title">AI Stylist</string>
+    <string name="back_content_desc">Back</string>
+    <string name="settings_content_desc">Settings</string>
+    <string name="chat_send_content_desc">Send</string>
+    <string name="chat_add_content_desc">Add</string>
+    <string name="toggle_chat_content_desc">Toggle Chat</string>
+    <string name="welcome_greeting">Chào, HungBu\nBạn cần trang phục nào?</string>
+    <string name="loading_generating_outfit">Đang tạo kiểu trang phục cho bạn…</string>
+    <string name="tip_title">Mẹo</string>
+    <string name="tip_content">Bạn có thể chọn tủ đồ để Nhà tạo mẫu AI tham khảo cho các trang phục của bạn.</string>
+    <string name="see_more">Xem thêm</string>
+    <string name="collapse">Thu gọn</string>
+    <string name="top_recommendations_from">Gợi ý hàng đầu từ </string>
+    <string name="all_clothes">Tất cả quần áo</string>
+    <string name="get_outfit_suggestion">Nhận gợi ý trang phục</string>
+    <string name="no_matching_items_text">Chúng tôi không tìm thấy %1$s nào trong tủ đồ của bạn</string>
+    <string name="save_button">Lưu</string>
+    <string name="save_to_lookbook">Sách trang phục</string>
+    <string name="save_to_calendar">Lịch</string>
+    <string name="select_date_title">Chọn ngày</string>
+    <string name="save_date_button">Lưu</string>
+    <string name="retry_button">Retry</string>
+    <string name="try_another_button">Try Another</string>
+    <string name="save_outfit_simple">Save Outfit</string>
+    <string name="start_try_on">Start Try-On</string>
+
+    <!-- Wizard -->
+    <string name="wizard_step_format">%1$d / 2</string>
+    <string name="topic_title">Chủ đề</string>
+    <string name="style_title">Phong cách</string>
+    <string name="next_button">Tiếp theo</string>
+    <string name="skip_button">Bỏ qua</string>
+    <string name="wizard_step_two_title">Những món đồ không thể thiếu cho trang phục của bạn</string>
+    <string name="wizard_all_label">Tất cả</string>
+    <string name="no_topic_option">Không có</string>
+    <string name="topic_home_relax">Ở nhà/Thư giãn</string>
+    <string name="topic_loungewear">Đồ mặc ở nhà</string>
+    <string name="topic_cafe_hangout">Quán cà phê/Tụ tập</string>
+    <string name="topic_exhibition">Triển lẫm</string>
+    <string name="topic_movie">Phim</string>
+    <string name="style_casual">Thường ngày</string>
+    <string name="style_classic">Cổ điển</string>
+    <string name="style_street">Đường phố</string>
+    <string name="style_modern">Hiện đại</string>
+    <string name="style_minimalist">Tối giản</string>
+    <string name="style_feminine">Nữ tính</string>
+    <string name="style_bohemian">Bohemian</string>
+    <string name="style_smart_casual">công sở thoải mái</string>
+    <string name="style_semi_formal">Bán trang trọng</string>
+    <string name="style_formal">Trang trọng</string>
+    <string name="style_party">Dự tiệc</string>
+
+    <!-- AI Chat prompts -->
+    <string name="prompt_daily">Hàng ngày</string>
+    <string name="prompt_school">Trường học</string>
+    <string name="prompt_work">Làm việc</string>
+    <string name="prompt_travel">Du lịch</string>
+    <string name="prompt_party">Bữa tiệc</string>
+    <string name="prompt_date">Hẹn hò</string>
+    <string name="prompt_wedding">Đám cưới</string>
+    <string name="prompt_suggest_prefix">Gợi ý trang phục đi </string>
+    <string name="chat_placeholder_date">Gợi ý trang phục đi hẹn hò</string>
+    <string name="chat_placeholder_how_to_wear">Cách phối đồ với áo len?</string>
+    <string name="chat_placeholder_semi_formal">Trang phục semi-formal đi đám cưới</string>
+    <string name="chat_placeholder_style_with_item">Phối đồ với chiếc áo này thế nào?</string>
+    <string name="chat_placeholder_friday_night">Tối thứ 6 nên mặc gì?</string>
+    <string name="chat_placeholder_today">Hôm nay mặc gì?</string>
+    <string name="chat_placeholder_casual">Trang phục thường ngày thoải mái</string>
+    <string name="wizard_result_format">Tôi muốn tìm trang phục cho dịp này.\nChủ đề: %1$s\nPhong cách: %2$s\nMón đồ tôi muốn dùng: %3$s</string>
+    <string name="wardrobe_empty_text">Tủ đồ của bạn đang trống. Hãy thêm quần áo trước nhé!</string>
+    <string name="no_items_available">Không có món đồ nào</string>
+
+    <!-- ===================== WEATHER SCREEN ===================== -->
+    <string name="weather_today">Thời tiết hôm nay</string>
+    <string name="weather_updating">Đang cập nhật thời tiết…</string>
+    <string name="weather_error_unknown">Lỗi không xác định</string>
+    <string name="retry_button_weather">Thử lại</string>
+    <string name="weather_forecast_3_days">Dự báo 3 ngày tới</string>
+    <string name="humidity_label">Độ ẩm</string>
+    <string name="feels_like_label">Cảm giác</string>
+    <string name="uv_label">UV</string>
+    <string name="weather_analysis_prefix">Phân tích: </string>
+    <string name="weather_analysis_label_format">Phân tích: %1$s</string>
+    <string name="refresh_content_desc">Làm mới</string>
+    <string name="location_content_desc">Vị trí</string>
+    <string name="default_location">Vị trí hiện tại</string>
+    <string name="location_determining">Đang xác định…</string>
+    <string name="location_fallback">Dùng vị trí mặc định (Hà Nội)</string>
+    <string name="weather_api_key_error">API key chưa đúng. Vào weatherapi.com đăng ký key miễn phí và thay vào RetrofitClient.kt</string>
+    <string name="weather_network_error">Không có kết nối Internet. Vui lòng kiểm tra mạng.</string>
+    <string name="weather_generic_error">Không thể tải dữ liệu thời tiết: %1$s</string>
+
+    <!-- ===================== VIRTUAL TRY-ON ===================== -->
+    <string name="virtual_tryon_title">Virtual Try-On</string>
+    <string name="tryon_setup_hint">Select your body image and the item to try on</string>
+    <string name="tryon_body_placeholder">Body Image Placeholder</string>
+    <string name="tryon_item_placeholder">Item</string>
+    <string name="tryon_processing_label">Processing: %1$d%%</string>
+    <string name="tryon_status_label">Status: %1$s</string>
+    <string name="tryon_result_content_desc">Try-On Result</string>
+    <string name="tryon_failed_label">Try-On Failed: %1$s</string>
+
+    <!-- ===================== ITEM UPLOAD ===================== -->
+    <string name="upload_item_title">Upload Item</string>
+    <string name="select_image_hint">Tap to select image</string>
+    <string name="next_edit_mask">Next: Edit Mask</string>
+    <string name="next_review_details">Next: Review Details</string>
+    <string name="save_to_closet_button">Save to Closet</string>
+    <string name="category_label">Category</string>
+    <string name="color_hex_label">Color (Hex)</string>
+
+    <!-- ===================== STYLE ASSESSMENT ===================== -->
+    <string name="style_assessment_title">Style Assessment</string>
+    <string name="assess_style_button">Assess Style</string>
+    <string name="style_score_title">Your Style Score</string>
+    <string name="try_again_button">Try Again</string>
+    <string name="assess_style_hint">Select items from your closet to assess your style</string>
+
+    <!-- ===================== ERROR SCREEN ===================== -->
+    <string name="error_retry_button">Thử lại</string>
+
+    <!-- ===================== NAVIGATION / BOTTOM BAR ===================== -->
+    <string name="nav_closet">Closet</string>
+    <string name="nav_ai_stylist">AI Stylist</string>
+    <string name="nav_weather">Weather</string>
+    <string name="nav_calendar">Calendar</string>
+
+    <!-- ===================== PERMISSIONS ===================== -->
+    <string name="camera_permission_denied">Camera permission is required to take a photo</string>
+    <string name="camera_permission_rationale">StyleMate cần quyền Camera để bạn có thể chụp ảnh quần áo thêm vào tủ đồ của mình.</string>
+    <string name="camera_permission_rationale_title">Cần quyền Camera</string>
+    <string name="notification_permission_rationale">StyleMate cần quyền thông báo để gửi cập nhật thời tiết và nhắc nhở mặc đồ cho bạn.</string>
+    <string name="notification_permission_rationale_title">Cần quyền Thông báo</string>
+    <string name="location_permission_rationale">StyleMate cần quyền vị trí để cung cấp dữ liệu thời tiết và gợi ý trang phục phù hợp với nơi bạn đang ở.</string>
+    <string name="location_permission_rationale_title">Cần quyền Vị trí</string>
+    <string name="grant_button">Cấp quyền</string>
+    <string name="deny_button">Từ chối</string>
+    <string name="settings_button">Mở Cài đặt</string>
+    <string name="permission_settings_redirect">Vui lòng cấp quyền trong Cài đặt ứng dụng.</string>
+
+    <!-- ===================== CAMERA / IMAGE PICKER ===================== -->
+    <string name="unable_to_load_image">Unable to load image: %1$s</string>
+    <string name="selected_image_content_desc">Selected image</string>
+    <string name="error_loading_image">Unable to load image: %1$s</string>
+
+    <!-- ===================== EDIT ITEM SCREEN ===================== -->
+    <string name="edit_item_title">Edit Item</string>
+    <string name="save_changes">Save Changes</string>
+    <string name="item_details_title">Item details</string>
+    <string name="relevant_outfits_title">Relevant Outfits</string>
+    <string name="no_outfit_using_item">Chưa có outfit nào dùng item này</string>
+
+    <!-- ===================== AUTH ===================== -->
+    <string name="session_expired">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</string>
+    <string name="login_required">Vui lòng đăng nhập lại</string>
+
+    <!-- ===================== NOTIFICATION ===================== -->
+    <string name="notification_event_format">%1$s: %2$s</string>
+    <string name="wizard_outfit_request_format">Hãy gợi ý phối đồ cho dịp %1$s với phong cách %2$s %3$s.</string>
+
+    <!-- ===================== COMMON ERROR MESSAGES ===================== -->
+    <string name="error_cannot_add_item">Không thể thêm item: %1$s</string>
+    <string name="error_cannot_update_item">Không thể cập nhật item: %1$s</string>
+    <string name="error_cannot_delete_item">Không thể xoá item: %1$s</string>
+    <string name="error_cannot_save_outfit">Không thể lưu outfit: %1$s</string>
+    <string name="error_cannot_delete_outfit">Không thể xoá outfit: %1$s</string>
+    <string name="error_cannot_load_item">Không thể tải item: %1$s</string>
+    <string name="error_cannot_load_item_edit">Không tìm thấy item để chỉnh sửa</string>
+    <string name="error_cannot_update_position">Không thể cập nhật vị trí item: %1$s</string>
+    <string name="error_cannot_save_bg_image">Không thể lưu ảnh đã tách nền: %1$s</string>
+    <string name="error_cannot_assign_outfit">Không thể gán bộ đồ: %1$s</string>
+    <string name="error_cannot_delete_calendar_outfit">Không thể xoá bộ đồ: %1$s</string>
+    <string name="error_outfit_name_required">Vui lòng nhập tên cho bộ đồ</string>
+    <string name="error_at_least_one_item">Vui lòng chọn ít nhất một món đồ</string>
+
+    <!-- ===================== CALENDAR SCREEN ===================== -->
+    <string name="calendar_title">Lịch</string>
+    <string name="select_month_content_desc">Chọn tháng</string>
+    <string name="today_content_desc">Hôm nay</string>
+    <string name="assign_outfit_button">Gán bộ đồ</string>
+    <string name="choose_outfit_button">Chọn bộ đồ</string>
+    <string name="choose_other_outfit_button">Chọn bộ đồ khác</string>
+    <string name="delete_outfit_button">Xoá bộ đồ</string>
+    <string name="select_outfit_title">Chọn bộ đồ</string>
+    <string name="close_content_desc_calendar">Đóng</string>
+    <string name="no_outfits_in_closet">Chưa có bộ đồ nào trong tủ</string>
+    <string name="no_outfit_assigned">Chưa có bộ đồ nào</string>
+    <string name="assign_outfit_hint">Gán một bộ đồ từ tủ của bạn cho ngày này</string>
+    <string name="prev_month_content_desc">Tháng trước</string>
+    <string name="next_month_content_desc">Tháng sau</string>
+    <string name="today_button">Hôm nay</string>
+
+    <!-- ===================== OUTFIT SCREEN ===================== -->
+    <string name="outfit_screen_title">Phối Đồ</string>
+    <string name="search_outfit_hint">Tìm bộ đồ</string>
+    <string name="no_outfits_found">Không tìm thấy bộ đồ phù hợp</string>
+    <string name="no_outfits_yet">Chưa có bộ đồ nào</string>
+    <string name="create_outfit_hint">Hãy chọn các món đồ bên dưới để tạo bộ đồ mới</string>
+    <string name="saving_outfit_label">Đang lưu…</string>
+    <string name="deselect_content_desc">Xoá khỏi draft</string>
+    <string name="create_new_outfit_title">Tạo Bộ Đồ Mới</string>
+    <string name="saved_outfits_title">Bộ Đồ Đã Lưu</string>
+
+    <!-- ===================== ACCOUNT / COMMON ===================== -->
+    <string name="account_content_desc">Tài khoản</string>
+    <string name="logout_label">Đăng xuất</string>
+
+    <!-- ===================== AI CHAT SCREEN ===================== -->
+    <string name="prompts_list">[\"Hàng ngày\",\"Trường học\",\"Làm việc\",\"Du lịch\",\"Bữa tiệc\",\"Hẹn hò\",\"Đám cưới\"]</string>
+    <string name="ai_chat_placeholder_date">Gợi ý trang phục đi hẹn hò</string>
+    <string name="ai_chat_placeholder_len">Cách phối đồ với áo len?</string>
+    <string name="ai_chat_placeholder_semi">Trang phục semi-formal đi đám cưới</string>
+    <string name="ai_chat_placeholder_style">Phối đồ với chiếc áo này thế nào?</string>
+    <string name="ai_chat_placeholder_friday">Tối thứ 6 nên mặc gì?</string>
+    <string name="ai_chat_placeholder_today">Hôm nay mặc gì?</string>
+    <string name="ai_chat_placeholder_casual">Trang phục thường ngày thoải mái</string>
+    <string name="ai_recommendation_title_from">Gợi ý hàng đầu từ </string>
+    <string name="ai_recommendation_all_clothes">Tất cả quần áo</string>
+    <string name="ai_recommendation_button">Nhận gợi ý trang phục</string>
+    <string name="ai_matching_item_not_found_prefix">Chúng tôi không tìm thấy </string>
+    <string name="ai_matching_item_not_found_suffix"> nào trong tủ đồ của bạn</string>
+
+    <!-- ===================== CLOSET SCREEN (ADDITIONAL) ===================== -->
+    <string name="quick_add_item_title">Quick Add Item</string>
+    <string name="add_item">Add Item</string>
+    <string name="adding_item">Adding…</string>
+    <string name="please_select_image">Please select an image</string>
+    <string name="select_season_label">Season</string>
+    <string name="select_occasion_label">Occasion</string>
+    <string name="quick_add_item_details">Item details</string>
+    <string name="outfit_items_count">%1$d món đồ</string>
+    <string name="items_in_outfit_label">Món đồ trong bộ:</string>
+    <string name="no_items_placeholder">Chưa có món đồ nào</string>
+    <string name="enter_outfit_name_hint">VD: Đi biển mùa hè</string>
+    <string name="outfit_empty_warning">Tủ đồ đang trống. Hãy thêm quần áo trước nhé!</string>
+    <string name="saving_with_ellipsis">Đang lưu…</string>
+    <string name="selected_outfit_content_desc">Đã chọn</string>
+    <string name="color_hint">Color (e.g. Red)</string>
+    <string name="enter_item_name">Enter item name</string>
+    <string name="enter_brand">Enter brand</string>
+    <string name="brand_placeholder_short">e.g. Uniqlo, Nike</string>
+    <string name="price_prefix">₫</string>
+
+    <!-- ===================== AI STYLIST SCREEN ===================== -->
+    <string name="ai_stylist_greeting">Xin chào, HungBu</string>
+    <string name="ai_stylist_calendar_desc">Calendar</string>
+    <string name="ai_stylist_notification_desc">Notifications</string>
+    <string name="ai_stylist_refresh_desc">Refresh</string>
+    <string name="ai_stylist_see_more_desc">See More</string>
+    <string name="ai_stylist_ask_stylist">Hỏi nhà tạo mẫu cá nhân</string>
+    <string name="ai_stylist_try_now">Thử ngay</string>
+    <string name="ai_stylist_see_more">Xem thêm</string>
+    <string name="ai_stylist_popular_features">Tính năng phổ biến</string>
+    <string name="ai_stylist_view_all">Xem tất cả</string>
+    <string name="ai_stylist_add_item">Thêm món đồ</string>
+    <string name="ai_stylist_create_outfit">Tạo trang phục</string>
+    <string name="ai_stylist_calendar">Lịch</string>
+    <string name="ai_stylist_refresh_closet">Tân trang</string>
+    <string name="ai_stylist_style_stats">Thống kê phong cách</string>
+    <string name="ai_stylist_ai_designer">Nhà tạo mẫu AI</string>
+    <string name="ai_stylist_outfit_suggestion">Gợi ý trang phục</string>
+    <string name="ai_stylist_update_badge">Update</string>
+    <string name="ai_stylist_shopping">Mua sắm</string>
+    <string name="ai_stylist_style_chat">Trò chuyện phong cách</string>
+    <string name="ai_stylist_my_color">Tìm màu sắc của tôi</string>
+    <string name="ai_stylist_my_fit">Tìm fit của tôi</string>
+    <string name="ai_stylist_style_score">Đánh giá style</string>
+    <string name="ai_stylist_virtual_tryon">Thử đồ ảo</string>
+    <string name="ai_stylist_import_brands">Đăng nhập và nhập món đồ từ</string>
+    <string name="ai_stylist_email">email</string>
+    <string name="ai_stylist_recently_added">Các món đồ đã thêm gần đây</string>
+    <string name="ai_stylist_outfit_calendar">Lịch trang phục</string>
+    <string name="ai_stylist_view_calendar">Xem lịch</string>
+    <string name="ai_stylist_magazine">Tạp chí</string>
+    <string name="ai_stylist_magazine_title_1">Xây dựng Tủ đồ Capsule từ đồ Second-hand: Bước khởi đầu khó...</string>
+    <string name="ai_stylist_magazine_date_1">25 tháng 5, 2026</string>
+    <string name="ai_stylist_magazine_title_2">Chỉ vì một chiếc áo thun: Cẩm nang về hình tượng...</string>
+    <string name="ai_stylist_magazine_date_2">18 tháng 5, 2026</string>
+    <string name="ai_stylist_new_badge">MỚI</string>
+    <string name="ai_stylist_edit_home">Chỉnh sửa trang chủ</string>
+    <string name="ai_stylist_edit_home_subtitle">Thêm và sắp xếp các mục theo ý muốn</string>
+    <string name="ai_stylist_location_default">Dùng vị trí mặc định</string>
+    <string name="ai_stylist_today">Hôm nay</string>
+    <string name="ai_stylist_mon">Thứ 2</string>
+    <string name="ai_stylist_wed">Thứ 4</string>
+    <string name="ai_stylist_thu">Thứ 5</string>
+
+    <!-- ===================== AI CHAT REMAINING ===================== -->
+    <string name="wizard_back_desc">Back</string>
+    <string name="wizard_result_message">Tôi muốn tìm trang phục cho dịp này.\nChủ đề: %1$s\nPhong cách: %2$s\nMón đồ tôi muốn dùng: %3$s</string>
+    <string name="wizard_category_tops">Áo</string>
+    <string name="wizard_category_bottoms">Quần dài</string>
+
+    <!-- Wizard Topics -->
+    <string name="wizard_no_topic">Không có</string>
+    <string name="wizard_style_none">Không có</string>
+    <string name="wizard_chat_placeholder_date">Gợi ý trang phục đi hẹn hò</string>
+    <string name="wizard_chat_placeholder_len">Cách phối đồ với áo len?</string>
+    <string name="wizard_chat_placeholder_semi">Trang phục semi-formal đi đám cưới</string>
+    <string name="wizard_chat_placeholder_style">Phối đồ với chiếc áo này thế nào?</string>
+    <string name="wizard_chat_placeholder_friday">Tối thứ 6 nên mặc gì?</string>
+    <string name="wizard_chat_placeholder_today">Hôm nay mặc gì?</string>
+    <string name="wizard_chat_placeholder_casual">Trang phục thường ngày thoải mái</string>
+    <string name="wizard_not_found_prefix">Chúng tôi không tìm thấy </string>
+    <string name="wizard_not_found_suffix"> nào trong tủ đồ của bạn</string>
+
+    <!-- Calendar month names -->
+    <string-array name="month_names">
+        <item>Tháng 1</item>
+        <item>Tháng 2</item>
+        <item>Tháng 3</item>
+        <item>Tháng 4</item>
+        <item>Tháng 5</item>
+        <item>Tháng 6</item>
+        <item>Tháng 7</item>
+        <item>Tháng 8</item>
+        <item>Tháng 9</item>
+        <item>Tháng 10</item>
+        <item>Tháng 11</item>
+        <item>Tháng 12</item>
+    </string-array>
+
+    <!-- Calendar day-of-week abbreviations -->
+    <string-array name="day_of_week_names">
+        <item>T2</item>
+        <item>T3</item>
+        <item>T4</item>
+        <item>T5</item>
+        <item>T6</item>
+        <item>T7</item>
+        <item>CN</item>
+    </string-array>
+
+    <!-- ===================== AI CLOSET SETTINGS SCREEN ===================== -->
+    <string name="ai_closet_settings_title">Tủ đồ để gợi ý</string>
+    <string name="ai_closet_settings_done">Hoàn tất</string>
+    <string name="ai_closet_settings_all_items">Tất cả món đồ</string>
+
+    <!-- ===================== AI SETTINGS SCREEN ===================== -->
+    <string name="ai_settings_title">Cài đặt gợi ý trang phục</string>
+    <string name="ai_settings_location">Vị trí</string>
+    <string name="ai_settings_location_default">Hà Nội</string>
+    <string name="ai_settings_closet">Tủ đồ để gợi ý trang phục</string>
+    <string name="ai_settings_temperature_feel">Cài đặt cảm nhận nhiệt độ</string>
+    <string name="ai_settings_temperature_moderate">Vừa phải 😊</string>
+    <string name="ai_settings_excluded_items">Món đồ bị loại trừ</string>
+    <string name="ai_settings_incompatible_styles">Các cách phối không hợp</string>
+    <string name="ai_settings_stylist_notes">Ghi chú cho Nhà tạo mẫu</string>
+    <string name="ai_settings_stylist_notes_desc">Có quy tắc nào Nhà tạo mẫu AI cá nhân của bạn cần lưu ý không?</string>
+    <string name="ai_settings_favorite_brands">Thương hiệu yêu thích</string>
+    <string name="ai_settings_budget_brands">Thương hiệu bình dân</string>
+
+    <!-- ===================== OUTFIT SUGGESTION WIZARD ===================== -->
+    <string name="wizard_step_format_3">%1$d / 3</string>
+    <string name="wizard_select_items_title">Chọn các món đồ bạn muốn được tạo kiểu</string>
+    <string name="wizard_item_default_name">Món đồ</string>
+    <string name="wizard_item_mock_date">17/5/2026</string>
+    <string name="wizard_occasion_title">Chọn Dịp</string>
+    <string name="wizard_get_suggestion">Nhận gợi ý</string>
+
+    <!-- Wizard occasion options -->
+    <string name="wizard_occasion_daily">Hàng ngày</string>
+    <string name="wizard_occasion_school">Trường học</string>
+    <string name="wizard_occasion_work">Làm việc</string>
+    <string name="wizard_occasion_travel">Du lịch</string>
+    <string name="wizard_occasion_party">Bữa tiệc</string>
+    <string name="wizard_occasion_date">Hẹn hò</string>
+    <string name="wizard_occasion_wedding">Đám cưới</string>
+    <string name="wizard_occasion_shopping">Mua sắm</string>
+    <string name="wizard_occasion_walk">Đi dạo</string>
+    <string name="wizard_occasion_exercise">Tập thể dục</string>
+    <string name="wizard_occasion_church">Nhà thờ</string>
+    <string name="wizard_occasion_gathering">Tụ họp</string>
+    <string name="wizard_occasion_dining">Ăn ngoài</string>
+    <string name="wizard_occasion_interview">Phỏng vấn</string>
+    <string name="wizard_occasion_concert">Buổi hòa nhạc</string>
+    <string name="wizard_occasion_funeral">Tang lễ</string>
+
+    <!-- ===================== COLOR INTRO SCREEN ===================== -->
+    <string name="color_intro_title">Find My Colors</string>
+    <string name="color_intro_description">Discover your seasonal color palette with AI analysis.</string>
+    <string name="color_intro_steps_title">Steps:</string>
+    <string name="color_intro_step_1">1. Remove accessories</string>
+    <string name="color_intro_step_2">2. No heavy makeup</string>
+    <string name="color_intro_step_3">3. Find good natural light</string>
+    <string name="color_intro_start_analysis">Start Analysis</string>
+    <string name="color_intro_camera_preview">Camera Preview</string>
+    <string name="color_intro_capture_analyze">Capture &amp; Analyze</string>
+    <string name="color_intro_analyzing">AI is analyzing your skin tone…</string>
+    <string name="color_intro_your_season">Your Season:</string>
+    <string name="color_intro_recommended_palette">Recommended Palette:</string>
+    <string name="color_intro_save_profile">Save Profile</string>
+    <string name="color_intro_retake">Retake</string>
+
+    <!-- ===================== PERSONAL STYLIST SCREEN ===================== -->
+    <string name="personal_stylist_outfit_weather">Trang phục cho thời tiết hôm nay</string>
+    <string name="personal_stylist_mock_date">18 thg 5</string>
+    <string name="personal_stylist_mock_temp">32 / 25°C</string>
+    <string name="personal_stylist_inspiration">Cảm hứng trang phục</string>
+    <string name="personal_stylist_occasion">Dịp</string>
+
+    <!-- ===================== AI STYLIST CHAT SCREEN ===================== -->
+    <string name="ai_stylist_chat_title">Nhà tạo mẫu cá nhân</string>
+    <string name="ai_stylist_chat_subtitle">Người lên kế hoạch phong cách thấu hiểu bạn hơn chính bạn</string>
+    <string name="ai_stylist_chat_placeholder">Nhập tin nhắn</string>
+    <string name="ai_stylist_chat_coordinate">Phối đồ với các món đồ</string>
+    <string name="ai_stylist_chat_stylist_settings">Cài đặt Tạo kiểu</string>
+    <string name="ai_stylist_chat_thinking">AI đang suy nghĩ…</string>
+
+    <!-- ===================== AI NOTES SETTINGS SCREEN ===================== -->
+    <string name="ai_notes_title">Ghi chú cho Nhà tạo mẫu</string>
+    <string name="ai_notes_save">Lưu</string>
+    <string name="ai_notes_header">Hãy cho nhà tạo mẫu biết nhu cầu hoặc quy tắc cụ thể của bạn</string>
+    <string name="ai_notes_description">Ghi chú này chỉ được tham khảo khi sử dụng Nhà tạo mẫu cá nhân.</string>
+    <string name="ai_notes_placeholder">Ví dụ: Mình thích phong cách tối giản, tránh giày cao gót.</string>
+    <string name="ai_notes_char_count_format">%1$d/300</string>
+
+    <!-- ===================== AI LOCATION SETTINGS SCREEN ===================== -->
+    <string name="ai_location_search_placeholder">Tìm kiếm theo thành phố</string>
+    <string name="ai_location_search_clear">Clear</string>
+    <string name="ai_location_use_current">Sử dụng vị trí hiện tại</string>
+    <string name="ai_location_recent_title">Tìm kiếm gần đây</string>
+    <string name="ai_location_default_result">Hà Nội, Việt Nam</string>
+
+    <!-- ===================== MASK EDITOR ===================== -->
+    <string name="mask_editor_reset">Reset</string>
+    <string name="mask_editor_undo">Undo</string>
+    <string name="mask_editor_hint">Use brush to refine the item mask</string>
+
+    <!-- ===================== CLOSET SCREEN (REMAINING) ===================== -->
+    <string name="closet_outfit_card_info_format">📅 %1$s · %2$d món</string>
+    <string name="closet_please_select_image">Please select an image</string>
+    <string name="closet_enter_item_name">Enter item name</string>
+
+    <!-- ===================== OUTFIT CANVAS COMPONENTS ===================== -->
+    <string name="outfit_canvas_add_items">Thêm món đồ</string>
+    <string name="outfit_canvas_add_count">Thêm (%1$d)</string>
+    <string name="outfit_save_outfit">Lưu Outfit</string>
+
 </resources>

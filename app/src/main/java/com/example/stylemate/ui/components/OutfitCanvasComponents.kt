@@ -29,8 +29,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stylemate.R
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
@@ -111,7 +113,7 @@ fun OutfitCanvasPreview(
             if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "Chưa có món đồ nào",
+                        text = stringResource(R.string.no_items_in_outfit),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -192,7 +194,7 @@ fun OutfitCanvas(
             if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "Chưa có món đồ nào",
+                        text = stringResource(R.string.no_items_in_outfit),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -324,7 +326,7 @@ fun OutfitCanvas(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Remove item",
+                                contentDescription = stringResource(R.string.remove_item_content_desc),
                                 tint = Color.White,
                                 modifier = Modifier.size(10.dp)
                             )
@@ -376,13 +378,13 @@ fun OutfitCanvasEditorDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = outfitName.ifBlank { "Outfit Canvas" },
+                        text = outfitName.ifBlank { stringResource(R.string.outfit_canvas_title) },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_content_desc))
                     }
                 }
 
@@ -408,7 +410,7 @@ fun OutfitCanvasEditorDialog(
                         onClick = onAddItems,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Thêm món đồ")
+                        Text(stringResource(R.string.outfit_canvas_add_items))
                     }
                     Button(
                         onClick = onSave,
@@ -422,9 +424,9 @@ fun OutfitCanvasEditorDialog(
                                 strokeWidth = 2.dp
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text("Đang lưu...")
+                            Text(stringResource(R.string.saving_label))
                         } else {
-                            Text("Lưu Outfit")
+                            Text(stringResource(R.string.outfit_save_outfit))
                         }
                     }
                 }
@@ -457,7 +459,7 @@ fun AddItemsBottomSheet(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Thêm món đồ",
+                text = stringResource(R.string.outfit_canvas_add_items),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -494,7 +496,7 @@ fun AddItemsBottomSheet(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Huỷ")
+                    Text(stringResource(R.string.cancel_button))
                 }
                 Spacer(Modifier.width(8.dp))
                 Button(
@@ -504,7 +506,7 @@ fun AddItemsBottomSheet(
                     },
                     enabled = selectedIds.isNotEmpty()
                 ) {
-                    Text("Thêm (${selectedIds.size})")
+                    Text(stringResource(R.string.outfit_canvas_add_count, selectedIds.size))
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -558,7 +560,7 @@ fun AddItemSelectCard(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Đã chọn",
+                    contentDescription = stringResource(R.string.selected_vn_content_desc),
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier
                         .align(Alignment.TopEnd)

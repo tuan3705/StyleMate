@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -34,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.stylemate.R
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
@@ -125,7 +127,7 @@ fun OutfitScreen() {
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Phối Đồ", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.outfit_screen_title), fontWeight = FontWeight.Bold)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -197,9 +199,9 @@ fun OutfitScreen() {
             if (filteredOutfits.isEmpty()) {
                 item {
                     val emptyMessage = if (outfitSearchQuery.isNotBlank()) {
-                        "Không tìm thấy bộ đồ phù hợp"
+                        stringResource(R.string.no_outfits_found)
                     } else {
-                        "Chưa có bộ đồ nào"
+                        stringResource(R.string.no_outfits_yet)
                     }
                     Text(
                         text = emptyMessage,
@@ -281,11 +283,11 @@ private fun OutfitSearchBar(
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Tìm bộ đồ") },
+        placeholder = { Text(stringResource(R.string.search_outfit_hint)) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search")
+            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_content_desc))
         },
         trailingIcon = {
             if (query.isNotBlank()) {
@@ -295,7 +297,7 @@ private fun OutfitSearchBar(
                         focusManager.clearFocus()
                     }
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear search")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear_search_content_desc))
                 }
             }
         },
@@ -308,13 +310,6 @@ private fun OutfitSearchBar(
 
 // ═════════════════════════════════════════════════════════════════
 // 🔷 COMPONENT 1: CreateOutfitSection
-// ═════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - LazyRow hiển thị các item đang chọn (draft), mỗi item có nút "x" để bỏ chọn.
-//   - Nếu draft rỗng → hiển thị text hướng dẫn.
-//   - TextField + Nút Lưu ở bên dưới.
-//   - Nút Lưu chỉ enable khi có item + tên không trống.
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -350,7 +345,7 @@ private fun CreateOutfitSection(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    text = "Tạo Bộ Đồ Mới",
+                    text = stringResource(R.string.create_new_outfit_title),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -378,7 +373,7 @@ private fun CreateOutfitSection(
             if (draftItems.isEmpty()) {
                 // 📝 Empty state: hướng dẫn người dùng
                 Text(
-                    text = "Hãy chọn các món đồ bên dưới để tạo bộ đồ mới",
+                    text = stringResource(R.string.create_outfit_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 16.dp)
@@ -405,8 +400,8 @@ private fun CreateOutfitSection(
             OutlinedTextField(
                 value = outfitName,
                 onValueChange = onOutfitNameChange,
-                label = { Text("Tên bộ đồ") },
-                placeholder = { Text("VD: Đi biển mùa hè, Dạo phố...") },
+                label = { Text(stringResource(R.string.outfit_name_label)) },
+                placeholder = { Text(stringResource(R.string.enter_outfit_name_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -432,7 +427,7 @@ private fun CreateOutfitSection(
                             contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("Huỷ")
+                        Text(stringResource(R.string.cancel_button))
                     }
                 }
 
@@ -451,7 +446,7 @@ private fun CreateOutfitSection(
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(
-                        text = if (isLoading) "Đang lưu..." else "Lưu Bộ Đồ",
+                        text = if (isLoading) stringResource(R.string.saving_outfit_label) else stringResource(R.string.save_outfit_vn_button),
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -462,11 +457,6 @@ private fun CreateOutfitSection(
 
 // ═════════════════════════════════════════════════════════════════
 // 🔷 COMPONENT 1a: DraftItemChip
-// ═════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Mỗi item trong draft được hiển thị dạng chip nhỏ.
-//   - Có icon category + tên item + nút "×" để bỏ chọn.
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -506,7 +496,7 @@ private fun DraftItemChip(
             ) {
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "Xoá khỏi draft",
+                    contentDescription = stringResource(R.string.deselect_content_desc),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -517,14 +507,6 @@ private fun DraftItemChip(
 
 // ═════════════════════════════════════════════════════════════════
 // 🔷 COMPONENT 2: ClosetSelectionSection
-// ═════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Lưới 2 cột hiển thị tất cả items trong tủ đồ.
-//   - Click item → toggle add/remove khỏi draft.
-//   - Visual feedback:
-//       * Item đã chọn: viền xanh dày 3dp + icon checkmark góc.
-//       * Item chưa chọn: viền trong suốt.
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -540,13 +522,13 @@ private fun ClosetSelectionSection(
             modifier = Modifier.padding(bottom = 8.dp)
         ) {
             Text(
-                text = "Chọn món đồ",
+                text = stringResource(R.string.select_items_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "(${items.size} món)",
+                text = "(${items.size} ${stringResource(R.string.items_count_format, items.size).substringAfter(" ")})",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -561,7 +543,7 @@ private fun ClosetSelectionSection(
                 )
             ) {
                 Text(
-                    text = "Tủ đồ của bạn đang trống.\nHãy thêm quần áo vào tủ trước nhé!",
+                    text = stringResource(R.string.outfit_empty_warning),
                     modifier = Modifier.padding(24.dp).fillMaxWidth(),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
@@ -594,16 +576,6 @@ private fun ClosetSelectionSection(
 
 // ═════════════════════════════════════════════════════════════════
 // 🔷 COMPONENT 2a: SelectableClothingItemCard
-// ═════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Khi isSelected = true:
-//       * Viền xanh lá 3dp (border)
-//       * Overlay icon CheckCircle ở góc trên phải
-//       * Background hơi xanh nhẹ
-//   - Khi isSelected = false:
-//       * Viền trong suốt
-//       * Background màu theo category (giống ClosetScreen)
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -664,7 +636,7 @@ private fun SelectableClothingItemCard(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Đã chọn",
+                    contentDescription = stringResource(R.string.selected_vn_content_desc),
                     tint = Color(0xFF4CAF50),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -713,13 +685,13 @@ private fun SavedOutfitsHeader(outfitsCount: Int) {
         modifier = Modifier.padding(top = 8.dp)
     ) {
         Text(
-            text = "Bộ Đồ Đã Lưu",
+            text = stringResource(R.string.saved_outfits_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = "($outfitsCount bộ)",
+            text = "($outfitsCount ${stringResource(R.string.items_count_format, outfitsCount).substringAfter(" ")})",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -728,13 +700,6 @@ private fun SavedOutfitsHeader(outfitsCount: Int) {
 
 // ═════════════════════════════════════════════════════════════════
 // 🔷 COMPONENT 4: SavedOutfitCard
-// ═════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Card hiển thị một Outfit đã lưu.
-//   - Gồm: Tên outfit, ngày tạo (format dd/MM/yyyy), danh sách items dạng LazyRow.
-//   - Mỗi item là một chip nhỏ hiển thị icon category + tên.
-//   - Nút Delete để xoá outfit (CASCADE sẽ xoá luôn CrossRef).
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -790,7 +755,7 @@ private fun SavedOutfitCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "📅 $formattedDate · ${items.size} món",
+                        text = "📅 $formattedDate · ${stringResource(R.string.outfit_items_count, items.size)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -800,7 +765,7 @@ private fun SavedOutfitCard(
                 IconButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Xoá bộ đồ",
+                        contentDescription = stringResource(R.string.delete_outfit_content_desc),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -810,7 +775,7 @@ private fun SavedOutfitCard(
             if (items.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "Món đồ trong bộ:",
+                    text = stringResource(R.string.items_in_outfit_label),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -826,7 +791,7 @@ private fun SavedOutfitCard(
                 // Empty state (hiếm khi xảy ra nhờ validation)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "⚠️ Bộ đồ này hiện không có món nào.",
+                    text = "⚠️ ${stringResource(R.string.no_items_placeholder)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                 )
@@ -837,11 +802,6 @@ private fun SavedOutfitCard(
 
 // ═════════════════════════════════════════════════════════════════
 // 🔷 COMPONENT 4a: OutfitItemThumbnail
-// ═════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Chip nhỏ hiển thị từng item trong outfit đã lưu.
-//   - Gồm icon category + tên item.
 // ═════════════════════════════════════════════════════════════════
 
 @Composable

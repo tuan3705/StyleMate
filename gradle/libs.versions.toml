@@ -23,6 +23,7 @@ firebaseBom = "33.2.0"
 lifecycleProcess = "2.8.7"
 googleServices = "4.4.2"
 kotlinxCoroutines = "1.8.1"
+desugarJdkLibs = "2.1.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -58,6 +59,8 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 androidx-lifecycle-process = { group = "androidx.lifecycle", name = "lifecycle-process", version.ref = "lifecycleProcess" }
+
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
