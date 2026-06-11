@@ -45,6 +45,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.example.stylemate.ui.components.OutfitCanvasPreview
+import com.example.stylemate.viewmodel.OutfitViewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -374,11 +376,36 @@ private fun DayCell(
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// 👔 ASSIGNED OUTFIT CARD — Hiển thị bộ đồ đã được gán cho ngày
+// � Helper: chuyển List<ClothingItemEntity> → List<OutfitItemPlacement>
+// Dùng canvasPosX, canvasPosY từ item (đã được set từ outfit crossRef)
+// ══════════════════════════════════════════════════════════════════════
+
+private fun itemsToPlacements(items: List<com.example.stylemate.model.ClothingItemEntity>): List<OutfitViewModel.OutfitItemPlacement> {
+    return items.mapIndexed { index, item ->
+        OutfitViewModel.OutfitItemPlacement(
+            item = item,
+            posX = item.canvasPosX.takeIf { it != 0f } ?: defaultGridPosition(index).first,
+            posY = item.canvasPosY.takeIf { it != 0f } ?: defaultGridPosition(index).second,
+            scale = 1f
+        )
+    }
+}
+
+/** Vị trí grid mặc định cho items (giống OutfitViewModel.defaultGridPosition) */
+private fun defaultGridPosition(index: Int): Pair<Float, Float> {
+    val col = index % 2
+    val row = index / 2
+    val x = if (col == 0) 0.1f else 0.55f
+    val y = minOf(0.1f + row * 0.25f, 0.8f)
+    return x to y
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 🎨 OUTFIT CANVAS PREVIEW SECTION — Hiển thị bộ đồ với Canvas preview
 // ══════════════════════════════════════════════════════════════════════
 //
 // 🎯 UX Logic:
-//   - Card lớn hiển thị tên outfit + các items bên trong
+//   - Card lớn hiển thị tên outfit + OutfitCanvasPreview (giống Outfit screen)
 //   - Nút "Xoá" (gỡ outfit khỏi ngày)
 //   - Nút "Chọn bộ đồ khác" → mở BottomSheet
 // ══════════════════════════════════════════════════════════════════════
@@ -391,6 +418,7 @@ private fun AssignedOutfitCard(
 ) {
     val outfit = outfitWithItems.outfit
     val items = outfitWithItems.clothingItems
+    val placements = remember(items) { itemsToPlacements(items) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -444,7 +472,7 @@ private fun AssignedOutfitCard(
                 }
             }
 
-            // Danh sách items trong outfit
+            // 🎨 Canvas preview — giống y hệt Outfit screen
             if (items.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -454,21 +482,10 @@ private fun AssignedOutfitCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                items.chunked(3).forEach { rowItems ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        rowItems.forEach { item ->
-                            OutfitItemMiniCard(
-                                item = item,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                }
+                OutfitCanvasPreview(
+                    items = placements,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
