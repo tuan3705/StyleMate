@@ -79,6 +79,14 @@ fun AIChatScreen(
     var showWizard by remember { mutableStateOf(false) }
     var showSaveSheet by remember { mutableStateOf(false) }
     var isChatHistoryVisible by remember { mutableStateOf(false) }
+    var isChatBubbleDismissed by remember { mutableStateOf(false) }
+
+    // Reset bubble dismissal when a new AI message arrives
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty() && !messages.last().isFromUser) {
+            isChatBubbleDismissed = false
+        }
+    }
     
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
@@ -162,7 +170,15 @@ fun AIChatScreen(
                             modifier = Modifier.padding(top = 12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            IconButton(onClick = { isChatHistoryVisible = !isChatHistoryVisible }) {
+                            IconButton(onClick = { 
+                                if (isChatHistoryVisible) {
+                                    isChatHistoryVisible = false
+                                } else if (!isChatBubbleDismissed) {
+                                    isChatBubbleDismissed = true
+                                } else {
+                                    isChatHistoryVisible = true
+                                }
+                            }) {
                                 Icon(
                                     imageVector = if (isChatHistoryVisible) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                                     contentDescription = "Toggle Chat",
@@ -191,7 +207,7 @@ fun AIChatScreen(
                                             Spacer(modifier = Modifier.height(8.dp))
                                         }
                                     }
-                                } else {
+                                } else if (!isChatBubbleDismissed) {
                                     val lastAiMessage = messages.lastOrNull { !it.isFromUser }
                                     if (lastAiMessage != null) {
                                         Text(
@@ -297,11 +313,18 @@ fun WelcomeView() {
 
 @Composable
 fun LoadingView(lastMessageText: String) {
-    var showDetails by remember { mutableStateOf(false) }
+    var displayedPrompt by remember { mutableStateOf("") }
+    var showAiStatus by remember { mutableStateOf(false) }
     
-    LaunchedEffect(Unit) {
-        delay(500)
-        showDetails = true
+    LaunchedEffect(lastMessageText) {
+        if (lastMessageText.isNotBlank()) {
+            lastMessageText.forEachIndexed { index, _ ->
+                displayedPrompt = lastMessageText.substring(0, index + 1)
+                delay(30) // Typewriter speed
+            }
+            delay(500)
+        }
+        showAiStatus = true
     }
 
     Column(
@@ -309,22 +332,24 @@ fun LoadingView(lastMessageText: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // User's request bubble
-        Surface(
-            color = Color.Gray.copy(alpha = 0.05f),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.align(Alignment.End).padding(bottom = 48.dp)
-        ) {
-            Text(
-                lastMessageText,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                fontSize = 16.sp,
-                color = Color.Black.copy(alpha = 0.8f)
-            )
+        // User's request bubble (Typewriter effect)
+        if (displayedPrompt.isNotBlank()) {
+            Surface(
+                color = Color.Gray.copy(alpha = 0.05f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.align(Alignment.End).padding(bottom = 48.dp)
+            ) {
+                Text(
+                    displayedPrompt,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    fontSize = 16.sp,
+                    color = Color.Black.copy(alpha = 0.8f)
+                )
+            }
         }
 
         AnimatedVisibility(
-            visible = showDetails,
+            visible = showAiStatus,
             enter = fadeIn() + slideInVertically { it / 2 }
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -391,7 +416,7 @@ fun RecommendationView(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 140.dp)
+        contentPadding = PaddingValues(bottom = 160.dp) // Increased padding
     ) {
         item {
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
