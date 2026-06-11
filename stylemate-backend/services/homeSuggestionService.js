@@ -19,15 +19,41 @@ async function getHomeSuggestions(userId, lat, lon) {
   const weatherText = context.weather?.current?.condition?.text || 'bình thường';
   const tempC = context.weather?.current?.temp_c || 25;
 
-  // 1. RAG: Lấy đồ THẬT từ tủ đồ của chính user này
-  const relevantItems = await closetSearchService.findRelevantItems(
-    userId,
-    `thời tiết ${weatherText}, nhiệt độ ${tempC} độ C`
-  );
+  console.log(`[HOME SUGGESTION] Request for user: ${userId}, Weather: ${weatherText}, Temp: ${tempC}C`);
 
-  console.log(`[RAG LOG] Found ${relevantItems.length} real items for user ${userId}`);
+  // 1. RAG: Lấy đồ THẬT và bộ đồ THẬT từ tủ đồ của chính user này
+  let [relevantItems, relevantOutfits] = await Promise.all([
+    closetSearchService.findRelevantItems(userId, `weather ${weatherText}, temperature ${tempC} degrees Celsius`),
+    closetSearchService.findRelevantOutfits(userId, `weather ${weatherText}, temperature ${tempC} degrees Celsius`)
+  ]);
+
+  console.log(`[RAG LOG] Initial retrieval: ${relevantItems.length} items, ${relevantOutfits.length} outfits`);
+
+  // Fallback: Nếu không tìm thấy đồ phù hợp bằng heuristic, lấy 20 món mới nhất
+  if (relevantItems.length === 0) {
+    console.log(`[RAG LOG] Heuristic returned 0 items, falling back to latest items for user ${userId}`);
+    const latestItems = await ClothingItem.find({ userId: new mongoose.Types.ObjectId(userId) })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean()
+      .exec();
+
+    console.log(`[RAG LOG] Found ${latestItems.length} items in DB directly.`);
+
+    // Map to normalized format
+    relevantItems = latestItems.map(item => ({
+      id: String(item._id),
+      name: item.name,
+      category: item.category,
+      color: item.color,
+      brand: item.brand || '',
+      occasion: item.occasion || '',
+      season: item.season || ''
+    }));
+  }
 
   if (relevantItems.length === 0) {
+    console.log(`[HOME SUGGESTION] Closet is empty for user ${userId}`);
     return {
       success: true,
       headline: "Chào ngày mới!",
@@ -36,48 +62,60 @@ async function getHomeSuggestions(userId, lat, lon) {
     };
   }
 
-  // 2. Chuẩn bị danh sách UUID và mô tả để AI chọn
-  const itemsPool = relevantItems.map(i => `[${i.id}] Category: ${i.category}, Color: ${i.color}, Name: ${i.name}`).join('\n');
+  // 2. Chuẩn bị context cho AI (Thêm Season/Occasion cho AI chọn thông minh hơn)
+  const itemsPool = relevantItems.map(i => `[${i.id}] Name: ${i.name}, Cat: ${i.category}, Color: ${i.color}, Season: ${i.season}, Occasion: ${i.occasion}`).join('\n');
+  const outfitsPool = relevantOutfits.length > 0
+    ? relevantOutfits.map(o => `[SAVED_OUTFIT:${o.id}] Name: ${o.name}, Contains: ${o.items.join(', ')}`).join('\n')
+    : 'No saved outfits yet.';
 
-  // 3. Strictest System Prompt: Cấm AI sáng tác ID
+  // 3. System Prompt cải tiến
   const systemPrompt = `You are StyleMate's Professional Wardrobe Orchestrator.
-I will give you a list of REAL clothes from the user's database with their EXACT IDs in brackets [like-this].
+Target Weather: ${weatherText}, ${tempC}C.
 
-YOUR ONLY TASKS:
-1. Select 1-3 combinations of clothes from the provided list to form outfits suitable for: ${weatherText}, ${tempC}C.
-2. Provide a 'headline' and 'message' in Vietnamese about the day's style.
-3. For 'suggested_outfits', ONLY use the IDs found in the list below.
+INPUTS:
+1. INDIVIDUAL ITEMS: A list of clothes with IDs in [brackets].
+2. SAVED OUTFITS: Pre-made combinations with IDs like [SAVED_OUTFIT:uuid].
 
-DANGER: DO NOT generate names like 'ao-thun' or 'quan-jean'.
-DANGER: YOU MUST ONLY RETURN THE IDs IN BRACKETS.
-DANGER: If an ID is not in the list, DO NOT use it.
+YOUR MISSION:
+1. Suggest exactly 3 outfits for the user.
+2. PRIORITY: If a SAVED OUTFIT fits the weather, recommend it! (Set type: "saved").
+3. INNOVATION: Create NEW combinations from INDIVIDUAL ITEMS if they are more suitable. (Set type: "new").
+4. Provide a 'headline' and 'message' in Vietnamese. Make it warm, personal, and fashionable.
 
-### REAL CLOSET POOL:
+RULES:
+- For 'type': use "saved" for pre-made outfits, "new" for your own combinations.
+- For 'item_ids':
+    - If type is "saved", provide the items belonging to that saved outfit.
+    - If type is "new", provide the IDs of items you picked.
+- ONLY use IDs provided in the pools. DO NOT invent IDs.
+
+### INDIVIDUAL ITEMS POOL:
 ${itemsPool}
+
+### SAVED OUTFITS POOL:
+${outfitsPool}
 
 Response must be a clean JSON object.`;
 
   try {
     const response = await llmClient.generateStructuredResponse({
-      message: `Create 1-3 outfit suggestions using ONLY the real items listed above.`,
+      message: `Suggest 3 best outfits (prioritize saved ones if appropriate) for ${weatherText}, ${tempC}C.`,
       context: { weather: { condition: weatherText, temp: tempC } },
       systemPrompt,
-      options: { provider: 'deepseek', temperature: 0.1 }, // Logic cực kỳ chặt chẽ
+      options: { provider: 'deepseek', temperature: 0.2 },
       responseSchema: homeSuggestionSchema
     });
 
-    // 4. Hydration & Strict Matching: Chỉ lấy những gì AI chọn mà có trong Database
-    const poolIds = new Set(relevantItems.map(i => i.id));
-    const allItemIds = [...new Set((response.suggested_outfits || []).flatMap(o => o.item_ids))];
+    // 4. Hydration & Validation
+    const itemIdsInPool = new Set(relevantItems.map(i => i.id));
+    const allSuggestedItemIds = [...new Set((response.suggested_outfits || []).flatMap(o => o.item_ids))];
 
-    // Lọc lại một lần nữa ở server để đảm bảo không có ID lạ lọt qua
-    const validatedIds = allItemIds.filter(id => poolIds.has(id));
-    const itemsInDb = await ClothingItem.find({ _id: { $in: validatedIds } }).lean();
+    const itemsInDb = await ClothingItem.find({ _id: { $in: allSuggestedItemIds } }).lean();
     const itemMap = new Map(itemsInDb.map(i => [String(i._id), i]));
 
     const finalOutfits = (response.suggested_outfits || []).map(outfit => {
       const details = (outfit.item_ids || [])
-        .filter(id => itemMap.has(id)) // Chỉ lấy ID có trong DB
+        .filter(id => itemMap.has(id))
         .map(id => {
           const item = itemMap.get(id);
           return { id, name: item.name, image_url: item.imageNoBg || item.imageOriginal };
@@ -87,6 +125,7 @@ Response must be a clean JSON object.`;
 
       return {
         id: outfit.id,
+        type: outfit.type || "new",
         item_ids: details.map(d => d.id),
         reason: outfit.reason,
         image_urls: details.reduce((acc, curr, idx) => { acc[`item_${idx}`] = curr.image_url; return acc; }, {}),

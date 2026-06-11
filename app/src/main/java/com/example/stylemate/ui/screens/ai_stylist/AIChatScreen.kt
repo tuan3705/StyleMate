@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.stylemate.model.ClothingItemEntity
+import com.example.stylemate.model.Categories
 import com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL
 import com.example.stylemate.network.OutfitSectionDto
 import com.example.stylemate.network.SuggestedOutfitDto
@@ -132,7 +133,13 @@ fun AIChatScreen(
                         stringResource(R.string.prompt_travel),
                         stringResource(R.string.prompt_party),
                         stringResource(R.string.prompt_date),
-                        stringResource(R.string.prompt_wedding)
+                        stringResource(R.string.prompt_wedding),
+                        stringResource(R.string.wizard_occasion_shopping),
+                        stringResource(R.string.wizard_occasion_walk),
+                        stringResource(R.string.wizard_occasion_exercise),
+                        stringResource(R.string.wizard_occasion_church),
+                        stringResource(R.string.wizard_occasion_gathering),
+                        stringResource(R.string.wizard_occasion_dining)
                     )
                     Column {
                         LazyRow(
@@ -592,8 +599,13 @@ fun CategoryItemSection(label: String, detail: String, items: List<ClothingItemE
                             .border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        val fullUrl = if (item.imageNoBg.startsWith("http")) item.imageNoBg 
-                                     else "${STYLEMATE_BASE_URL.removeSuffix("/")}${item.imageNoBg}"
+                        val imagePath = if (item.imageNoBg.isNotBlank()) item.imageNoBg else item.imageOriginal
+                        val fullUrl = if (imagePath.startsWith("http") || imagePath.startsWith("content://") || imagePath.startsWith("file://")) {
+                            imagePath
+                        } else {
+                            "${STYLEMATE_BASE_URL.removeSuffix("/")}/${imagePath.removePrefix("/")}"
+                        }
+
                         AsyncImage(
                             model = fullUrl,
                             contentDescription = null,
@@ -1121,6 +1133,75 @@ fun WizardStepOne(
                 context.getString(R.string.topic_party_club),
                 context.getString(R.string.topic_party_birthday)
             )
+        } else if (occasion.contains("Date", ignoreCase = true) || occasion.contains("Hẹn hò", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_date_first),
+                context.getString(R.string.topic_date_movie),
+                context.getString(R.string.topic_date_restaurant),
+                context.getString(R.string.topic_date_anniversary),
+                context.getString(R.string.topic_date_outdoor),
+                context.getString(R.string.topic_date_exhibition)
+            )
+        } else if (occasion.contains("Đám cưới", ignoreCase = true) || occasion.contains("Wedding", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_wedding_hotel),
+                context.getString(R.string.topic_wedding_outdoor),
+                context.getString(R.string.topic_wedding_home),
+                context.getString(R.string.topic_wedding_church)
+            )
+        } else if (occasion.contains("Mua sắm", ignoreCase = true) || occasion.contains("Shopping", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_shopping_mall),
+                context.getString(R.string.topic_shopping_outlet),
+                context.getString(R.string.topic_shopping_supermarket),
+                context.getString(R.string.topic_shopping_store),
+                context.getString(R.string.topic_shopping_street_market)
+            )
+        } else if (occasion.contains("Đi dạo", ignoreCase = true) || occasion.contains("Walk", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_walk_park),
+                context.getString(R.string.topic_walk_river),
+                context.getString(R.string.topic_walk_beach),
+                context.getString(R.string.topic_walk_pets),
+                context.getString(R.string.topic_walk_picnic)
+            )
+        } else if (occasion.contains("Tập thể dục", ignoreCase = true) || occasion.contains("Exercise", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_exercise_gym),
+                context.getString(R.string.topic_exercise_running),
+                context.getString(R.string.topic_exercise_yoga),
+                context.getString(R.string.topic_exercise_hiking)
+            )
+        } else if (occasion.contains("Nhà thờ", ignoreCase = true) || occasion.contains("Church", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_church_service),
+                context.getString(R.string.topic_church_small_group),
+                context.getString(R.string.topic_church_event)
+            )
+        } else if (occasion.contains("Tụ họp", ignoreCase = true) || occasion.contains("Gathering", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_gathering_friends),
+                context.getString(R.string.topic_gathering_housewarming),
+                context.getString(R.string.topic_gathering_class_reunion),
+                context.getString(R.string.topic_gathering_family)
+            )
+        } else if (occasion.contains("Ăn ngoài", ignoreCase = true) || occasion.contains("Dining", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_dining_casual),
+                context.getString(R.string.topic_dining_brunch),
+                context.getString(R.string.topic_dining_family),
+                context.getString(R.string.topic_dining_date),
+                context.getString(R.string.topic_dining_work),
+                context.getString(R.string.topic_dining_formal)
+            )
         } else {
             listOf(
                 context.getString(R.string.no_topic_option),
@@ -1221,6 +1302,13 @@ fun WizardStepTwo(
     onItemSelected: (ClothingItemEntity) -> Unit,
     onFinish: () -> Unit
 ) {
+    var selectedCategory by remember { mutableStateOf<String>(Categories.ALL) }
+    
+    val filteredItems = remember(allItems, selectedCategory) {
+        if (selectedCategory == Categories.ALL) allItems
+        else allItems.filter { it.category == selectedCategory }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             stringResource(R.string.wizard_step_two_title),
@@ -1230,48 +1318,118 @@ fun WizardStepTwo(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(stringResource(R.string.wizard_all_label), color = Color.Gray)
-            Column {
-                Text(stringResource(R.string.wizard_category_tops), fontWeight = FontWeight.Bold)
-                Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // All Tab
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { selectedCategory = Categories.ALL }
+            ) {
+                Text(
+                    stringResource(R.string.wizard_all_label),
+                    fontWeight = if (selectedCategory == Categories.ALL) FontWeight.Bold else FontWeight.Normal,
+                    color = if (selectedCategory == Categories.ALL) Color.Black else Color.Gray
+                )
+                if (selectedCategory == Categories.ALL) {
+                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+                }
             }
-            Text(stringResource(R.string.wizard_category_bottoms), color = Color.Gray)
+
+            // Tops Tab
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { selectedCategory = Categories.TOPS }
+            ) {
+                Text(
+                    stringResource(R.string.wizard_category_tops),
+                    fontWeight = if (selectedCategory == Categories.TOPS) FontWeight.Bold else FontWeight.Normal,
+                    color = if (selectedCategory == Categories.TOPS) Color.Black else Color.Gray
+                )
+                if (selectedCategory == Categories.TOPS) {
+                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+                }
+            }
+
+            // Bottoms Tab
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { selectedCategory = Categories.BOTTOMS }
+            ) {
+                Text(
+                    stringResource(R.string.wizard_category_bottoms),
+                    fontWeight = if (selectedCategory == Categories.BOTTOMS) FontWeight.Bold else FontWeight.Normal,
+                    color = if (selectedCategory == Categories.BOTTOMS) Color.Black else Color.Gray
+                )
+                if (selectedCategory == Categories.BOTTOMS) {
+                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+                }
+            }
         }
         
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            gridItems(allItems) { item ->
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(0.8f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White)
-                        .clickable { onItemSelected(item) }
-                        .border(if (selectedItems.contains(item)) 2.dp else 0.dp, Color.Black, RoundedCornerShape(8.dp))
-                ) {
-                    val fullUrl = if (item.imageNoBg.startsWith("http")) item.imageNoBg 
-                                 else "${STYLEMATE_BASE_URL.removeSuffix("/")}${item.imageNoBg}"
-                    AsyncImage(
-                        model = fullUrl,
-                        contentDescription = item.name,
-                        modifier = Modifier.fillMaxSize().padding(4.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                    
-                    if (selectedItems.contains(item)) {
-                        Icon(
-                            Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
+        if (filteredItems.isEmpty()) {
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    stringResource(
+                        R.string.no_matching_items_text,
+                        when (selectedCategory) {
+                            Categories.TOPS -> stringResource(R.string.wizard_category_tops)
+                            Categories.BOTTOMS -> stringResource(R.string.wizard_category_bottoms)
+                            else -> stringResource(R.string.all_clothes).lowercase()
+                        }
+                    ),
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                gridItems(filteredItems, key = { it.id }) { item ->
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(0.8f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White)
+                            .clickable { onItemSelected(item) }
+                            .border(
+                                if (selectedItems.contains(item)) 2.dp else 1.dp,
+                                if (selectedItems.contains(item)) Color.Black else Color.LightGray,
+                                RoundedCornerShape(8.dp)
+                            )
+                    ) {
+                        val imagePath = if (item.imageNoBg.isNotBlank()) item.imageNoBg else item.imageOriginal
+                        val fullUrl = if (imagePath.startsWith("http") || imagePath.startsWith("content://") || imagePath.startsWith("file://")) {
+                            imagePath
+                        } else {
+                            "${STYLEMATE_BASE_URL.removeSuffix("/")}/${imagePath.removePrefix("/")}"
+                        }
+                        
+                        AsyncImage(
+                            model = fullUrl,
+                            contentDescription = item.name,
+                            modifier = Modifier.fillMaxSize().padding(4.dp),
+                            contentScale = ContentScale.Fit
                         )
+                        
+                        if (selectedItems.contains(item)) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.Black,
+                                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
+                            )
+                        }
                     }
                 }
             }
