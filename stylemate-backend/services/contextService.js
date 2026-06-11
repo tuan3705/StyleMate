@@ -10,27 +10,54 @@ const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 const contextCache = new Map();
 const CONTEXT_CACHE_TTL_MS = Number(process.env.CONTEXT_CACHE_TTL_MS || 5 * 60 * 1000); // 5 minutes
 
-async function fetchWeatherSummary(lat, lon) {
+async function fetchWeatherSummary(lat, lon, dateMillis) {
   if (!lat || !lon || !WEATHER_API_KEY) {
     return null;
   }
 
   try {
+    // WeatherAPI allows 'dt' param for future dates in forecast (up to 14 days for paid, but free/pro vary)
+    // If dateMillis is provided and within range, we can use it.
+    const params = {
+      key: WEATHER_API_KEY,
+      q: `${Number(lat)},${Number(lon)}`,
+      days: 3,
+      aqi: 'no',
+      alerts: 'no'
+    };
+
+    if (dateMillis) {
+      const dt = new Date(dateMillis).toISOString().split('T')[0];
+      params.dt = dt;
+    }
+
     const resp = await axios.get(WEATHER_API_URL, {
-      params: {
-        key: WEATHER_API_KEY,
-        q: `${Number(lat)},${Number(lon)}`,
-        days: 1,
-        aqi: 'no',
-        alerts: 'no'
-      },
+      params,
       timeout: 10000
     });
 
     const data = resp.data;
     const loc = `${data.location?.name || ''}, ${data.location?.region || ''}`.trim();
-    const condition = data.current?.condition?.text || '';
-    const temp_c = data.current?.temp_c;
+
+    // If we requested a specific date, find it in forecast
+    let condition = '';
+    let temp_c = null;
+
+    if (dateMillis) {
+        const targetDate = new Date(dateMillis).toISOString().split('T')[0];
+        const dayForecast = data.forecast?.forecastday?.find(d => d.date === targetDate);
+        if (dayForecast) {
+            condition = dayForecast.day?.condition?.text || '';
+            temp_c = dayForecast.day?.avgtemp_c;
+        } else {
+            // Fallback to current if not found in forecast list (though 'dt' should have returned it)
+            condition = data.current?.condition?.text || '';
+            temp_c = data.current?.temp_c;
+        }
+    } else {
+        condition = data.current?.condition?.text || '';
+        temp_c = data.current?.temp_c;
+    }
 
     return {
       location: loc,
@@ -93,10 +120,8 @@ async function fetchCalendarSummary(days = 3) {
 async function fetchUserProfile(userId) {
   if (!userId) return null;
   try {
-    // Prefer a direct userId field (client-provided). Fall back to _id.
     const user = await User.findOne({ userId }).lean().exec();
     if (!user) {
-      // Try treating userId as ObjectId
       try {
         const byId = await User.findById(userId).lean().exec();
         if (byId) return {
@@ -110,10 +135,8 @@ async function fetchUserProfile(userId) {
       } catch (e) {
         // ignore
       }
-
       return { userId, preferences: null };
     }
-
     return {
       userId: user.userId || String(user._id),
       name: user.name || null,
@@ -128,9 +151,9 @@ async function fetchUserProfile(userId) {
   }
 }
 
-async function buildContext({ userId, lat, lon, selectedItemIds = [], days = 3, forceRefresh = false } = {}) {
-  // Compose a cache key using user + location + selected items
-  const keyParts = [userId || 'anon', lat || '', lon || '', (Array.isArray(selectedItemIds) ? selectedItemIds.join(',') : '')];
+async function buildContext({ userId, lat, lon, dateMillis, selectedItemIds = [], days = 3, forceRefresh = false } = {}) {
+  // Compose a cache key using user + location + selected items + date
+  const keyParts = [userId || 'anon', lat || '', lon || '', dateMillis || '', (Array.isArray(selectedItemIds) ? selectedItemIds.join(',') : '')];
   const cacheKey = keyParts.join('|');
   if (!forceRefresh) {
     const cached = contextCache.get(cacheKey);
@@ -139,7 +162,7 @@ async function buildContext({ userId, lat, lon, selectedItemIds = [], days = 3, 
     }
   }
 
-  const weather = await fetchWeatherSummary(lat, lon);
+  const weather = await fetchWeatherSummary(lat, lon, dateMillis);
   const closet = await fetchClosetSummary(selectedItemIds);
   const calendar = await fetchCalendarSummary(days);
   const profile = await fetchUserProfile(userId);
@@ -147,7 +170,8 @@ async function buildContext({ userId, lat, lon, selectedItemIds = [], days = 3, 
   // Build a concise human-readable summary for RAG insertion
   const parts = [];
   if (weather) {
-    parts.push(`Weather: ${weather.location || ''} — ${weather.condition || ''}, ${weather.temp_c != null ? weather.temp_c + '°C' : ''}`.trim());
+    const dateLabel = dateMillis ? `on ${new Date(dateMillis).toISOString().split('T')[0]}` : 'currently';
+    parts.push(`Weather (${dateLabel}): ${weather.location || ''} — ${weather.condition || ''}, ${weather.temp_c != null ? weather.temp_c + '°C' : ''}`.trim());
   }
 
   if (Array.isArray(closet.items) && closet.items.length > 0) {

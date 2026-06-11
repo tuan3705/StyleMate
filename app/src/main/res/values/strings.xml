@@ -149,6 +149,9 @@
 
     <!-- Wizard -->
     <string name="wizard_step_format">%1$d / 2</string>
+    <string name="wizard_step_format_4">%1$d / 4</string>
+    <string name="wizard_travel_destination_title">Bạn sẽ đi đâu?</string>
+    <string name="wizard_travel_date_title">Khi nào bạn khởi hành?</string>
     <string name="topic_title">Chủ đề</string>
     <string name="style_title">Phong cách</string>
     <string name="next_button">Tiếp theo</string>
@@ -163,6 +166,13 @@
     <string name="topic_exhibition">Triển lẫm</string>
     <string name="topic_movie">Phim</string>
 
+    <!-- Travel Topics -->
+    <string name="topic_travel_beach">Bãi biển/Khu nghỉ dưỡng</string>
+    <string name="topic_travel_city">Du lịch thành phố</string>
+    <string name="topic_travel_culture">Du lịch văn hóa</string>
+    <string name="topic_travel_nature">Thiên nhiên/Thư giãn</string>
+    <string name="topic_travel_camping">Cắm trại/Đi bộ đường dài</string>
+
     <!-- School Topics -->
     <string name="topic_school_regular">Bài giảng</string>
     <string name="topic_school_library">Thư viện</string>
@@ -176,6 +186,20 @@
     <string name="topic_work_dinner">Tiệc tối công ty</string>
     <string name="topic_work_home">Làm việc tại nhà</string>
     <string name="topic_work_trip">Công tác</string>
+
+    <!-- Party Topics -->
+    <string name="topic_party_home">Tiệc tại gia</string>
+    <string name="topic_party_prom">Dạ hội cuối cấp</string>
+    <string name="topic_party_slumber">Tiệc ngủ</string>
+    <string name="topic_party_dinner">Tiệc tối</string>
+    <string name="topic_party_costume">Tiệc hoá trang</string>
+    <string name="topic_party_christmas">Tiệc Giáng sinh</string>
+    <string name="topic_party_pool">Tiệc bể bơi</string>
+    <string name="topic_party_newyear">Tiệc mừng năm mới</string>
+    <string name="topic_party_yearend">Tiệc cuối năm</string>
+    <string name="topic_party_cocktail">Tiệc cocktail</string>
+    <string name="topic_party_club">Tiệc câu lạc bộ</string>
+    <string name="topic_party_birthday">Tiệc sinh nhật</string>
 
     <string name="style_casual">Thường ngày</string>
     <string name="style_classic">Cổ điển</string>
@@ -428,6 +452,27 @@
     <string name="ai_stylist_mon">Thứ 2</string>
     <string name="ai_stylist_wed">Thứ 4</string>
     <string name="ai_stylist_thu">Thứ 5</string>
+
+    <!-- Travel Destinations -->
+    <string name="city_tokyo">Tokyo</string>
+    <string name="city_seoul">Seoul</string>
+    <string name="city_bangkok">Bangkok</string>
+    <string name="city_hongkong">Hồng Kông</string>
+    <string name="city_singapore">Singapore</string>
+    <string name="city_paris">Paris</string>
+    <string name="city_london">Luân Đôn</string>
+    <string name="city_rome">Rome</string>
+    <string name="city_barcelona">Barcelona</string>
+    <string name="city_amsterdam">Amsterdam</string>
+    <string name="city_newyork">New York</string>
+    <string name="city_losangeles">Los Angeles</string>
+    <string name="city_toronto">Toronto</string>
+    <string name="city_vancouver">Vancouver</string>
+    <string name="city_riodejaneiro">Rio de Janeiro</string>
+    <string name="city_buenosaires">Buenos Aires</string>
+    <string name="city_sydney">Sydney</string>
+    <string name="city_melbourne">Melbourne</string>
+    <string name="city_dubai">Dubai</string>
 
     <!-- ===================== AI CHAT REMAINING ===================== -->
     <string name="wizard_back_desc">Back</string>

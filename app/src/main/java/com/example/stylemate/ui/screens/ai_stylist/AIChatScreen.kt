@@ -289,10 +289,10 @@ fun AIChatScreen(
         OutfitWizardSheet(
             occasion = selectedOccasion,
             onDismiss = { showWizard = false },
-            onFinish = { topic, style, items ->
+            onFinish = { topic, style, items, dest, date ->
                 val itemList = items.joinToString { it.name }
                 val wizardResult = context.getString(R.string.wizard_result_message, selectedOccasion, topic, style, itemList)
-                viewModel.sendMessage(wizardResult)
+                viewModel.sendWizardMessage(wizardResult, dest, date)
                 showWizard = false
             }
         )
@@ -873,12 +873,16 @@ fun CalendarPickerSheet(
 fun OutfitWizardSheet(
     occasion: String,
     onDismiss: () -> Unit,
-    onFinish: (String, String, List<ClothingItemEntity>) -> Unit
+    onFinish: (String, String, List<ClothingItemEntity>, String?, Long?) -> Unit
 ) {
+    val isTravel = occasion.contains("Du lịch", ignoreCase = true) || occasion.contains("Travel", ignoreCase = true)
+    val totalSteps = if (isTravel) 4 else 2
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var step by remember { mutableIntStateOf(1) }
     
     val context2 = LocalContext.current
+    var selectedDestination by remember { mutableStateOf<String?>(null) }
+    var selectedDateMillis by remember { mutableStateOf<Long?>(null) }
     var selectedTopic by remember { mutableStateOf(context2.getString(R.string.no_topic_option)) }
     var selectedStyle by remember { mutableStateOf(context2.getString(R.string.wizard_style_none)) }
     var selectedItems by remember { mutableStateOf(setOf<ClothingItemEntity>()) }
@@ -912,8 +916,8 @@ fun OutfitWizardSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                if (step == 2) {
-                    IconButton(onClick = { step = 1 }) {
+                if (step > 1) {
+                    IconButton(onClick = { step-- }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 } else {
@@ -921,7 +925,7 @@ fun OutfitWizardSheet(
                 }
                 
                 Text(
-                    text = stringResource(R.string.wizard_step_format, step),
+                    text = stringResource(if (isTravel) R.string.wizard_step_format_4 else R.string.wizard_step_format, step),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -931,32 +935,133 @@ fun OutfitWizardSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (step == 1) {
-                WizardStepOne(
-                    occasion = occasion,
-                    selectedTopic = selectedTopic,
-                    onTopicSelected = { selectedTopic = it },
-                    selectedStyle = selectedStyle,
-                    onStyleSelected = { selectedStyle = it },
-                    onNext = { step = 2 },
-                    onSkip = { onFinish(context2.getString(R.string.no_topic_option), context2.getString(R.string.wizard_style_none), emptyList()) }
-                )
-            } else {
-                WizardStepTwo(
-                    allItems = allItems,
-                    selectedItems = selectedItems,
-                    onItemSelected = { item ->
-                        selectedItems = if (selectedItems.contains(item)) {
-                            selectedItems - item
-                        } else {
-                            selectedItems + item
+            when {
+                isTravel && step == 1 -> {
+                    WizardDestinationStep(
+                        onDestinationSelected = {
+                            selectedDestination = it
+                            step = 2
                         }
-                    },
-                    onFinish = { onFinish(selectedTopic, selectedStyle, selectedItems.toList()) }
-                )
+                    )
+                }
+                isTravel && step == 2 -> {
+                    WizardDateStep(
+                        onDateSelected = {
+                            selectedDateMillis = it
+                            step = 3
+                        }
+                    )
+                }
+                (!isTravel && step == 1) || (isTravel && step == 3) -> {
+                    WizardStepOne(
+                        occasion = occasion,
+                        selectedTopic = selectedTopic,
+                        onTopicSelected = { selectedTopic = it },
+                        selectedStyle = selectedStyle,
+                        onStyleSelected = { selectedStyle = it },
+                        onNext = { step++ },
+                        onSkip = { onFinish(context2.getString(R.string.no_topic_option), context2.getString(R.string.wizard_style_none), emptyList(), selectedDestination, selectedDateMillis) }
+                    )
+                }
+                (!isTravel && step == 2) || (isTravel && step == 4) -> {
+                    WizardStepTwo(
+                        allItems = allItems,
+                        selectedItems = selectedItems,
+                        onItemSelected = { item ->
+                            selectedItems = if (selectedItems.contains(item)) {
+                                selectedItems - item
+                            } else {
+                                selectedItems + item
+                            }
+                        },
+                        onFinish = { onFinish(selectedTopic, selectedStyle, selectedItems.toList(), selectedDestination, selectedDateMillis) }
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WizardDestinationStep(onDestinationSelected: (String) -> Unit) {
+    var searchQuery by remember { mutableStateOf("") }
+    val cities = listOf(
+        stringResource(R.string.city_tokyo), stringResource(R.string.city_seoul),
+        stringResource(R.string.city_bangkok), stringResource(R.string.city_hongkong),
+        stringResource(R.string.city_singapore), stringResource(R.string.city_paris),
+        stringResource(R.string.city_london), stringResource(R.string.city_rome),
+        stringResource(R.string.city_barcelona), stringResource(R.string.city_amsterdam),
+        stringResource(R.string.city_newyork), stringResource(R.string.city_losangeles),
+        stringResource(R.string.city_toronto), stringResource(R.string.city_vancouver),
+        stringResource(R.string.city_riodejaneiro), stringResource(R.string.city_buenosaires),
+        stringResource(R.string.city_sydney), stringResource(R.string.city_melbourne),
+        stringResource(R.string.city_dubai)
+    )
+    val filteredCities = cities.filter { it.contains(searchQuery, ignoreCase = true) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(stringResource(R.string.wizard_travel_destination_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        TextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+            placeholder = { Text(stringResource(R.string.ai_location_search_placeholder)) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFFF5F5F5),
+                unfocusedContainerColor = Color(0xFFF5F5F5),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            )
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(filteredCities) { city ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { onDestinationSelected(city) }.padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(city, fontSize = 16.sp)
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WizardDateStep(onDateSelected: (Long) -> Unit) {
+    val datePickerState = rememberDatePickerState()
+    
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(stringResource(R.string.wizard_travel_date_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        DatePicker(
+            state = datePickerState,
+            showModeToggle = false,
+            title = null,
+            headline = null,
+            modifier = Modifier.weight(1f)
+        )
+        
+        Button(
+            onClick = { datePickerState.selectedDateMillis?.let { onDateSelected(it) } },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = if (datePickerState.selectedDateMillis != null) Color(0xFF1A1A1A) else Color.LightGray),
+            enabled = datePickerState.selectedDateMillis != null
+        ) {
+            Text(stringResource(R.string.next_button), color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -982,7 +1087,16 @@ fun WizardStepOne(
                 context.getString(R.string.topic_school_presentation),
                 context.getString(R.string.topic_school_festival)
             )
-        } else if (occasion.contains("Làm việc", ignoreCase = true) || occasion.contains("Work", ignoreCase = true)) {
+        } else if (occasion.contains("Du lịch", ignoreCase = true) || occasion.contains("Travel", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_travel_beach),
+                context.getString(R.string.topic_travel_city),
+                context.getString(R.string.topic_travel_culture),
+                context.getString(R.string.topic_travel_nature),
+                context.getString(R.string.topic_travel_camping)
+            )
+        } else if (occasion.contains("Work", ignoreCase = true) || occasion.contains("Làm việc", ignoreCase = true)) {
             listOf(
                 context.getString(R.string.no_topic_option),
                 context.getString(R.string.topic_work_office),
@@ -990,6 +1104,22 @@ fun WizardStepOne(
                 context.getString(R.string.topic_work_dinner),
                 context.getString(R.string.topic_work_home),
                 context.getString(R.string.topic_work_trip)
+            )
+        } else if (occasion.contains("Party", ignoreCase = true) || occasion.contains("Bữa tiệc", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_party_home),
+                context.getString(R.string.topic_party_prom),
+                context.getString(R.string.topic_party_slumber),
+                context.getString(R.string.topic_party_dinner),
+                context.getString(R.string.topic_party_costume),
+                context.getString(R.string.topic_party_christmas),
+                context.getString(R.string.topic_party_pool),
+                context.getString(R.string.topic_party_newyear),
+                context.getString(R.string.topic_party_yearend),
+                context.getString(R.string.topic_party_cocktail),
+                context.getString(R.string.topic_party_club),
+                context.getString(R.string.topic_party_birthday)
             )
         } else {
             listOf(

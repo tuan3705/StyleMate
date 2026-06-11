@@ -21,6 +21,8 @@ class AIChatViewModel(
     private val authStorage: AuthStorage
 ) : ViewModel() {
 
+    private val weatherRepository = com.example.stylemate.repository.WeatherRepository()
+
     private val _uiState = MutableStateFlow<AIChatUiState>(AIChatUiState.Welcome)
     val uiState: StateFlow<AIChatUiState> = _uiState.asStateFlow()
 
@@ -37,6 +39,62 @@ class AIChatViewModel(
     }
 
     fun sendMessage(text: String) {
+        sendMessageInternal(text)
+    }
+
+    fun sendWizardMessage(text: String, destination: String?, dateMillis: Long?) {
+        viewModelScope.launch {
+            var weatherContext = ""
+            val locationName = destination ?: "Hà Nội"
+            val dateStr = if (dateMillis != null) {
+                java.text.SimpleDateFormat("dd 'thg' MM", java.util.Locale.getDefault()).format(java.util.Date(dateMillis))
+            } else "Hôm nay"
+            var tempStr = "26 / 22°C"
+            var lat: Double? = null
+            var lon: Double? = null
+
+            if (destination != null) {
+                try {
+                    // Mock coordinates for cities for now
+                    val coords = getCoordinatesForCity(destination)
+                    lat = coords.first
+                    lon = coords.second
+                    
+                    val weather = weatherRepository.getWeatherForecast(lat, lon)
+                    tempStr = "${weather.current.tempC.toInt()} / ${weather.forecast.forecastDay.firstOrNull()?.day?.minTempC?.toInt()}°C"
+                    weatherContext = "\nThời tiết tại $destination vào $dateStr: ${weather.current.condition.text}, $tempStr."
+                } catch (ignore: Exception) {
+                    // Fallback if weather fails
+                }
+            }
+
+            val finalMessage = if (weatherContext.isNotEmpty()) {
+                "$text. $weatherContext"
+            } else {
+                text
+            }
+
+            sendMessageInternal(
+                finalMessage, 
+                overrideLocation = locationName, 
+                overrideDate = dateStr, 
+                overrideTemp = tempStr,
+                lat = lat,
+                lon = lon,
+                dateMillis = dateMillis
+            )
+        }
+    }
+
+    private fun sendMessageInternal(
+        text: String,
+        overrideLocation: String? = null,
+        overrideDate: String? = null,
+        overrideTemp: String? = null,
+        lat: Double? = null,
+        lon: Double? = null,
+        dateMillis: Long? = null
+    ) {
         if (text.isBlank()) return
 
         viewModelScope.launch {
@@ -54,7 +112,10 @@ class AIChatViewModel(
                     ChatRequest(
                         userId = userId,
                         message = text,
-                        sessionId = currentSessionId
+                        sessionId = currentSessionId,
+                        lat = lat,
+                        lon = lon,
+                        dateMillis = dateMillis
                     )
                 )
 
@@ -77,9 +138,9 @@ class AIChatViewModel(
                         _currentRecommendation.value = AiRecommendation(
                             styleTitle = outfit.style_title ?: "Phong cách phù hợp",
                             description = outfit.description ?: responseText,
-                            date = outfit.date ?: "09 thg 6",
-                            location = outfit.location ?: "Hà Nội",
-                            temp = outfit.temp ?: "26 / 22°C",
+                            date = overrideDate ?: outfit.date ?: "09 thg 6",
+                            location = overrideLocation ?: outfit.location ?: "Hà Nội",
+                            temp = overrideTemp ?: outfit.temp ?: "26 / 22°C",
                             sections = outfit.sections ?: emptyList(),
                             outfit = outfit
                         )
@@ -93,6 +154,31 @@ class AIChatViewModel(
             } catch (e: Exception) {
                 _uiState.value = AIChatUiState.Error(e.message ?: "Lỗi không xác định")
             }
+        }
+    }
+
+    private fun getCoordinatesForCity(city: String): Pair<Double, Double> {
+        return when (city) {
+            "Tokyo" -> 35.6895 to 139.6917
+            "Seoul" -> 37.5665 to 126.9780
+            "Bangkok" -> 13.7563 to 100.5018
+            "Hồng Kông" -> 22.3193 to 114.1694
+            "Singapore" -> 1.3521 to 103.8198
+            "Paris" -> 48.8566 to 2.3522
+            "Luân Đôn" -> 51.5074 to -0.1278
+            "Rome" -> 41.9028 to 12.4964
+            "Barcelona" -> 41.3851 to 2.1734
+            "Amsterdam" -> 52.3676 to 4.9041
+            "New York" -> 40.7128 to -74.0060
+            "Los Angeles" -> 34.0522 to -118.2437
+            "Toronto" -> 43.6532 to -79.3832
+            "Vancouver" -> 49.2827 to -123.1207
+            "Rio de Janeiro" -> -22.9068 to -43.1729
+            "Buenos Aires" -> -34.6037 to -58.3816
+            "Sydney" -> -33.8688 to 151.2093
+            "Melbourne" -> -37.8136 to 144.9631
+            "Dubai" -> 25.2048 to 55.2708
+            else -> 21.0285 to 105.8542 // Hanoi
         }
     }
 
