@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -188,16 +189,18 @@ fun WeatherScreen(
     }
 
     // ── UI ──────────────────────────────────────────────────────────
+    val isDarkTheme = isSystemInDarkTheme()
+    val weatherBgColors = if (isDarkTheme) {
+        listOf(Color(0xFF0D1B2A), Color(0xFF1B3A5C), Color(0xFF1A237E))
+    } else {
+        listOf(Color(0xFF1A237E), Color(0xFF4A90D9), Color(0xFF87CEEB))
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A237E),
-                        Color(0xFF4A90D9)
-                    )
-                )
+                Brush.verticalGradient(colors = weatherBgColors)
             )
     ) {
         when {

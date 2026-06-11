@@ -256,7 +256,7 @@ fun ImagePickerSection(
             ?.let { data ->
                 ImageRequest.Builder(context)
                     .data(data)
-                    .crossfade(true)
+                    .crossfade(false)
                     .build()
             }
     }

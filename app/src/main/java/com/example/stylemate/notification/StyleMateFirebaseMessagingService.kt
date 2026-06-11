@@ -13,7 +13,7 @@ class StyleMateFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("StyleMateFcmService", "onNewToken len=${'$'}{token.length}")
+        Log.d("StyleMateFcmService", "onNewToken len=${token.length}")
         val app = applicationContext as StyleMateApp
         CoroutineScope(Dispatchers.IO).launch {
             app.fcmRepository.syncFcmToken(token)
