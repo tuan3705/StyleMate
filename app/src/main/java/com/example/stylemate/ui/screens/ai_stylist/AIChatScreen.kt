@@ -316,10 +316,17 @@ fun LoadingView(lastMessageText: String) {
     var displayedPrompt by remember { mutableStateOf("") }
     var showAiStatus by remember { mutableStateOf(false) }
     
-    LaunchedEffect(lastMessageText) {
-        if (lastMessageText.isNotBlank()) {
-            lastMessageText.forEachIndexed { index, _ ->
-                displayedPrompt = lastMessageText.substring(0, index + 1)
+    // Use the specific prompt text requested or fallback to dynamic text
+    val promptToDisplay = if (lastMessageText.contains("Ở nhà/Thư giãn", ignoreCase = true)) {
+        "Trang phục Thường ngày Hàng ngày cho Ở nhà/Thư giãn."
+    } else {
+        lastMessageText
+    }
+
+    LaunchedEffect(promptToDisplay) {
+        if (promptToDisplay.isNotBlank()) {
+            promptToDisplay.forEachIndexed { index, _ ->
+                displayedPrompt = promptToDisplay.substring(0, index + 1)
                 delay(30) // Typewriter speed
             }
             delay(500)
@@ -332,20 +339,16 @@ fun LoadingView(lastMessageText: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // User's request bubble (Typewriter effect)
+        // User's request (Centered)
         if (displayedPrompt.isNotBlank()) {
-            Surface(
-                color = Color.Gray.copy(alpha = 0.05f),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.align(Alignment.End).padding(bottom = 48.dp)
-            ) {
-                Text(
-                    displayedPrompt,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    fontSize = 16.sp,
-                    color = Color.Black.copy(alpha = 0.8f)
-                )
-            }
+            Text(
+                text = displayedPrompt,
+                modifier = Modifier.padding(bottom = 64.dp),
+                fontSize = 18.sp,
+                color = Color.Black.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                lineHeight = 28.sp
+            )
         }
 
         AnimatedVisibility(
@@ -367,7 +370,7 @@ fun LoadingView(lastMessageText: String) {
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    "Đang tạo kiểu trang phục cho bạn...",
+                    "Đã nhận được! Chờ một chút nhé.",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -416,21 +419,24 @@ fun RecommendationView(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 160.dp) // Increased padding
+        contentPadding = PaddingValues(bottom = 24.dp) // Removed 160.dp to stop exactly at button
     ) {
         item {
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                 Text(
                     text = recommendation.styleTitle,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = recommendation.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Black.copy(alpha = 0.7f),
+                    color = Color.Gray,
                     lineHeight = 22.sp,
+                    fontSize = 15.sp,
                     maxLines = if (isExpanded) Int.MAX_VALUE else 3,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -461,12 +467,14 @@ fun RecommendationView(
                     Text(
                         text = "Gợi ý hàng đầu từ ",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
                     )
                     Text(
                         text = "Tất cả quần áo",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
                         color = Color(0xFF2196F3)
                     )
                 }
@@ -495,10 +503,15 @@ fun RecommendationView(
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Nhận gợi ý trang phục", color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    "Nhận gợi ý trang phục", 
+                    color = Color.White, 
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp)) // Fixed bottom padding
         }
     }
 }
