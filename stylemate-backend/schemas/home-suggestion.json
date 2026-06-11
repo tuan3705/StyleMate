@@ -13,6 +13,7 @@
         "required": ["id", "item_ids", "reason"],
         "properties": {
           "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["saved", "new"] },
           "item_ids": { "type": "array", "items": { "type": "string" } },
           "reason": { "type": "string" },
           "confidence": { "type": "number" }
