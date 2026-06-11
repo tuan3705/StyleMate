@@ -78,6 +78,7 @@ fun AIChatScreen(
 
     var inputText by remember { mutableStateOf("") }
     var showWizard by remember { mutableStateOf(false) }
+    var selectedOccasion by remember { mutableStateOf("") }
     var showSaveSheet by remember { mutableStateOf(false) }
     var isChatHistoryVisible by remember { mutableStateOf(false) }
     var isChatBubbleDismissed by remember { mutableStateOf(false) }
@@ -143,6 +144,7 @@ fun AIChatScreen(
                                 Surface(
                                     onClick = { 
                                         inputText = context.getString(R.string.prompt_suggest_prefix) + prompt
+                                        selectedOccasion = prompt
                                         showWizard = true 
                                     },
                                     shape = RoundedCornerShape(24.dp),
@@ -285,10 +287,11 @@ fun AIChatScreen(
 
     if (showWizard) {
         OutfitWizardSheet(
+            occasion = selectedOccasion,
             onDismiss = { showWizard = false },
             onFinish = { topic, style, items ->
                 val itemList = items.joinToString { it.name }
-                val wizardResult = context.getString(R.string.wizard_result_message, topic, style, itemList)
+                val wizardResult = context.getString(R.string.wizard_result_message, selectedOccasion, topic, style, itemList)
                 viewModel.sendMessage(wizardResult)
                 showWizard = false
             }
@@ -326,11 +329,46 @@ fun WelcomeView() {
 fun LoadingView(lastMessageText: String) {
     var displayedPrompt by remember { mutableStateOf("") }
     var showAiStatus by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
     
-    LaunchedEffect(lastMessageText) {
-        if (lastMessageText.isNotBlank()) {
-            lastMessageText.forEachIndexed { index, _ ->
-                displayedPrompt = lastMessageText.substring(0, index + 1)
+    // User-friendly prompt reveal
+    val promptToDisplay = remember(lastMessageText) {
+        if (lastMessageText.isBlank()) {
+            context.getString(R.string.loading_prompt_default)
+        } else {
+            // Try to parse wizard message: "Tôi muốn tìm trang phục cho dịp %1$s.\nChủ đề: %2$s\nPhong cách: %3$s\n..."
+            val occasionMatch = Regex("dịp ([^.\\n]+)").find(lastMessageText)
+            val topicMatch = Regex("Chủ đề: ([^\\n]+)").find(lastMessageText)
+            val styleMatch = Regex("Phong cách: ([^\\n]+)").find(lastMessageText)
+            
+            val occasion = occasionMatch?.groupValues?.get(1)?.trim()
+            val topic = topicMatch?.groupValues?.get(1)?.trim()
+            val style = styleMatch?.groupValues?.get(1)?.trim()
+            
+            if (occasion != null) {
+                if (occasion.contains("Trường học", ignoreCase = true)) {
+                    val topicPart = if (topic != null && !topic.contains("Không có", ignoreCase = true)) topic else "Bài giảng"
+                    val stylePart = if (style != null && !style.contains("Không có", ignoreCase = true)) style else "Thường ngày"
+                    // "Trang phục [Phong cách] Trường học cho [Chủ đề]."
+                    "Trang phục $stylePart Trường học cho $topicPart."
+                } else {
+                    val topicPart = if (topic != null && !topic.contains("Không có", ignoreCase = true)) topic else "Ở nhà/Thư giãn"
+                    val stylePart = if (style != null && !style.contains("Không có", ignoreCase = true)) style else "Thường ngày"
+                    // "Trang phục [Phong cách] Hàng ngày cho [Chủ đề]."
+                    val occasionDisplay = if (occasion.contains("Hàng ngày", ignoreCase = true)) "Hàng ngày" else occasion
+                    "Trang phục $stylePart $occasionDisplay cho $topicPart."
+                }
+            } else {
+                context.getString(R.string.loading_prompt_default)
+            }
+        }
+    }
+
+    LaunchedEffect(promptToDisplay) {
+        if (promptToDisplay.isNotBlank()) {
+            promptToDisplay.forEachIndexed { index, _ ->
+                displayedPrompt = promptToDisplay.substring(0, index + 1)
                 delay(30) // Typewriter speed
             }
             delay(500)
@@ -343,20 +381,16 @@ fun LoadingView(lastMessageText: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // User's request bubble (Typewriter effect)
+        // Centered prompt
         if (displayedPrompt.isNotBlank()) {
-            Surface(
-                color = Color.Gray.copy(alpha = 0.05f),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.align(Alignment.End).padding(bottom = 48.dp)
-            ) {
-                Text(
-                    displayedPrompt,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    fontSize = 16.sp,
-                    color = Color.Black.copy(alpha = 0.8f)
-                )
-            }
+            Text(
+                text = displayedPrompt,
+                modifier = Modifier.padding(bottom = 64.dp).fillMaxWidth(),
+                fontSize = 18.sp,
+                color = Color.Black.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                lineHeight = 28.sp
+            )
         }
 
         AnimatedVisibility(
@@ -378,7 +412,7 @@ fun LoadingView(lastMessageText: String) {
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Text(
-                    stringResource(R.string.loading_generating_outfit),
+                    stringResource(R.string.loading_status_ai),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
@@ -397,7 +431,7 @@ fun LoadingView(lastMessageText: String) {
                     Text(
                         stringResource(R.string.tip_content),
                         fontSize = 14.sp,
-                        lineHeight = 20.sp,
+                        lineHeight = 22.sp,
                         color = Color.Black.copy(alpha = 0.7f)
                     )
                 }
@@ -427,21 +461,24 @@ fun RecommendationView(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 160.dp) // Increased padding
+        contentPadding = PaddingValues(bottom = 24.dp)
     ) {
         item {
             Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                 Text(
                     text = recommendation.styleTitle,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = recommendation.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Black.copy(alpha = 0.7f),
+                    color = Color.Gray,
                     lineHeight = 22.sp,
+                    fontSize = 15.sp,
                     maxLines = if (isExpanded) Int.MAX_VALUE else 3,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -468,16 +505,21 @@ fun RecommendationView(
 
                 Spacer(modifier = Modifier.height(40.dp))
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
                         text = stringResource(R.string.top_recommendations_from),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
                     )
                     Text(
                         text = stringResource(R.string.all_clothes),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
                         color = Color(0xFF2196F3)
                     )
                 }
@@ -506,10 +548,15 @@ fun RecommendationView(
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(stringResource(R.string.get_outfit_suggestion), color = Color.White, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(R.string.get_outfit_suggestion),
+                    color = Color.White, 
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -824,6 +871,7 @@ fun CalendarPickerSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OutfitWizardSheet(
+    occasion: String,
     onDismiss: () -> Unit,
     onFinish: (String, String, List<ClothingItemEntity>) -> Unit
 ) {
@@ -885,6 +933,7 @@ fun OutfitWizardSheet(
 
             if (step == 1) {
                 WizardStepOne(
+                    occasion = occasion,
                     selectedTopic = selectedTopic,
                     onTopicSelected = { selectedTopic = it },
                     selectedStyle = selectedStyle,
@@ -914,6 +963,7 @@ fun OutfitWizardSheet(
 
 @Composable
 fun WizardStepOne(
+    occasion: String,
     selectedTopic: String,
     onTopicSelected: (String) -> Unit,
     selectedStyle: String,
@@ -922,28 +972,64 @@ fun WizardStepOne(
     onSkip: () -> Unit
 ) {
     val context = LocalContext.current
-    val topics = listOf(
-        context.getString(R.string.no_topic_option),
-        context.getString(R.string.topic_home_relax),
-        context.getString(R.string.topic_loungewear),
-        context.getString(R.string.topic_cafe_hangout),
-        context.getString(R.string.topic_exhibition),
-        context.getString(R.string.topic_movie)
-    )
-    val styles = listOf(
-        context.getString(R.string.wizard_style_none),
-        context.getString(R.string.style_casual),
-        context.getString(R.string.style_classic),
-        context.getString(R.string.style_street),
-        context.getString(R.string.style_modern),
-        context.getString(R.string.style_minimalist),
-        context.getString(R.string.style_feminine),
-        context.getString(R.string.style_bohemian),
-        context.getString(R.string.style_smart_casual),
-        context.getString(R.string.style_semi_formal),
-        context.getString(R.string.style_formal),
-        context.getString(R.string.style_party)
-    )
+    val topics = remember(occasion) {
+        if (occasion.contains("Trường học", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_school_regular),
+                context.getString(R.string.topic_school_library),
+                context.getString(R.string.topic_school_extracurricular),
+                context.getString(R.string.topic_school_presentation),
+                context.getString(R.string.topic_school_festival)
+            )
+        } else if (occasion.contains("Làm việc", ignoreCase = true) || occasion.contains("Work", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_work_office),
+                context.getString(R.string.topic_work_meeting),
+                context.getString(R.string.topic_work_dinner),
+                context.getString(R.string.topic_work_home),
+                context.getString(R.string.topic_work_trip)
+            )
+        } else {
+            listOf(
+                context.getString(R.string.no_topic_option),
+                context.getString(R.string.topic_home_relax),
+                context.getString(R.string.topic_loungewear),
+                context.getString(R.string.topic_cafe_hangout),
+                context.getString(R.string.topic_exhibition),
+                context.getString(R.string.topic_movie)
+            )
+        }
+    }
+    
+    val styles = remember(occasion) {
+        if (occasion.contains("Trường học", ignoreCase = true)) {
+            listOf(
+                context.getString(R.string.wizard_style_none),
+                context.getString(R.string.style_school_preppy),
+                context.getString(R.string.style_school_active),
+                context.getString(R.string.style_school_elegant),
+                context.getString(R.string.style_school_edgy),
+                context.getString(R.string.style_school_vintage)
+            )
+        } else {
+            listOf(
+                context.getString(R.string.wizard_style_none),
+                context.getString(R.string.style_casual),
+                context.getString(R.string.style_classic),
+                context.getString(R.string.style_street),
+                context.getString(R.string.style_modern),
+                context.getString(R.string.style_minimalist),
+                context.getString(R.string.style_feminine),
+                context.getString(R.string.style_bohemian),
+                context.getString(R.string.style_smart_casual),
+                context.getString(R.string.style_semi_formal),
+                context.getString(R.string.style_formal),
+                context.getString(R.string.style_party)
+            )
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(stringResource(R.string.topic_title), fontWeight = FontWeight.Bold, fontSize = 16.sp)
