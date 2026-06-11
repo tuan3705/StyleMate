@@ -284,7 +284,8 @@ data class ChatRequest(
     val message: String,
     val sessionId: String? = null,
     val lat: Double? = null,
-    val lon: Double? = null
+    val lon: Double? = null,
+    val dateMillis: Long? = null
 )
 
 data class OutfitSectionDto(

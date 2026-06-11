@@ -86,11 +86,11 @@ async function hydrateOutfits(rawOutfits = [], userId) {
  * 💬 POST /api/ai-stylist/chat
  */
 const postChat = asyncHandler(async (req, res) => {
-  const { userId, message, sessionId, lat, lon } = req.body;
+  const { userId, message, sessionId, lat, lon, dateMillis } = req.body;
   if (!userId || !message) throw new AppError('Thiếu userId hoặc tin nhắn', 400);
 
   const relevantItems = await closetSearchService.findRelevantItems(userId, message);
-  const baseContext = await contextService.buildContext({ userId, lat, lon });
+  const baseContext = await contextService.buildContext({ userId, lat, lon, dateMillis });
   const context = { ...baseContext, closet: { items: relevantItems } };
 
   let session = sessionId ? chatSessionService.getSession(sessionId) : null;

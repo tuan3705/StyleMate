@@ -125,12 +125,18 @@
     <string name="chat_add_content_desc">Add</string>
     <string name="toggle_chat_content_desc">Toggle Chat</string>
     <string name="welcome_greeting">Chào, HungBu\nBạn cần trang phục nào?</string>
-    <string name="loading_generating_outfit">Đang tạo kiểu trang phục cho bạn…</string>
+
+    <!-- Loading Screen -->
+    <string name="loading_prompt_template">Trang phục %2$s %1$s cho %3$s.</string>
+    <string name="loading_prompt_default">Đang chuẩn bị trang phục tốt nhất cho bạn…</string>
+    <string name="loading_prompt_school">Trang phục Thường ngày Trường học cho Bài giảng.</string>
+    <string name="loading_status_ai">Đã nhận được! Chờ một chút nhé.</string>
     <string name="tip_title">Mẹo</string>
     <string name="tip_content">Bạn có thể chọn tủ đồ để Nhà tạo mẫu AI tham khảo cho các trang phục của bạn.</string>
+
     <string name="see_more">Xem thêm</string>
     <string name="collapse">Thu gọn</string>
-    <string name="top_recommendations_from">Gợi ý hàng đầu từ </string>
+    <string name="top_recommendations_from">"Gợi ý hàng đầu từ "</string>
     <string name="all_clothes">Tất cả quần áo</string>
     <string name="get_outfit_suggestion">Nhận gợi ý trang phục</string>
     <string name="no_matching_items_text">Chúng tôi không tìm thấy %1$s nào trong tủ đồ của bạn</string>
@@ -140,12 +146,12 @@
     <string name="select_date_title">Chọn ngày</string>
     <string name="save_date_button">Lưu</string>
     <string name="retry_button">Retry</string>
-    <string name="try_another_button">Try Another</string>
-    <string name="save_outfit_simple">Save Outfit</string>
-    <string name="start_try_on">Start Try-On</string>
 
     <!-- Wizard -->
     <string name="wizard_step_format">%1$d / 2</string>
+    <string name="wizard_step_format_4">%1$d / 4</string>
+    <string name="wizard_travel_destination_title">Bạn sẽ đi đâu?</string>
+    <string name="wizard_travel_date_title">Khi nào bạn khởi hành?</string>
     <string name="topic_title">Chủ đề</string>
     <string name="style_title">Phong cách</string>
     <string name="next_button">Tiếp theo</string>
@@ -153,11 +159,48 @@
     <string name="wizard_step_two_title">Những món đồ không thể thiếu cho trang phục của bạn</string>
     <string name="wizard_all_label">Tất cả</string>
     <string name="no_topic_option">Không có</string>
+    <string name="wizard_style_none">Không có</string>
     <string name="topic_home_relax">Ở nhà/Thư giãn</string>
     <string name="topic_loungewear">Đồ mặc ở nhà</string>
     <string name="topic_cafe_hangout">Quán cà phê/Tụ tập</string>
     <string name="topic_exhibition">Triển lẫm</string>
     <string name="topic_movie">Phim</string>
+
+    <!-- Travel Topics -->
+    <string name="topic_travel_beach">Bãi biển/Khu nghỉ dưỡng</string>
+    <string name="topic_travel_city">Du lịch thành phố</string>
+    <string name="topic_travel_culture">Du lịch văn hóa</string>
+    <string name="topic_travel_nature">Thiên nhiên/Thư giãn</string>
+    <string name="topic_travel_camping">Cắm trại/Đi bộ đường dài</string>
+
+    <!-- School Topics -->
+    <string name="topic_school_regular">Bài giảng</string>
+    <string name="topic_school_library">Thư viện</string>
+    <string name="topic_school_extracurricular">Câu lạc bộ/Hội họp</string>
+    <string name="topic_school_presentation">Thuyết trình</string>
+    <string name="topic_school_festival">Lễ hội/Sự kiện</string>
+
+    <!-- Work Topics -->
+    <string name="topic_work_office">Văn phòng</string>
+    <string name="topic_work_meeting">Cuộc họp/Thuyết trình</string>
+    <string name="topic_work_dinner">Tiệc tối công ty</string>
+    <string name="topic_work_home">Làm việc tại nhà</string>
+    <string name="topic_work_trip">Công tác</string>
+
+    <!-- Party Topics -->
+    <string name="topic_party_home">Tiệc tại gia</string>
+    <string name="topic_party_prom">Dạ hội cuối cấp</string>
+    <string name="topic_party_slumber">Tiệc ngủ</string>
+    <string name="topic_party_dinner">Tiệc tối</string>
+    <string name="topic_party_costume">Tiệc hoá trang</string>
+    <string name="topic_party_christmas">Tiệc Giáng sinh</string>
+    <string name="topic_party_pool">Tiệc bể bơi</string>
+    <string name="topic_party_newyear">Tiệc mừng năm mới</string>
+    <string name="topic_party_yearend">Tiệc cuối năm</string>
+    <string name="topic_party_cocktail">Tiệc cocktail</string>
+    <string name="topic_party_club">Tiệc câu lạc bộ</string>
+    <string name="topic_party_birthday">Tiệc sinh nhật</string>
+
     <string name="style_casual">Thường ngày</string>
     <string name="style_classic">Cổ điển</string>
     <string name="style_street">Đường phố</string>
@@ -170,6 +213,13 @@
     <string name="style_formal">Trang trọng</string>
     <string name="style_party">Dự tiệc</string>
 
+    <!-- School Styles -->
+    <string name="style_school_preppy">Học đường</string>
+    <string name="style_school_active">Năng động</string>
+    <string name="style_school_elegant">Thanh lịch</string>
+    <string name="style_school_edgy">Cá tính</string>
+    <string name="style_school_vintage">Cổ điển</string>
+
     <!-- AI Chat prompts -->
     <string name="prompt_daily">Hàng ngày</string>
     <string name="prompt_school">Trường học</string>
@@ -178,17 +228,19 @@
     <string name="prompt_party">Bữa tiệc</string>
     <string name="prompt_date">Hẹn hò</string>
     <string name="prompt_wedding">Đám cưới</string>
-    <string name="prompt_suggest_prefix">Gợi ý trang phục đi </string>
-    <string name="chat_placeholder_date">Gợi ý trang phục đi hẹn hò</string>
-    <string name="chat_placeholder_how_to_wear">Cách phối đồ với áo len?</string>
-    <string name="chat_placeholder_semi_formal">Trang phục semi-formal đi đám cưới</string>
-    <string name="chat_placeholder_style_with_item">Phối đồ với chiếc áo này thế nào?</string>
-    <string name="chat_placeholder_friday_night">Tối thứ 6 nên mặc gì?</string>
-    <string name="chat_placeholder_today">Hôm nay mặc gì?</string>
-    <string name="chat_placeholder_casual">Trang phục thường ngày thoải mái</string>
-    <string name="wizard_result_format">Tôi muốn tìm trang phục cho dịp này.\nChủ đề: %1$s\nPhong cách: %2$s\nMón đồ tôi muốn dùng: %3$s</string>
-    <string name="wardrobe_empty_text">Tủ đồ của bạn đang trống. Hãy thêm quần áo trước nhé!</string>
-    <string name="no_items_available">Không có món đồ nào</string>
+    <string name="prompt_suggest_prefix">"Gợi ý trang phục đi "</string>
+
+    <string name="wizard_chat_placeholder_date">Gợi ý trang phục đi hẹn hò</string>
+    <string name="wizard_chat_placeholder_len">Cách phối đồ với áo len?</string>
+    <string name="wizard_chat_placeholder_semi">Trang phục semi-formal đi đám cưới</string>
+    <string name="wizard_chat_placeholder_style">Phối đồ với chiếc áo này thế nào?</string>
+    <string name="wizard_chat_placeholder_friday">Tối thứ 6 nên mặc gì?</string>
+    <string name="wizard_chat_placeholder_today">Hôm nay mặc gì?</string>
+    <string name="wizard_chat_placeholder_casual">Trang phục thường ngày thoải mái</string>
+
+    <string name="wizard_result_message">Tôi muốn tìm trang phục cho dịp %1$s.\nChủ đề: %2$s\nPhong cách: %3$s\nMón đồ tôi muốn dùng: %4$s</string>
+    <string name="wizard_not_found_prefix">"Chúng tôi không tìm thấy "</string>
+    <string name="wizard_not_found_suffix">" nào trong tủ đồ của bạn"</string>
 
     <!-- ===================== WEATHER SCREEN ===================== -->
     <string name="weather_today">Thời tiết hôm nay</string>
@@ -219,6 +271,9 @@
     <string name="tryon_status_label">Status: %1$s</string>
     <string name="tryon_result_content_desc">Try-On Result</string>
     <string name="tryon_failed_label">Try-On Failed: %1$s</string>
+    <string name="start_try_on">Start Try-On</string>
+    <string name="save_outfit_simple">Save Outfit</string>
+    <string name="try_another_button">Try Another</string>
 
     <!-- ===================== ITEM UPLOAD ===================== -->
     <string name="upload_item_title">Upload Item</string>
@@ -327,18 +382,11 @@
 
     <!-- ===================== AI CHAT SCREEN ===================== -->
     <string name="prompts_list">[\"Hàng ngày\",\"Trường học\",\"Làm việc\",\"Du lịch\",\"Bữa tiệc\",\"Hẹn hò\",\"Đám cưới\"]</string>
-    <string name="ai_chat_placeholder_date">Gợi ý trang phục đi hẹn hò</string>
-    <string name="ai_chat_placeholder_len">Cách phối đồ với áo len?</string>
-    <string name="ai_chat_placeholder_semi">Trang phục semi-formal đi đám cưới</string>
-    <string name="ai_chat_placeholder_style">Phối đồ với chiếc áo này thế nào?</string>
-    <string name="ai_chat_placeholder_friday">Tối thứ 6 nên mặc gì?</string>
-    <string name="ai_chat_placeholder_today">Hôm nay mặc gì?</string>
-    <string name="ai_chat_placeholder_casual">Trang phục thường ngày thoải mái</string>
-    <string name="ai_recommendation_title_from">Gợi ý hàng đầu từ </string>
+    <string name="ai_recommendation_title_from">"Gợi ý hàng đầu từ "</string>
     <string name="ai_recommendation_all_clothes">Tất cả quần áo</string>
     <string name="ai_recommendation_button">Nhận gợi ý trang phục</string>
-    <string name="ai_matching_item_not_found_prefix">Chúng tôi không tìm thấy </string>
-    <string name="ai_matching_item_not_found_suffix"> nào trong tủ đồ của bạn</string>
+    <string name="ai_matching_item_not_found_prefix">"Chúng tôi không tìm thấy "</string>
+    <string name="ai_matching_item_not_found_suffix">" nào trong tủ đồ của bạn"</string>
 
     <!-- ===================== CLOSET SCREEN (ADDITIONAL) ===================== -->
     <string name="quick_add_item_title">Quick Add Item</string>
@@ -405,24 +453,31 @@
     <string name="ai_stylist_wed">Thứ 4</string>
     <string name="ai_stylist_thu">Thứ 5</string>
 
+    <!-- Travel Destinations -->
+    <string name="city_tokyo">Tokyo</string>
+    <string name="city_seoul">Seoul</string>
+    <string name="city_bangkok">Bangkok</string>
+    <string name="city_hongkong">Hồng Kông</string>
+    <string name="city_singapore">Singapore</string>
+    <string name="city_paris">Paris</string>
+    <string name="city_london">Luân Đôn</string>
+    <string name="city_rome">Rome</string>
+    <string name="city_barcelona">Barcelona</string>
+    <string name="city_amsterdam">Amsterdam</string>
+    <string name="city_newyork">New York</string>
+    <string name="city_losangeles">Los Angeles</string>
+    <string name="city_toronto">Toronto</string>
+    <string name="city_vancouver">Vancouver</string>
+    <string name="city_riodejaneiro">Rio de Janeiro</string>
+    <string name="city_buenosaires">Buenos Aires</string>
+    <string name="city_sydney">Sydney</string>
+    <string name="city_melbourne">Melbourne</string>
+    <string name="city_dubai">Dubai</string>
+
     <!-- ===================== AI CHAT REMAINING ===================== -->
     <string name="wizard_back_desc">Back</string>
-    <string name="wizard_result_message">Tôi muốn tìm trang phục cho dịp này.\nChủ đề: %1$s\nPhong cách: %2$s\nMón đồ tôi muốn dùng: %3$s</string>
     <string name="wizard_category_tops">Áo</string>
     <string name="wizard_category_bottoms">Quần dài</string>
-
-    <!-- Wizard Topics -->
-    <string name="wizard_no_topic">Không có</string>
-    <string name="wizard_style_none">Không có</string>
-    <string name="wizard_chat_placeholder_date">Gợi ý trang phục đi hẹn hò</string>
-    <string name="wizard_chat_placeholder_len">Cách phối đồ với áo len?</string>
-    <string name="wizard_chat_placeholder_semi">Trang phục semi-formal đi đám cưới</string>
-    <string name="wizard_chat_placeholder_style">Phối đồ với chiếc áo này thế nào?</string>
-    <string name="wizard_chat_placeholder_friday">Tối thứ 6 nên mặc gì?</string>
-    <string name="wizard_chat_placeholder_today">Hôm nay mặc gì?</string>
-    <string name="wizard_chat_placeholder_casual">Trang phục thường ngày thoải mái</string>
-    <string name="wizard_not_found_prefix">Chúng tôi không tìm thấy </string>
-    <string name="wizard_not_found_suffix"> nào trong tủ đồ của bạn</string>
 
     <!-- Calendar month names -->
     <string-array name="month_names">
