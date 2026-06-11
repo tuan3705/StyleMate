@@ -42,6 +42,17 @@ class ClothingViewModel(
 
     val selectedCategory: StateFlow<String> = _selectedCategory
 
+    /**
+     * Tất cả items (không filter category) — dùng cho AddItems BottomSheet.
+     * ⚡ Share subscription qua ViewModel để tránh infinite recomposition loop.
+     */
+    val allItems: StateFlow<List<ClothingItemEntity>> = repository.getAllItems()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: StateFlow<List<ClothingItemEntity>> = combine(
         _selectedCategory,

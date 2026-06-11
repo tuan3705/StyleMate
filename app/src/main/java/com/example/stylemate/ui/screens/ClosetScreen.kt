@@ -138,7 +138,7 @@ fun ClosetScreen(
     val searchQuery by clothingVM.searchQuery.collectAsStateWithLifecycle()
     val isItemsLoading by clothingVM.isLoading.collectAsStateWithLifecycle()
     val errorMessage by clothingVM.errorMessage.collectAsStateWithLifecycle()
-    val allClosetItems by clothingRepo.getAllItems().collectAsStateWithLifecycle(initialValue = emptyList())
+    val allClosetItems by clothingVM.allItems.collectAsStateWithLifecycle()
 
     // ── Collect StateFlows (Outfits) ────────────────────────────
     val outfits by outfitVM.outfits.collectAsStateWithLifecycle()
@@ -641,14 +641,10 @@ private fun SavedOutfitCard(
     val formattedDate = remember(outfit.createdAt) {
         dateFormat.format(Date(outfit.createdAt))
     }
-    val itemsWithPosition by produceState(
-        initialValue = emptyList<OutfitItemWithPosition>(),
-        key1 = outfit.id
-    ) {
-        value = outfitRepo.getOutfitItemsWithPosition(outfit.id)
-    }
-    val previewPlacements = remember(itemsWithPosition) {
-        mapOutfitPreviewPositions(itemsWithPosition)
+    // ⚡ CẢI TIẾN: Dùng items từ outfitWithItems (đã có sẵn khi load outfit list),
+    // KHÔNG gọi API riêng cho từng card (tránh N+1).
+    val previewPlacements = remember(items) {
+        mapClothingItemsToPlacements(items)
     }
 
     Card(
@@ -716,6 +712,20 @@ private fun mapOutfitPreviewPositions(
             val (x, y) = defaultOutfitGridPosition(index)
             OutfitViewModel.OutfitItemPlacement(entry.item, x, y, entry.scale)
         }
+    }
+}
+
+/**
+ * Chuyển List<ClothingItemEntity> (từ outfit list đã load) thành
+ * List<OutfitItemPlacement> với vị trí grid mặc định.
+ * ⚡ Không gọi API riêng cho từng card.
+ */
+private fun mapClothingItemsToPlacements(
+    items: List<ClothingItemEntity>
+): List<OutfitViewModel.OutfitItemPlacement> {
+    return items.mapIndexed { index, item ->
+        val (x, y) = defaultOutfitGridPosition(index)
+        OutfitViewModel.OutfitItemPlacement(item, x, y, 1f)
     }
 }
 
@@ -1573,7 +1583,7 @@ private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
         data?.let {
             ImageRequest.Builder(context)
                 .data(it)
-                .crossfade(true)
+                .crossfade(false)
                 .build()
         }
     }

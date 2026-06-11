@@ -21,23 +21,21 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        val localProperties = Properties().apply {
-            val localPropsFile = rootProject.file("local.properties")
-            if (localPropsFile.exists()) {
-                localPropsFile.inputStream().use { load(it) }
-            }
-        }
-        val stylemateBaseUrl = localProperties.getProperty("STYLEMATE_BASE_URL")
-            ?.takeIf { it.isNotBlank() }
-            ?: "http://10.0.2.2:3000/"
-
-        buildConfigField("String", "STYLEMATE_BASE_URL", "\"$stylemateBaseUrl\"")
     }
 
     buildTypes {
+        debug {
+            // ADB Reverse: chạy lệnh 'adb reverse tcp:8080 tcp:3000' rồi build
+            // App sẽ gọi http://127.0.0.1:8080/ → qua ADB → backend localhost:3000
+            buildConfigField("String", "STYLEMATE_BASE_URL", "\"http://127.0.0.1:8080/\"")
+        }
+
         release {
             isMinifyEnabled = false
+
+            // Nếu muốn URL production riêng, thay URL ở dòng dưới
+            buildConfigField("String", "STYLEMATE_BASE_URL", "\"http://10.0.2.2:3000/\"")
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

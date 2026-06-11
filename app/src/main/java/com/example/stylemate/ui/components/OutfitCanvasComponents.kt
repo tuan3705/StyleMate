@@ -77,12 +77,16 @@ fun getCategoryIcon(category: String): String = when (category) {
 fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
-        val url = item.imageNoBg.ifBlank { item.imageOriginal }
-        if (url.isNotBlank()) {
-            ImageRequest.Builder(context)
-                .data(url)
-                .crossfade(true)
-                .build()
+        val path = item.imageNoBg.ifBlank { item.imageOriginal }
+        if (path.isNotBlank()) {
+            // ⚡ Dùng resolveImageData để xử lý cả relative path (/uploads/...)
+            val data = com.example.stylemate.ui.common.resolveImageData(context, path)
+            if (data != null) {
+                ImageRequest.Builder(context)
+                    .data(data)
+                    .crossfade(false)
+                    .build()
+            } else null
         } else null
     }
 }
