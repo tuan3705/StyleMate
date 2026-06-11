@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -22,62 +24,88 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.stylemate.R
 import com.example.stylemate.viewmodel.AuthViewModel
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 
+/**
+ * Màn hình Login/SignUp theo kiến trúc MVVM.
+ *
+ * Composable KHÔNG quản lý state nào.
+ * Toàn bộ form state, validation, loading đều do [AuthViewModel] quản lý.
+ */
 @Composable
 fun LoginScreen(
-    uiState: AuthViewModel.AuthUiState,
-    onLogin: (String, String) -> Unit,
-    onRegister: (String, String) -> Unit,
-    onClearError: () -> Unit
+    viewModel: AuthViewModel,
+    onLoggedIn: () -> Unit
 ) {
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var isRegisterMode by rememberSaveable { mutableStateOf(false) }
-    var localError by rememberSaveable { mutableStateOf<String?>(null) }
+    val uiState by viewModel.uiState.collectAsState()
+    val focusManager = LocalFocusManager.current
 
-    val isSubmitting = uiState.isLoading
-    val passwordMismatch = isRegisterMode && confirmPassword.isNotBlank() && confirmPassword != password
-    val isFormValid = email.isNotBlank() && password.isNotBlank() && (!isRegisterMode || confirmPassword.isNotBlank()) && !passwordMismatch
-
-    val submitAction: () -> Unit = {
-        if (isRegisterMode) {
-            if (passwordMismatch) {
-                localError = "Mật khẩu xác nhận không khớp"
-            } else {
-                onRegister(email, password)
+    when (val state = uiState) {
+        is AuthViewModel.LoginUiState.Loading -> {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-        } else {
-            onLogin(email, password)
+        }
+
+        is AuthViewModel.LoginUiState.Form -> {
+            LoginForm(
+                state = state,
+                onEmailChange = viewModel::updateEmail,
+                onPasswordChange = viewModel::updatePassword,
+                onConfirmPasswordChange = viewModel::updateConfirmPassword,
+                onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
+                onToggleRegisterMode = viewModel::toggleRegisterMode,
+                onSubmit = viewModel::submit,
+                onClearError = viewModel::clearError,
+                focusManager = focusManager
+            )
+        }
+
+        is AuthViewModel.LoginUiState.LoggedIn -> {
+            // Handled by AppNavigation
+            onLoggedIn()
         }
     }
+}
 
-    val screenPadding = 24.dp
-    val cardPadding = 20.dp
-    val fieldSpacing = 12.dp
-    val sectionSpacing = 24.dp
-    val buttonSpacing = 16.dp
-    val fieldShape = RoundedCornerShape(12.dp)
-    val cardShape = RoundedCornerShape(20.dp)
+@Composable
+private fun LoginForm(
+    state: AuthViewModel.LoginUiState.Form,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onTogglePasswordVisibility: () -> Unit,
+    onToggleRegisterMode: () -> Unit,
+    onSubmit: () -> Unit,
+    onClearError: () -> Unit,
+    focusManager: FocusManager
+) {
+    val isSubmitting = state.isLoading
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -86,13 +114,13 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(screenPadding),
+                .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = cardShape,
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -100,101 +128,110 @@ fun LoginScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(cardPadding),
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = if (isRegisterMode) "StyleMate Sign Up" else "StyleMate Login",
+                        text = if (state.isRegisterMode)
+                            stringResource(R.string.signup_title)
+                        else
+                            stringResource(R.string.login_title),
                         style = MaterialTheme.typography.headlineMedium
                     )
 
-                    Spacer(modifier = Modifier.height(sectionSpacing))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     OutlinedTextField(
-                        value = email,
+                        value = state.email,
                         onValueChange = {
-                            email = it
+                            onEmailChange(it)
                             onClearError()
                         },
-                        label = { Text("Email") },
+                        label = { Text(stringResource(R.string.email_label)) },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !isSubmitting,
-                        shape = fieldShape,
+                        shape = MaterialTheme.shapes.small,
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Email,
                             imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(fieldSpacing))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
-                        value = password,
+                        value = state.password,
                         onValueChange = {
-                            password = it
-                            localError = null
+                            onPasswordChange(it)
                             onClearError()
                         },
-                        label = { Text("Password") },
+                        label = { Text(stringResource(R.string.password_label)) },
                         modifier = Modifier.fillMaxWidth(),
-                        visualTransformation = if (passwordVisible) {
+                        visualTransformation = if (state.passwordVisible) {
                             VisualTransformation.None
                         } else {
                             PasswordVisualTransformation()
                         },
                         trailingIcon = {
-                            val icon = if (passwordVisible) {
+                            val icon = if (state.passwordVisible) {
                                 Icons.Filled.VisibilityOff
                             } else {
                                 Icons.Filled.Visibility
                             }
-                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(icon, contentDescription = "Toggle password")
+                            IconButton(onClick = onTogglePasswordVisibility) {
+                                Icon(
+                                    icon,
+                                    contentDescription = stringResource(R.string.toggle_password_content_desc)
+                                )
                             }
                         },
                         enabled = !isSubmitting,
-                        shape = fieldShape,
+                        shape = MaterialTheme.shapes.small,
                         singleLine = true,
                         leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
-                            imeAction = if (isRegisterMode) ImeAction.Next else ImeAction.Done
+                            imeAction = if (state.isRegisterMode) ImeAction.Next else ImeAction.Done
                         ),
                         keyboardActions = KeyboardActions(
                             onDone = {
-                                if (!isRegisterMode && isFormValid && !isSubmitting) {
-                                    submitAction()
+                                if (!state.isRegisterMode && state.isFormValid && !isSubmitting) {
+                                    onSubmit()
                                 }
-                            }
+                            },
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         )
                     )
 
-                    if (isRegisterMode) {
-                        Spacer(modifier = Modifier.height(fieldSpacing))
+                    if (state.isRegisterMode) {
+                        Spacer(modifier = Modifier.height(12.dp))
+
                         OutlinedTextField(
-                            value = confirmPassword,
+                            value = state.confirmPassword,
                             onValueChange = {
-                                confirmPassword = it
-                                localError = null
+                                onConfirmPasswordChange(it)
                                 onClearError()
                             },
-                            label = { Text("Confirm Password") },
+                            label = { Text(stringResource(R.string.confirm_password_label)) },
                             modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = if (passwordVisible) {
+                            visualTransformation = if (state.passwordVisible) {
                                 VisualTransformation.None
                             } else {
                                 PasswordVisualTransformation()
                             },
                             enabled = !isSubmitting,
-                            shape = fieldShape,
+                            shape = MaterialTheme.shapes.small,
                             singleLine = true,
                             leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
-                            isError = passwordMismatch,
+                            isError = state.isPasswordMismatch,
                             supportingText = {
-                                if (passwordMismatch) {
-                                    Text("Mật khẩu xác nhận không khớp")
+                                if (state.isPasswordMismatch) {
+                                    Text(stringResource(R.string.password_mismatch))
                                 }
                             },
                             keyboardOptions = KeyboardOptions(
@@ -203,33 +240,35 @@ fun LoginScreen(
                             ),
                             keyboardActions = KeyboardActions(
                                 onDone = {
-                                    if (isFormValid && !isSubmitting) {
-                                        submitAction()
+                                    if (state.isFormValid && !isSubmitting) {
+                                        onSubmit()
                                     }
                                 }
                             )
                         )
                     }
 
-                    val errorText = localError
-                        ?: if (passwordMismatch) "Mật khẩu xác nhận không khớp" else null
-                        ?: uiState.errorMessage
-
-                    if (!errorText.isNullOrBlank()) {
+                    val displayError = state.validationError ?: state.errorMessage
+                    if (displayError != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = errorText,
-                            color = MaterialTheme.colorScheme.error
+                            text = when (displayError) {
+                                "password_mismatch" -> stringResource(R.string.password_mismatch)
+                                "session_expired" -> stringResource(R.string.session_expired)
+                                else -> displayError
+                            },
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(buttonSpacing))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = { submitAction() },
-                        enabled = !isSubmitting && isFormValid,
+                        onClick = onSubmit,
+                        enabled = !isSubmitting && state.isFormValid,
                         modifier = Modifier.fillMaxWidth(),
-                        shape = fieldShape
+                        shape = MaterialTheme.shapes.small
                     ) {
                         if (isSubmitting) {
                             CircularProgressIndicator(
@@ -237,25 +276,26 @@ fun LoginScreen(
                                 modifier = Modifier.height(18.dp)
                             )
                         } else {
-                            Text(if (isRegisterMode) "Đăng ký" else "Đăng nhập")
+                            Text(
+                                if (state.isRegisterMode)
+                                    stringResource(R.string.register_button)
+                                else
+                                    stringResource(R.string.login_button)
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(fieldSpacing))
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     TextButton(
-                        onClick = {
-                            isRegisterMode = !isRegisterMode
-                            localError = null
-                            onClearError()
-                        },
+                        onClick = onToggleRegisterMode,
                         enabled = !isSubmitting
                     ) {
                         Text(
-                            if (isRegisterMode) {
-                                "Đã có tài khoản? Đăng nhập"
-                            } else {
-                                "Chưa có tài khoản? Đăng ký"
-                            }
+                            if (state.isRegisterMode)
+                                stringResource(R.string.has_account_prompt)
+                            else
+                                stringResource(R.string.no_account_prompt)
                         )
                     }
                 }

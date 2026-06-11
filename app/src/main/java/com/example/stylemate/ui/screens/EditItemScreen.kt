@@ -43,6 +43,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,7 +56,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import android.util.Log
+import com.example.stylemate.R
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
@@ -70,10 +71,10 @@ import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import com.example.stylemate.viewmodel.ItemEditViewModel
 import com.example.stylemate.viewmodel.ItemEditViewModelFactory
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,52 +127,74 @@ fun EditItemScreen(
 
     var relevantOutfitsRefreshKey by remember { mutableStateOf(0) }
 
-    val onRemoveBackgroundClick = {
-        val currentPath = pickedImagePath ?: uiState.imageOriginal
-        if (currentPath.isBlank()) {
-            scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
-        } else {
-            imageProcessingViewModel.removeBackground(currentPath)
-        }
-        Unit
-    }
+    // Pre-resolve strings for non-composable usage
+    val strSelectImageError = remember { context.getString(R.string.please_select_image_error) }
+    val strTagging = remember { context.getString(R.string.tagging_label) }
+    val strAutoTagging = remember { context.getString(R.string.auto_tagging_label) }
+    val strFilling = remember { context.getString(R.string.filling_label) }
+    val strFillWithAi = remember { context.getString(R.string.fill_with_ai_label) }
+    val strSaving = remember { context.getString(R.string.saving_label) }
+    val strSaveChanges = remember { context.getString(R.string.save_changes) }
+    val strChon = remember { context.getString(R.string.select_date_button) }
+    val strHuy = remember { context.getString(R.string.cancel_button) }
+    val strEnterColorHint = remember { context.getString(R.string.enter_color_hint) }
+    val strEnterItemNameHint = remember { context.getString(R.string.enter_item_name_hint) }
+    val strEnterBrandHint = remember { context.getString(R.string.enter_brand_hint) }
+    val strEnterPriceHint = remember { context.getString(R.string.enter_price_hint) }
+    val strSelectCategoryHint = remember { context.getString(R.string.select_category_hint) }
+    val strTops = remember { context.getString(R.string.category_tops) }
+    val strBottoms = remember { context.getString(R.string.category_bottoms) }
+    val strDresses = remember { context.getString(R.string.category_dresses) }
+    val strFootwear = remember { context.getString(R.string.category_footwear) }
+    val strBags = remember { context.getString(R.string.category_bags) }
+    val strAccessories = remember { context.getString(R.string.category_accessories) }
+    val strJewelry = remember { context.getString(R.string.category_jewelry) }
+    val strSpring = remember { context.getString(R.string.season_spring) }
+    val strSummer = remember { context.getString(R.string.season_summer) }
+    val strAutumn = remember { context.getString(R.string.season_autumn) }
+    val strWinter = remember { context.getString(R.string.season_winter) }
+    val strCasual = remember { context.getString(R.string.occasion_casual) }
+    val strWork = remember { context.getString(R.string.occasion_work) }
+    val strSports = remember { context.getString(R.string.occasion_sports) }
+    val strFormal = remember { context.getString(R.string.occasion_formal) }
 
-    var showDatePicker by remember { mutableStateOf(false) }
-    var expandedMenu by remember { mutableStateOf(false) }
-
-    val categories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "Bags", "Accessories", "Jewelry")
-    val seasons = listOf("Spring", "Summer", "Autumn", "Winter")
-    val occasions = listOf("Casual", "Work", "Sports", "Formal")
+    val categories = listOf(strTops, strBottoms, strDresses, strFootwear, strBags, strAccessories, strJewelry)
+    val seasons = listOf(strSpring, strSummer, strAutumn, strWinter)
+    val occasions = listOf(strCasual, strWork, strSports, strFormal)
 
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val purchaseDateText = remember(uiState.purchaseDate) {
         dateFormat.format(Date(uiState.purchaseDate))
     }
 
-    LaunchedEffect(itemId) {
-        viewModel.loadItem(itemId)
+    val onRemoveBackgroundClick = {
+        val currentPath = pickedImagePath ?: uiState.imageOriginal
+        if (currentPath.isBlank()) {
+            scope.launch { snackbarHostState.showSnackbar(strSelectImageError) }
+        } else {
+            imageProcessingViewModel.removeBackground(currentPath)
+        }
+        Unit
     }
 
+    LaunchedEffect(itemId) { viewModel.loadItem(itemId) }
     LaunchedEffect(pickedImagePath) {
         if (pickedImagePath != null) {
             viewModel.updateImagePath(pickedImagePath)
             lastRemoveBgPath = null
         }
     }
-
     LaunchedEffect(uiState.imageNoBg, pickedImagePath) {
         if (pickedImagePath == null) {
             lastRemoveBgPath = uiState.imageNoBg.takeIf { it.isNotBlank() }
         }
     }
-
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
             viewModel.clearError()
         }
     }
-
     LaunchedEffect(removeBgState.resultPath) {
         val newPath = removeBgState.resultPath
         if (!newPath.isNullOrBlank()) {
@@ -182,7 +205,6 @@ fun EditItemScreen(
             lastRemoveBgPath = newPath
         }
     }
-
     LaunchedEffect(removeBgState.errorMessage) {
         val message = removeBgState.errorMessage
         if (!message.isNullOrBlank()) {
@@ -190,18 +212,15 @@ fun EditItemScreen(
             imageProcessingViewModel.clearResult()
         }
     }
-
     LaunchedEffect(aiFillState.suggestion) {
         val suggestion = aiFillState.suggestion
         if (suggestion != null) {
-            Log.d("EditItemScreen", "AI suggestion applied: $suggestion")
             suggestion.category?.let { viewModel.updateCategory(it) }
             suggestion.color?.let { viewModel.updateColor(it) }
             suggestion.name?.let { viewModel.updateName(it) }
             imageProcessingViewModel.clearAiFillResult()
         }
     }
-
     LaunchedEffect(aiFillState.errorMessage) {
         val message = aiFillState.errorMessage
         if (!message.isNullOrBlank()) {
@@ -209,7 +228,6 @@ fun EditItemScreen(
             imageProcessingViewModel.clearAiFillResult()
         }
     }
-
     LaunchedEffect(autoTaggingState.suggestion) {
         val suggestion = autoTaggingState.suggestion
         if (suggestion != null) {
@@ -218,7 +236,6 @@ fun EditItemScreen(
             imageProcessingViewModel.clearAutoTaggingResult()
         }
     }
-
     LaunchedEffect(autoTaggingState.errorMessage) {
         val message = autoTaggingState.errorMessage
         if (!message.isNullOrBlank()) {
@@ -226,7 +243,6 @@ fun EditItemScreen(
             imageProcessingViewModel.clearAutoTaggingResult()
         }
     }
-
     LaunchedEffect(saveSuccess) {
         if (saveSuccess) {
             navController.previousBackStackEntry?.savedStateHandle?.set("refresh_items", true)
@@ -235,13 +251,16 @@ fun EditItemScreen(
         }
     }
 
+    var showDatePicker by remember { mutableStateOf(false) }
+    var expandedMenu by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Edit Item", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.edit_item_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -260,14 +279,12 @@ fun EditItemScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                ) { CircularProgressIndicator() }
                 return@Column
             }
 
             ImagePickerSection(
-                title = "Item Image",
+                title = stringResource(R.string.item_image_label),
                 imagePath = displayImagePath,
                 onCameraClick = imagePickerState.onCameraClick,
                 onGalleryClick = imagePickerState.onGalleryClick,
@@ -276,10 +293,10 @@ fun EditItemScreen(
                 canRemoveBg = canRemoveBackground
             )
 
-            Text("Relevant Outfits", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.relevant_outfits_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             if (relevantOutfits.isEmpty()) {
                 Text(
-                    text = "Chưa có outfit nào dùng item này",
+                    text = stringResource(R.string.no_outfit_using_item),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -308,7 +325,7 @@ fun EditItemScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "Item details",
+                    stringResource(R.string.item_details_title),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -318,7 +335,7 @@ fun EditItemScreen(
                         onClick = {
                             val currentPath = pickedImagePath ?: uiState.imageOriginal
                             if (currentPath.isBlank()) {
-                                scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                                scope.launch { snackbarHostState.showSnackbar(strSelectImageError) }
                             } else {
                                 imageProcessingViewModel.autoTagging(currentPath)
                             }
@@ -327,14 +344,11 @@ fun EditItemScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         if (autoTaggingState.isProcessing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text("Tagging...")
+                            Text(strTagging)
                         } else {
-                            Text("Auto tagging", style = MaterialTheme.typography.labelLarge)
+                            Text(strAutoTagging, style = MaterialTheme.typography.labelLarge)
                         }
                     }
                     Spacer(Modifier.width(8.dp))
@@ -342,7 +356,7 @@ fun EditItemScreen(
                         onClick = {
                             val currentPath = pickedImagePath ?: uiState.imageOriginal
                             if (currentPath.isBlank()) {
-                                scope.launch { snackbarHostState.showSnackbar("Please select an image first") }
+                                scope.launch { snackbarHostState.showSnackbar(strSelectImageError) }
                             } else {
                                 imageProcessingViewModel.fillWithAi(currentPath)
                             }
@@ -351,195 +365,134 @@ fun EditItemScreen(
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         if (aiFillState.isProcessing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                            )
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
-                            Text("Filling...")
+                            Text(strFilling)
                         } else {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Fill with AI", style = MaterialTheme.typography.labelLarge)
+                            Text(strFillWithAi, style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
             }
 
-            Text("Category", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            ExposedDropdownMenuBox(
-                expanded = expandedMenu,
-                onExpandedChange = { expandedMenu = !expandedMenu }
-            ) {
+            Text(stringResource(R.string.category_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            ExposedDropdownMenuBox(expanded = expandedMenu, onExpandedChange = { expandedMenu = !expandedMenu }) {
                 OutlinedTextField(
                     value = uiState.category,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Select category") },
+                    label = { Text(strSelectCategoryHint) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMenu) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .menuAnchor(type = MenuAnchorType.PrimaryNotEditable, enabled = true),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                    modifier = Modifier.fillMaxWidth().menuAnchor(type = MenuAnchorType.PrimaryNotEditable, enabled = true),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    shape = MaterialTheme.shapes.small
                 )
-                ExposedDropdownMenu(
-                    expanded = expandedMenu,
-                    onDismissRequest = { expandedMenu = false }
-                ) {
+                ExposedDropdownMenu(expanded = expandedMenu, onDismissRequest = { expandedMenu = false }) {
                     categories.forEach { cat ->
                         DropdownMenuItem(
                             text = { Text(cat) },
-                            onClick = {
-                                viewModel.updateCategory(cat)
-                                expandedMenu = false
-                            }
+                            onClick = { viewModel.updateCategory(cat); expandedMenu = false }
                         )
                     }
                 }
             }
 
-            Text("Color", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.color_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = uiState.color,
                 onValueChange = viewModel::updateColor,
-                label = { Text("Enter color (e.g. Red, Blue)") },
+                label = { Text(strEnterColorHint) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                shape = MaterialTheme.shapes.small
             )
 
             HorizontalDivider()
 
-            Text("Item Name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.item_name_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = uiState.name,
                 onValueChange = viewModel::updateName,
-                label = { Text("Enter item name (e.g. White Shirt)") },
+                label = { Text(strEnterItemNameHint) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                shape = MaterialTheme.shapes.small
             )
 
-            Text("Brand", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.brand_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = uiState.brand,
                 onValueChange = viewModel::updateBrand,
-                label = { Text("Enter brand (e.g. Nike, Uniqlo)") },
+                label = { Text(strEnterBrandHint) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                shape = MaterialTheme.shapes.small
             )
 
-            Text("Price", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.price_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             OutlinedTextField(
                 value = uiState.price,
                 onValueChange = viewModel::updatePrice,
-                label = { Text("Enter price") },
+                label = { Text(strEnterPriceHint) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Number,
-                    imeAction = ImeAction.Done
-                )
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                shape = MaterialTheme.shapes.small
             )
 
-            Text("Season", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Text(stringResource(R.string.season_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 seasons.forEach { season ->
                     FilterChip(
                         selected = uiState.season == season,
-                        onClick = {
-                            viewModel.updateSeason(
-                                if (uiState.season == season) "" else season
-                            )
-                        },
-                        label = { Text(season) }
+                        onClick = { viewModel.updateSeason(if (uiState.season == season) "" else season) },
+                        label = { Text(season) },
+                        shape = MaterialTheme.shapes.small
                     )
                 }
             }
 
-            Text("Occasion", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Text(stringResource(R.string.occasion_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 occasions.forEach { occasion ->
                     FilterChip(
                         selected = uiState.occasion == occasion,
-                        onClick = {
-                            viewModel.updateOccasion(
-                                if (uiState.occasion == occasion) "" else occasion
-                            )
-                        },
-                        label = { Text(occasion) }
+                        onClick = { viewModel.updateOccasion(if (uiState.occasion == occasion) "" else occasion) },
+                        label = { Text(occasion) },
+                        shape = MaterialTheme.shapes.small
                     )
                 }
             }
 
-            Text("Purchase Date", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { showDatePicker = true }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+            Text(stringResource(R.string.purchase_date_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OutlinedCard(modifier = Modifier.fillMaxWidth(), onClick = { showDatePicker = true }, shape = MaterialTheme.shapes.small) {
+                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text(
-                            text = "Tap to select date",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = purchaseDateText,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Text(text = stringResource(R.string.tap_to_select_date), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text = purchaseDateText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     }
                 }
             }
 
             Button(
                 onClick = { viewModel.saveChanges() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                enabled = !uiState.isSaving &&
-                    uiState.category.isNotBlank() &&
-                    uiState.color.isNotBlank()
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                enabled = !uiState.isSaving && uiState.category.isNotBlank() && uiState.color.isNotBlank(),
+                shape = MaterialTheme.shapes.small
             ) {
                 if (uiState.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
+                    CircularProgressIndicator(modifier = Modifier.height(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Saving...")
+                    Text(strSaving)
                 } else {
-                    Text("Save Changes")
+                    Text(strSaveChanges, style = MaterialTheme.typography.titleMedium)
                 }
             }
         }
@@ -549,26 +502,21 @@ fun EditItemScreen(
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = uiState.purchaseDate,
             selectableDates = object : SelectableDates {
-                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
-                    utcTimeMillis <= System.currentTimeMillis()
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= System.currentTimeMillis()
             }
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { selectedMillis ->
-                        viewModel.updatePurchaseDate(selectedMillis)
-                    }
+                    datePickerState.selectedDateMillis?.let { viewModel.updatePurchaseDate(it) }
                     showDatePicker = false
-                }) { Text("Chọn") }
+                }) { Text(strChon) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Huỷ") }
+                TextButton(onClick = { showDatePicker = false }) { Text(strHuy) }
             }
-        ) {
-            DatePicker(state = datePickerState)
-        }
+        ) { DatePicker(state = datePickerState) }
     }
 }
 
@@ -589,69 +537,37 @@ private fun RelevantOutfitPreviewCard(
     val outfit = outfitWithItems.outfit
     val items = outfitWithItems.clothingItems
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
-    val formattedDate = remember(outfit.createdAt) {
-        dateFormat.format(Date(outfit.createdAt))
-    }
-    val itemsWithPosition by produceState(
-        initialValue = emptyList<OutfitItemWithPosition>(),
-        key1 = outfit.id,
-        key2 = refreshKey
-    ) {
+    val formattedDate = remember(outfit.createdAt) { dateFormat.format(Date(outfit.createdAt)) }
+    val itemsWithPosition by produceState(initialValue = emptyList<OutfitItemWithPosition>(), key1 = outfit.id, key2 = refreshKey) {
         value = outfitRepo.getOutfitItemsWithPosition(outfit.id)
     }
-    val previewPlacements = remember(itemsWithPosition) {
-        mapOutfitPreviewPositions(itemsWithPosition)
-    }
+    val previewPlacements = remember(itemsWithPosition) { mapOutfitPreviewPositions(itemsWithPosition) }
+
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(40.dp)
-                ) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(40.dp)) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = getCategoryIcon(items.firstOrNull()?.category ?: "Other"),
-                            fontSize = 20.sp
-                        )
+                        Text(text = getCategoryIcon(items.firstOrNull()?.category ?: "Other"), fontSize = 20.sp)
                     }
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = outfit.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "📅 $formattedDate · ${items.size} món",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(text = outfit.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(text = "\uD83D\uDCC5 $formattedDate \u00B7 ${items.size} m\u00F3n", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Spacer(Modifier.height(12.dp))
-            RelevantOutfitCanvasPreview(
-                items = previewPlacements,
-                modifier = Modifier.fillMaxWidth()
-            )
+            RelevantOutfitCanvasPreview(items = previewPlacements, modifier = Modifier.fillMaxWidth())
         }
     }
 }
 
-private fun mapOutfitPreviewPositions(
-    items: List<OutfitItemWithPosition>
-): List<OutfitPreviewItem> {
+private fun mapOutfitPreviewPositions(items: List<OutfitItemWithPosition>): List<OutfitPreviewItem> {
     if (items.isEmpty()) return emptyList()
     val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
     return if (hasCustomPos) {
@@ -665,18 +581,14 @@ private fun mapOutfitPreviewPositions(
 }
 
 private fun defaultOutfitGridPosition(index: Int): Pair<Float, Float> {
-    val col = index % 2
-    val row = index / 2
+    val col = index % 2; val row = index / 2
     val x = if (col == 0) 0.1f else 0.55f
     val y = (0.1f + row * 0.25f).coerceAtMost(0.8f)
     return x to y
 }
 
 @Composable
-private fun RelevantOutfitCanvasPreview(
-    items: List<OutfitPreviewItem>,
-    modifier: Modifier = Modifier
-) {
+private fun RelevantOutfitCanvasPreview(items: List<OutfitPreviewItem>, modifier: Modifier = Modifier) {
     val scale = 2f / 3f
     val itemSize = (72f * scale).dp
     val density = LocalDensity.current
@@ -684,28 +596,18 @@ private fun RelevantOutfitCanvasPreview(
 
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F2EA))
     ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height((220f * scale).dp)
-        ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth().height((220f * scale).dp)) {
             if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Chưa có món đồ nào",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(text = stringResource(R.string.no_items_in_outfit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 return@BoxWithConstraints
             }
-
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
-
             items.forEach { placement ->
                 val imageRequest = rememberOutfitItemImageRequest(placement.item)
                 val scaledSizePx = itemSizePx * placement.scale
@@ -713,26 +615,11 @@ private fun RelevantOutfitCanvasPreview(
                 val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
                 val offsetX = (placement.posX * maxX).roundToInt()
                 val offsetY = (placement.posY * maxY).roundToInt()
-
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(offsetX, offsetY) }
-                        .size(itemSize * placement.scale)
-                ) {
+                Box(modifier = Modifier.offset { IntOffset(offsetX, offsetY) }.size(itemSize * placement.scale)) {
                     if (imageRequest != null) {
-                        AsyncImage(
-                            model = imageRequest,
-                            contentDescription = placement.item.name.ifBlank { placement.item.category },
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
+                        AsyncImage(model = imageRequest, contentDescription = placement.item.name.ifBlank { placement.item.category }, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(getCategoryColor(placement.item.category).copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize().background(getCategoryColor(placement.item.category).copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
                             Text(text = getCategoryIcon(placement.item.category), fontSize = 24.sp)
                         }
                     }
@@ -746,14 +633,8 @@ private fun RelevantOutfitCanvasPreview(
 private fun rememberOutfitItemImageRequest(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
-        val data = resolveImageData(context, item.imageNoBg)
-            ?: resolveImageData(context, item.imageOriginal)
-        data?.let {
-            ImageRequest.Builder(context)
-                .data(it)
-                .crossfade(true)
-                .build()
-        }
+        val data = resolveImageData(context, item.imageNoBg) ?: resolveImageData(context, item.imageOriginal)
+        data?.let { ImageRequest.Builder(context).data(it).crossfade(true).build() }
     }
 }
 
@@ -769,12 +650,12 @@ private fun getCategoryColor(category: String): Color = when (category) {
 }
 
 private fun getCategoryIcon(category: String): String = when (category) {
-    "Tops" -> "👕"
-    "Bottoms" -> "👖"
-    "Dresses" -> "👗"
-    "Footwear" -> "👟"
-    "Bags" -> "👜"
-    "Accessories" -> "⌚"
-    "Jewelry" -> "💍"
-    else -> "🧥"
+    "Tops" -> "\uD83D\uDC55"  // 👕
+    "Bottoms" -> "\uD83D\uDC56" // 👖
+    "Dresses" -> "\uD83D\uDC57" // 👗
+    "Footwear" -> "\uD83D\uDC5F" // 👟
+    "Bags" -> "\uD83D\uDC5C"   // 👜
+    "Accessories" -> "\u231A"  // ⌚
+    "Jewelry" -> "\uD83D\uDC8D" // 💍
+    else -> "\uD83E\uDDE5"    // 🧥
 }

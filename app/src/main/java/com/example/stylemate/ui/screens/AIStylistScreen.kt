@@ -37,11 +37,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
+import com.example.stylemate.R
 import com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -90,7 +94,7 @@ fun AIStylistScreen(
         if (fineGranted || coarseGranted) {
             refreshWithLocation()
         } else {
-            Toast.makeText(context, "Dùng vị trí mặc định", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.ai_stylist_location_default), Toast.LENGTH_SHORT).show()
             viewModel.refreshWeatherAndRecommendation()
         }
         hasAttemptedLocation = true
@@ -177,18 +181,18 @@ fun AIStylistScreen(
                     ) {
                         Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Chỉnh sửa trang chủ", color = Color.Black)
+                        Text(stringResource(R.string.ai_stylist_edit_home), color = Color.Black)
                     }
                 }
             }
 
             item {
                 Text(
-                    "Thêm và sắp xếp các mục theo ý muốn",
+                    stringResource(R.string.ai_stylist_edit_home_subtitle),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -205,16 +209,16 @@ fun AIStylistHeader(accountMenu: @Composable () -> Unit = {}) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = "Xin chào, HungBu",
+            text = stringResource(R.string.ai_stylist_greeting),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { /* TODO */ }) {
-                Icon(Icons.Outlined.CalendarMonth, contentDescription = "Calendar")
+                Icon(Icons.Outlined.CalendarMonth, contentDescription = stringResource(R.string.ai_stylist_calendar_desc))
             }
             IconButton(onClick = { /* TODO */ }) {
-                Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
+                Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.ai_stylist_notification_desc))
             }
             accountMenu()
         }
@@ -249,7 +253,7 @@ fun WeatherRecommendationSection(
                 } else {
                     Icon(
                         Icons.Outlined.Refresh,
-                        contentDescription = "Refresh",
+                        contentDescription = stringResource(R.string.ai_stylist_refresh_desc),
                         tint = Color.Gray
                     )
                 }
@@ -345,10 +349,10 @@ fun StylistActionCard(onNavigate: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Hỏi nhà tạo mẫu cá nhân",
+                text = stringResource(R.string.ai_stylist_ask_stylist),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(16.dp))
             Button(
@@ -357,7 +361,7 @@ fun StylistActionCard(onNavigate: () -> Unit) {
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Thử ngay", color = Color.White, fontSize = 12.sp)
+                Text(stringResource(R.string.ai_stylist_try_now), color = Color.White, fontSize = 12.sp)
             }
         }
     }
@@ -381,10 +385,10 @@ fun SeeMoreCard(onNavigate: () -> Unit) {
                 .border(1.dp, Color.LightGray, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "See More", modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.ai_stylist_see_more_desc), modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Xem thêm", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Text(stringResource(R.string.ai_stylist_see_more), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
     }
 }
 
@@ -435,13 +439,13 @@ fun PopularFeaturesSection() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Tính năng phổ biến",
+                text = stringResource(R.string.ai_stylist_popular_features),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             TextButton(onClick = { /* TODO */ }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Xem tất cả", color = Color.Gray)
+                    Text(stringResource(R.string.ai_stylist_view_all), color = Color.Gray)
                     Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
                 }
             }
@@ -450,22 +454,22 @@ fun PopularFeaturesSection() {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FeatureCard(
                 modifier = Modifier.weight(1f),
-                title = "Thêm món đồ",
+                title = stringResource(R.string.ai_stylist_add_item),
                 icon = Icons.Default.AddCircle,
                 iconColor = Color(0xFF4A90E2)
             )
             FeatureCard(
                 modifier = Modifier.weight(1f),
-                title = "Tạo trang phục",
+                title = stringResource(R.string.ai_stylist_create_outfit),
                 icon = Icons.Default.AccessibilityNew,
                 iconColor = Color.Gray
             )
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureCardSmall(modifier = Modifier.weight(1f), title = "Lịch", icon = Icons.Default.CalendarMonth)
-            FeatureCardSmall(modifier = Modifier.weight(1f), title = "Tân trang", icon = Icons.Default.AutoAwesome)
-            FeatureCardSmall(modifier = Modifier.weight(1f), title = "Thống kê phong cách", icon = Icons.Default.BarChart)
+            FeatureCardSmall(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_calendar), icon = Icons.Default.CalendarMonth)
+            FeatureCardSmall(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_refresh_closet), icon = Icons.Default.AutoAwesome)
+            FeatureCardSmall(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_style_stats), icon = Icons.Default.BarChart)
         }
     }
 }
@@ -526,7 +530,7 @@ fun AIDesignerSection(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            text = "Nhà tạo mẫu AI",
+            text = stringResource(R.string.ai_stylist_ai_designer),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -534,17 +538,17 @@ fun AIDesignerSection(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             AIDesignerLargeCard(
                 modifier = Modifier.weight(1.2f),
-                title = "Gợi ý trang phục",
+                title = stringResource(R.string.ai_stylist_outfit_suggestion),
                 hasUpdate = true,
                 onClick = onNavigateToPersonalStylist
             )
             Column(modifier = Modifier.weight(2f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 AIDesignerMediumCard(
-                    title = "Mua sắm",
+                    title = stringResource(R.string.ai_stylist_shopping),
                     icon = Icons.Default.ShoppingCart
                 )
                 AIDesignerMediumCard(
-                    title = "Trò chuyện phong cách",
+                    title = stringResource(R.string.ai_stylist_style_chat),
                     icon = Icons.Default.ChatBubble,
                     onClick = onNavigateToChat
                 )
@@ -552,10 +556,10 @@ fun AIDesignerSection(
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AIIconButton(modifier = Modifier.weight(1f), title = "Tìm màu sắc của tôi", icon = Icons.Default.Palette)
-            AIIconButton(modifier = Modifier.weight(1f), title = "Tìm fit của tôi", icon = Icons.Default.PersonOutline)
-            AIIconButton(modifier = Modifier.weight(1f), title = "Đánh giá style", icon = Icons.Default.Star)
-            AIIconButton(modifier = Modifier.weight(1f), title = "Thử đồ ảo", icon = Icons.Default.ViewInAr)
+            AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_my_color), icon = Icons.Default.Palette)
+            AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_my_fit), icon = Icons.Default.PersonOutline)
+            AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_style_score), icon = Icons.Default.Star)
+            AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_virtual_tryon), icon = Icons.Default.ViewInAr)
         }
     }
 }
@@ -577,7 +581,7 @@ fun AIDesignerLargeCard(modifier: Modifier, title: String, hasUpdate: Boolean, o
                     modifier = Modifier.align(Alignment.TopStart)
                 ) {
                     Text(
-                        "Update",
+                        stringResource(R.string.ai_stylist_update_badge),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.Gray
@@ -641,7 +645,7 @@ fun AIIconButton(modifier: Modifier, title: String, icon: ImageVector) {
         Text(
             title,
             style = MaterialTheme.typography.labelSmall,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            textAlign = TextAlign.Center,
             lineHeight = 12.sp,
             maxLines = 2
         )
@@ -652,12 +656,12 @@ fun AIIconButton(modifier: Modifier, title: String, icon: ImageVector) {
 fun BrandImportSection() {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            text = "Đăng nhập và nhập món đồ từ",
+            text = stringResource(R.string.ai_stylist_import_brands),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { BrandCard(icon = Icons.Default.Email, title = "email") }
+            item { BrandCard(icon = Icons.Default.Email, title = stringResource(R.string.ai_stylist_email)) }
             item { BrandLogoCard("GAP") }
             item { BrandLogoCard("SHEIN") }
             item { BrandLogoCard("ZARA") }
@@ -713,7 +717,6 @@ fun BrandLogoCard(name: String) {
 
 @Composable
 fun RecentlyAddedSection() {
-    // ... (no changes to RecentlyAddedSection body)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -721,7 +724,7 @@ fun RecentlyAddedSection() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Các món đồ đã thêm gần đây",
+                text = stringResource(R.string.ai_stylist_recently_added),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -765,31 +768,33 @@ fun OutfitCalendarSection() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Lịch trang phục",
+                text = stringResource(R.string.ai_stylist_outfit_calendar),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             TextButton(onClick = { /* TODO */ }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Xem lịch", color = Color.Gray)
+                    Text(stringResource(R.string.ai_stylist_view_calendar), color = Color.Gray)
                     Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
                 }
             }
         }
 
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            val days = listOf("Thứ 2", "Hôm nay", "Thứ 4", "Thứ 5")
-            val dates = listOf("25 thg 5", "26 thg 5", "27 thg 5", "28 thg 5")
-            val temps = listOf("39° 28°", "41° 28°", "40° 29°", "38° 27°")
+        val context2 = LocalContext.current
+        val todayStr = context2.getString(R.string.ai_stylist_today)
+        val days = listOf(context2.getString(R.string.ai_stylist_mon), todayStr, context2.getString(R.string.ai_stylist_wed), context2.getString(R.string.ai_stylist_thu))
+        val dates = listOf("25 thg 5", "26 thg 5", "27 thg 5", "28 thg 5")
+        val temps = listOf("39° 28°", "41° 28°", "40° 29°", "38° 27°")
 
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(days.size) { index ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (days[index] == "Hôm nay") {
+                    if (days[index] == todayStr) {
                         Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(Color.Black))
                     } else {
                         Spacer(modifier = Modifier.size(4.dp))
                     }
-                    Text(days[index], fontWeight = if (days[index] == "Hôm nay") FontWeight.Bold else FontWeight.Normal, fontSize = 14.sp)
+                    Text(days[index], fontWeight = if (days[index] == todayStr) FontWeight.Bold else FontWeight.Normal, fontSize = 14.sp)
                     Text(dates[index], color = Color.Gray, fontSize = 12.sp)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                         Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
@@ -814,7 +819,7 @@ fun OutfitCalendarSection() {
 fun MagazineSection() {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "Tạp chí",
+            text = stringResource(R.string.ai_stylist_magazine),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
@@ -822,15 +827,15 @@ fun MagazineSection() {
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
                 MagazineCard(
-                    title = "Xây dựng Tủ đồ Capsule từ đồ Second-hand: Bước khởi đầu khó...",
-                    date = "25 tháng 5, 2026",
+                    title = stringResource(R.string.ai_stylist_magazine_title_1),
+                    date = stringResource(R.string.ai_stylist_magazine_date_1),
                     isNew = true
                 )
             }
             item {
                 MagazineCard(
-                    title = "Chỉ vì một chiếc áo thun: Cẩm nang về hình tượng...",
-                    date = "18 tháng 5, 2026",
+                    title = stringResource(R.string.ai_stylist_magazine_title_2),
+                    date = stringResource(R.string.ai_stylist_magazine_date_2),
                     isNew = false
                 )
             }
@@ -855,7 +860,7 @@ fun MagazineCard(title: String, date: String, isNew: Boolean) {
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(date, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
@@ -865,7 +870,7 @@ fun MagazineCard(title: String, date: String, isNew: Boolean) {
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
-                        "MỚI",
+                        stringResource(R.string.ai_stylist_new_badge),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF1976D2),
@@ -876,4 +881,3 @@ fun MagazineCard(title: String, date: String, isNew: Boolean) {
         }
     }
 }
-

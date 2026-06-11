@@ -10,8 +10,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stylemate.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,10 +25,10 @@ fun AINotesSettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Ghi chú cho Nhà tạo mẫu", style = MaterialTheme.typography.titleMedium) },
+                title = { Text(stringResource(R.string.ai_notes_title), style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -41,7 +43,7 @@ fun AINotesSettingsScreen(
                 ),
                 enabled = noteText.isNotEmpty()
             ) {
-                Text("Lưu", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.ai_notes_save), fontWeight = FontWeight.Bold)
             }
         }
     ) { padding ->
@@ -52,12 +54,12 @@ fun AINotesSettingsScreen(
                 .padding(16.dp)
         ) {
             Text(
-                text = "Hãy cho nhà tạo mẫu biết nhu cầu hoặc quy tắc cụ thể của bạn",
+                text = stringResource(R.string.ai_notes_header),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Ghi chú này chỉ được tham khảo khi sử dụng Nhà tạo mẫu cá nhân.",
+                text = stringResource(R.string.ai_notes_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray,
                 modifier = Modifier.padding(top = 8.dp)
@@ -70,7 +72,7 @@ fun AINotesSettingsScreen(
                 onValueChange = { if (it.length <= 300) noteText = it },
                 modifier = Modifier.fillMaxWidth().height(160.dp),
                 placeholder = { 
-                    Text("Ví dụ: Mình thích phong cách tối giản, tránh giày cao gót.", color = Color.LightGray) 
+                    Text(stringResource(R.string.ai_notes_placeholder), color = Color.LightGray) 
                 },
                 shape = RoundedCornerShape(16.dp),
                 colors = TextFieldDefaults.colors(
@@ -80,7 +82,7 @@ fun AINotesSettingsScreen(
             )
             
             Text(
-                text = "${noteText.length}/300",
+                text = stringResource(R.string.ai_notes_char_count_format, noteText.length),
                 modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.LightGray

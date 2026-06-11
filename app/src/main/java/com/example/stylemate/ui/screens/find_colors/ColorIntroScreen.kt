@@ -13,8 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.stylemate.R
 import com.example.stylemate.ui.components.StylistButton
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -29,10 +31,10 @@ fun ColorIntroScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Find My Colors") },
+                title = { Text(stringResource(R.string.color_intro_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -47,15 +49,15 @@ fun ColorIntroScreen(
         ) {
             when (val state = uiState) {
                 is ColorUiState.Intro -> {
-                    Text("Discover your seasonal color palette with AI analysis.")
+                    Text(stringResource(R.string.color_intro_description))
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text("Steps:", style = MaterialTheme.typography.titleMedium)
-                    BulletPoint("1. Remove accessories")
-                    BulletPoint("2. No heavy makeup")
-                    BulletPoint("3. Find good natural light")
+                    Text(stringResource(R.string.color_intro_steps_title), style = MaterialTheme.typography.titleMedium)
+                    BulletPoint(stringResource(R.string.color_intro_step_1))
+                    BulletPoint(stringResource(R.string.color_intro_step_2))
+                    BulletPoint(stringResource(R.string.color_intro_step_3))
                     
                     Spacer(modifier = Modifier.weight(1f))
-                    StylistButton(text = "Start Analysis", onClick = { viewModel.startCapture() })
+                    StylistButton(text = stringResource(R.string.color_intro_start_analysis), onClick = { viewModel.startCapture() })
                 }
                 is ColorUiState.Capture -> {
                     Box(
@@ -65,14 +67,14 @@ fun ColorIntroScreen(
                             .background(Color.Black),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Camera Preview", color = Color.White)
+                        Text(stringResource(R.string.color_intro_camera_preview), color = Color.White)
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    StylistButton(text = "Capture & Analyze", onClick = { viewModel.analyze() })
+                    StylistButton(text = stringResource(R.string.color_intro_capture_analyze), onClick = { viewModel.analyze() })
                 }
                 is ColorUiState.Analyzing -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                    Text("AI is analyzing your skin tone...")
+                    Text(stringResource(R.string.color_intro_analyzing))
                 }
                 is ColorUiState.Result -> {
                     ColorResultView(palette = state.palette, onReset = { viewModel.reset() })
@@ -93,7 +95,7 @@ fun BulletPoint(text: String) {
 @Composable
 fun ColorResultView(palette: com.example.stylemate.data.models.ColorPalette, onReset: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Your Season:", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.color_intro_your_season), style = MaterialTheme.typography.titleLarge)
         Text(
             text = palette.season,
             style = MaterialTheme.typography.displayMedium,
@@ -101,7 +103,7 @@ fun ColorResultView(palette: com.example.stylemate.data.models.ColorPalette, onR
         )
         Spacer(modifier = Modifier.height(16.dp))
         
-        Text("Recommended Palette:")
+        Text(stringResource(R.string.color_intro_recommended_palette))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(palette.palette) { hex ->
                 Box(
@@ -117,10 +119,10 @@ fun ColorResultView(palette: com.example.stylemate.data.models.ColorPalette, onR
         Text(palette.description)
         
         Spacer(modifier = Modifier.height(24.dp))
-        StylistButton(text = "Save Profile", onClick = {})
+        StylistButton(text = stringResource(R.string.color_intro_save_profile), onClick = {})
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
-            Text("Retake")
+            Text(stringResource(R.string.color_intro_retake))
         }
     }
 }

@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">StyleMate</string>
+    <string name="back">Quay lại</string>
+    <string name="settings">Cài đặt</string>
+    <string name="loading_prompt_default">Trang phục Thường ngày Hàng ngày cho Ở nhà/Thư giãn.</string>
+    <string name="loading_status_ai">Đã nhận được! Chờ một chút nhé.</string>
+    <string name="tip_title">Mẹo</string>
+    <string name="tip_loading">Nhấn các nút cài đặt ở phía trên để lọc hoặc tùy chỉnh diện mạo của bạn.</string>
+    <string name="style_settings">Cài đặt Tạo kiểu</string>
+    <string name="top_suggestions_from">Gợi ý hàng đầu từ </string>
+    <string name="all_clothes">Tất cả quần áo</string>
+    <string name="get_outfit_suggestions">Nhận gợi ý trang phục</string>
+    <string name="any_problems">Có vấn đề gì không?</string>
+    <string name="option_mismatch_title">Tạo các cách phối không hợp</string>
+    <string name="option_mismatch_desc">Bạn có thể chọn những cách phối mà bạn muốn tránh nhận gợi ý.</string>
+    <string name="option_quick_closet_title">Thử Xem nhanh tủ đồ</string>
+    <string name="option_quick_closet_desc">Hãy đảm bảo thông tin món đồ của bạn là chính xác.</string>
+    <string name="option_excluded_title">Kiểm tra các món đồ đã loại trừ</string>
+    <string name="option_excluded_desc">Kiểm tra danh sách món đồ bị loại trừ khỏi Tạo kiểu bằng AI.</string>
+    <string name="no_items_found">Chúng tôi không tìm thấy %1$s nào trong tủ đồ của bạn</string>
+    <string name="welcome_greeting">Chào, HungBu</string>
+    <string name="welcome_question">Bạn cần trang phục nào?</string>
+    <string name="advisor_title">Nhà tạo mẫu cá nhân</string>
+    <string name="advisor_subtitle">Người lên kế hoạch phong cách thấu hiểu bạn hơn chính bạn</string>
+    <string name="coordinate_with_items">Phối đồ với các món đồ</string>
+    <string name="save_to_lookbook">Sách trang phục</string>
+    <string name="save_to_calendar">Lịch</string>
+    <string name="pick_date">Chọn ngày</string>
+</resources>

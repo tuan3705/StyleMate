@@ -24,12 +24,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.stylemate.R
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.network.RetrofitClient
@@ -52,12 +54,12 @@ fun OutfitSuggestionWizard(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("$currentStep/3", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) },
+                title = { Text(stringResource(R.string.wizard_step_format_3, currentStep), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (currentStep > 1) currentStep-- else onBack()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -111,7 +113,7 @@ fun ItemSelectionStep(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            "Chọn các món đồ bạn muốn được tạo kiểu",
+            stringResource(R.string.wizard_select_items_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(16.dp)
@@ -160,14 +162,14 @@ fun ItemSelectionStep(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
                 ) {
-                    Text("Tiếp theo", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.next_button), fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(
                     onClick = onNext,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
-                    Text("Bỏ qua", color = Color.Gray)
+                    Text(stringResource(R.string.skip_button), color = Color.Gray)
                 }
             }
         }
@@ -213,13 +215,13 @@ fun ClosetItemCard(
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = item.name.ifBlank { "Món đồ" },
+            text = item.name.ifBlank { stringResource(R.string.wizard_item_default_name) },
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             maxLines = 1
         )
         Text(
-            text = "17/5/2026", // Mock date as per UI
+            text = stringResource(R.string.wizard_item_mock_date),
             style = MaterialTheme.typography.labelSmall,
             color = Color.Gray
         )
@@ -234,14 +236,27 @@ fun OccasionSelectionStep(
     onNext: () -> Unit
 ) {
     val occasions = listOf(
-        "Hàng ngày", "Trường học", "Làm việc", "Du lịch", "Bữa tiệc", "Hẹn hò",
-        "Đám cưới", "Mua sắm", "Đi dạo", "Tập thể dục", "Nhà thờ", "Tụ họp",
-        "Ăn ngoài", "Phỏng vấn", "Buổi hòa nhạc", "Tang lễ"
+        stringResource(R.string.wizard_occasion_daily),
+        stringResource(R.string.wizard_occasion_school),
+        stringResource(R.string.wizard_occasion_work),
+        stringResource(R.string.wizard_occasion_travel),
+        stringResource(R.string.wizard_occasion_party),
+        stringResource(R.string.wizard_occasion_date),
+        stringResource(R.string.wizard_occasion_wedding),
+        stringResource(R.string.wizard_occasion_shopping),
+        stringResource(R.string.wizard_occasion_walk),
+        stringResource(R.string.wizard_occasion_exercise),
+        stringResource(R.string.wizard_occasion_church),
+        stringResource(R.string.wizard_occasion_gathering),
+        stringResource(R.string.wizard_occasion_dining),
+        stringResource(R.string.wizard_occasion_interview),
+        stringResource(R.string.wizard_occasion_concert),
+        stringResource(R.string.wizard_occasion_funeral)
     )
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
-            "Chọn Dịp",
+            stringResource(R.string.wizard_occasion_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
@@ -282,7 +297,7 @@ fun OccasionSelectionStep(
             ),
             enabled = selectedOccasion.isNotEmpty()
         ) {
-            Text("Nhận gợi ý", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.wizard_get_suggestion), fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -298,16 +313,31 @@ fun StyleRefinementStep(
     onNext: () -> Unit
 ) {
     val styles = listOf(
-        "Không có", "Thường ngày", "Cổ điển", "Đường phố", "Hiện đại", "Tối giản",
-        "Nữ tính", "Bohemian", "Công sở thoải mái", "Bán trang trọng", "Trang trọng", "Dự tiệc"
+        stringResource(R.string.no_topic_option),
+        stringResource(R.string.style_casual),
+        stringResource(R.string.style_classic),
+        stringResource(R.string.style_street),
+        stringResource(R.string.style_modern),
+        stringResource(R.string.style_minimalist),
+        stringResource(R.string.style_feminine),
+        stringResource(R.string.style_bohemian),
+        stringResource(R.string.style_smart_casual),
+        stringResource(R.string.style_semi_formal),
+        stringResource(R.string.style_formal),
+        stringResource(R.string.style_party)
     )
     val themes = listOf(
-        "Không có", "Ở nhà/Thư giãn", "Đồ mặc ở nhà", "Quán cà phê/Tụ tập", "Triển lãm", "Phim"
+        stringResource(R.string.no_topic_option),
+        stringResource(R.string.topic_home_relax),
+        stringResource(R.string.topic_loungewear),
+        stringResource(R.string.topic_cafe_hangout),
+        stringResource(R.string.topic_exhibition),
+        stringResource(R.string.topic_movie)
     )
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
-            "Chọn Dịp",
+            stringResource(R.string.wizard_occasion_title),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
@@ -331,7 +361,7 @@ fun StyleRefinementStep(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Text("Phong cách", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.style_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
         androidx.compose.foundation.layout.FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -349,7 +379,7 @@ fun StyleRefinementStep(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Text("Chủ đề", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.topic_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
         androidx.compose.foundation.layout.FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -373,7 +403,7 @@ fun StyleRefinementStep(
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
         ) {
-            Text("Nhận gợi ý", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.wizard_get_suggestion), fontWeight = FontWeight.Bold)
         }
     }
 }

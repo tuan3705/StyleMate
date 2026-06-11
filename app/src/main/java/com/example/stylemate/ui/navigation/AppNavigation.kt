@@ -8,14 +8,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.stylemate.StyleMateApp
 import com.example.stylemate.notification.fetchFcmToken
-import com.example.stylemate.ui.screens.LoadingScreen
 import com.example.stylemate.ui.screens.LoginScreen
 import com.example.stylemate.ui.screens.MainScreen
 import com.example.stylemate.viewmodel.AuthViewModel
-import com.example.stylemate.viewmodel.AuthViewModelFactory
-
+import com.example.stylemate.viewmodel.AuthViewModel.AuthViewModelFactory
 import android.util.Log
 
+/**
+ * Root Navigation của ứng dụng.
+ *
+ * Sử dụng MVVM: theo dõi [AuthViewModel.uiState] để quyết định
+ * hiển thị LoginScreen hay MainScreen.
+ * KHÔNG quản lý state cục bộ - tất cả logic auth đều trong ViewModel.
+ */
 @Composable
 fun AppNavigation() {
     val app = LocalContext.current.applicationContext as StyleMateApp
@@ -24,10 +29,9 @@ fun AppNavigation() {
     )
     val uiState by authViewModel.uiState.collectAsState()
 
-    Log.d("AppNavigation", "isLoggedIn: ${uiState.isLoggedIn}, isLoading: ${uiState.isLoading}")
-
-    LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) {
+    // Khi user đăng nhập → đồng bộ FCM token
+    LaunchedEffect(uiState) {
+        if (uiState is AuthViewModel.LoginUiState.LoggedIn) {
             Log.d("AppNavigation", "User logged in, fetching FCM token...")
             val token = fetchFcmToken()
             if (!token.isNullOrBlank()) {
@@ -39,23 +43,23 @@ fun AppNavigation() {
         }
     }
 
-    when {
-        uiState.isLoading -> {
-            Log.d("AppNavigation", "Showing LoadingScreen")
-            LoadingScreen()
-        }
-        uiState.isLoggedIn -> {
-            Log.d("AppNavigation", "Showing MainScreen")
-            MainScreen(onLogout = authViewModel::logout)
-        }
-        else -> {
-            Log.d("AppNavigation", "Showing LoginScreen")
+    when (uiState) {
+        is AuthViewModel.LoginUiState.Loading -> {
             LoginScreen(
-                uiState = uiState,
-                onLogin = authViewModel::login,
-                onRegister = authViewModel::register,
-                onClearError = authViewModel::clearError
+                viewModel = authViewModel,
+                onLoggedIn = { /* handled by state change */ }
             )
+        }
+
+        is AuthViewModel.LoginUiState.Form -> {
+            LoginScreen(
+                viewModel = authViewModel,
+                onLoggedIn = { /* handled by state change */ }
+            )
+        }
+
+        is AuthViewModel.LoginUiState.LoggedIn -> {
+            MainScreen(onLogout = authViewModel::logout)
         }
     }
 }

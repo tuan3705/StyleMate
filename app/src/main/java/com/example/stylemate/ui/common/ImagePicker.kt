@@ -1,6 +1,7 @@
 package com.example.stylemate.ui.common
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -25,22 +26,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.stylemate.R
 import com.example.stylemate.data.local.ImageStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -64,6 +68,14 @@ fun rememberImagePickerState(
     val imagePathState = remember { mutableStateOf<String?>(null) }
     var pendingCameraFile by remember { mutableStateOf<File?>(null) }
 
+    // Pre-resolve string resources for non-composable usage
+    val cameraDeniedMessage = remember { context.getString(R.string.camera_permission_denied) }
+
+    // ── Camera Permission States ──────────────────────────────────
+    var showCameraRationale by remember { mutableStateOf(false) }
+    var showCameraSettingsRedirect by remember { mutableStateOf(false) }
+
+    // ⚠️ Phải khai báo TakePicture LAUNCHER TRƯỚC vì nó được reference trong callback
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val file = pendingCameraFile
         if (success && file != null) {
@@ -72,6 +84,28 @@ fun rememberImagePickerState(
             file?.delete()
         }
         pendingCameraFile = null
+    }
+
+    // ── Camera Permission Launcher ────────────────────────────────
+    val requestCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val file = ImageStorage.createImageFile(context, prefix = "camera_")
+            val uri = ImageStorage.createImageUri(context, file)
+            pendingCameraFile = file
+            takePictureLauncher.launch(uri)
+        } else {
+            val activity = context as? Activity
+            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity, Manifest.permission.CAMERA
+                )
+            ) {
+                showCameraSettingsRedirect = true
+            } else {
+                onError(cameraDeniedMessage)
+            }
+        }
     }
 
     fun handlePickedUri(uri: Uri) {
@@ -93,29 +127,27 @@ fun rememberImagePickerState(
         uri?.let { handlePickedUri(it) }
     }
 
-    val requestPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) {
-            val file = ImageStorage.createImageFile(context, prefix = "camera_")
-            val uri = ImageStorage.createImageUri(context, file)
-            pendingCameraFile = file
-            takePictureLauncher.launch(uri)
-        } else {
-            onError("Camera permission is required to take a photo")
-        }
-    }
-
     val onCameraClick = {
         val hasPermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.CAMERA
         ) == PackageManager.PERMISSION_GRANTED
+
         if (hasPermission) {
             val file = ImageStorage.createImageFile(context, prefix = "camera_")
             val uri = ImageStorage.createImageUri(context, file)
             pendingCameraFile = file
             takePictureLauncher.launch(uri)
         } else {
-            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            val activity = context as? Activity
+            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity, Manifest.permission.CAMERA
+                )
+            ) {
+                showCameraRationale = true
+            } else {
+                requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
         }
     }
 
@@ -128,6 +160,40 @@ fun rememberImagePickerState(
         } else {
             getContentLauncher.launch("image/*")
         }
+    }
+
+    // ── Camera Permission Dialogs ──────────────────────────────────
+    if (showCameraRationale) {
+        PermissionRationaleDialog(
+            title = stringResource(R.string.camera_permission_rationale_title),
+            message = stringResource(R.string.camera_permission_rationale),
+            icon = Icons.Default.PhotoCamera,
+            onGrant = {
+                showCameraRationale = false
+                requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            },
+            onDeny = {
+                showCameraRationale = false
+                onError(cameraDeniedMessage)
+            }
+        )
+    }
+
+    if (showCameraSettingsRedirect) {
+        PermissionSettingsRedirectDialog(
+            title = stringResource(R.string.camera_permission_rationale_title),
+            message = stringResource(R.string.permission_settings_redirect),
+            icon = Icons.Default.PhotoCamera,
+            onGoToSettings = {
+                showCameraSettingsRedirect = false
+                context.startActivity(
+                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = android.net.Uri.fromParts("package", context.packageName, null)
+                    }
+                )
+            },
+            onDismiss = { showCameraSettingsRedirect = false }
+        )
     }
 
     return ImagePickerState(
@@ -163,7 +229,7 @@ fun ImagePickerSection(
         ) {
             Icon(Icons.Default.PhotoCamera, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Take Photo")
+            Text(stringResource(R.string.take_photo_label))
         }
         FilledTonalButton(
             onClick = onGalleryClick,
@@ -171,7 +237,7 @@ fun ImagePickerSection(
         ) {
             Icon(Icons.Default.PhotoLibrary, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("From Gallery")
+            Text(stringResource(R.string.from_gallery_label))
         }
     }
 
@@ -180,9 +246,9 @@ fun ImagePickerSection(
     val screenHeightDp = configuration.screenHeightDp
     val minPreviewSize = (screenHeightDp * 0.3f).dp
     val maxPreviewSize = (screenHeightDp * 0.4f).dp
-    
+
     val isImageSelected = !imagePath.isNullOrBlank()
-    
+
     val imageRequest = remember(imagePath, context) {
         imagePath
             ?.takeIf { it.isNotBlank() }
@@ -203,7 +269,7 @@ fun ImagePickerSection(
         ) {
             AsyncImage(
                 model = imageRequest,
-                contentDescription = "Selected image",
+                contentDescription = stringResource(R.string.selected_image_content_desc),
                 modifier = Modifier.sizeIn(
                     minWidth = minPreviewSize,
                     minHeight = minPreviewSize,
@@ -214,10 +280,9 @@ fun ImagePickerSection(
             )
         }
     }
-    
+
     Spacer(Modifier.height(8.dp))
-    
-    // Nút Xoá nền ảnh
+
     FilledTonalButton(
         onClick = onRemoveBgClick,
         modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -228,6 +293,6 @@ fun ImagePickerSection(
             contentDescription = null
         )
         Spacer(Modifier.width(8.dp))
-        Text(if (isProcessing) "Removing..." else "Remove Background")
+        Text(if (isProcessing) stringResource(R.string.removing_label) else stringResource(R.string.remove_bg_label))
     }
 }

@@ -12,29 +12,38 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.TimeZone
 import java.util.UUID
 
+// Error codes - UI maps via stringResource
+enum class ErrorReason { NETWORK, DATABASE }
+
+sealed class CalendarError {
+    data class AssignFailed(val reason: ErrorReason) : CalendarError()
+    data class RemoveFailed(val reason: ErrorReason) : CalendarError()
+}
+
+data class CalendarUiState(
+    val isLoading: Boolean = false,
+    val error: CalendarError? = null,
+    val eventsInMonth: Set<Long> = emptySet(),
+    val selectedDate: Long = 0L,
+    val assignedOutfit: OutfitWithClothingItems? = null,
+    val allOutfits: List<OutfitWithClothingItems> = emptyList(),
+    val eventForSelectedDate: CalendarEventEntity? = null
+)
+
 /**
- * 🧩 CalendarViewModel — ViewModel cho màn hình Lịch (Calendar).
+ * CalendarViewModel (minSdk 25 compatible)
  *
- * Quản lý các StateFlow chính:
- *   1. [selectedDate] — Ngày đang được chọn trên lịch (epoch midnight).
- *   2. [eventForSelectedDate] — Sự kiện (nếu có) cho ngày đang chọn.
- *   3. [allOutfits] — Danh sách tất cả Outfit để chọn gán.
- *   4. [eventsInMonth] — Tập hợp các ngày có sự kiện trong tháng hiện tại.
- *   5. [assignedOutfit] — Outfit đã gán cho ngày đang chọn.
- *   6. [isLoading] — Trạng thái loading.
- *   7. [errorMessage] — Thông báo lỗi.
- *
- * 🔄 Luồng dữ liệu:
- *   UI ← collect StateFlow ← CalendarViewModel ← CalendarRepository + OutfitRepository
+ * Uses java.util.Calendar instead of java.time to avoid desugaring complexity.
+ * UI only collects uiState: StateFlow<CalendarUiState>
  */
 class CalendarViewModel(
     private val calendarRepository: CalendarRepository,
@@ -45,217 +54,102 @@ class CalendarViewModel(
         private const val TAG = "CalendarViewModel"
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Ngày được chọn
-    // ──────────────────────────────────────────────────────────────
+    private val _uiState = MutableStateFlow(CalendarUiState())
+    val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
-    /**
-     * Ngày đang được chọn trên lịch, lưu dưới dạng epoch midnight (UTC).
-     * Khởi tạo bằng ngày hôm nay.
-     */
-    private val _selectedDate = MutableStateFlow(todayEpochMidnight())
-    val selectedDate: StateFlow<Long> = _selectedDate
+    private val _monthTrigger = MutableStateFlow(todayEpochMidnight())
 
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 Refresh Trigger
-    // ──────────────────────────────────────────────────────────────
+    init {
+        _uiState.value = _uiState.value.copy(selectedDate = todayEpochMidnight())
 
-    /**
-     * 🔄 Trigger để force refresh eventForSelectedDate.
-     * Mỗi lần gán/xoá outfit, ta tăng giá trị này → flatMapLatest được kích hoạt lại.
-     */
-    private val _refreshTrigger = MutableStateFlow(0L)
-
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Sự kiện cho ngày đang chọn (reactive)
-    // ──────────────────────────────────────────────────────────────
-
-    /**
-     * Sự kiện lịch của ngày đang chọn.
-     *
-     * Sử dụng [flatMapLatest trên cả [_selectedDate] và [_refreshTrigger] để:
-     *   - Khi đổi ngày → tự động query lại
-     *   - Khi gán/xoá outfit → force query lại mà không cần đổi ngày
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val eventForSelectedDate: StateFlow<CalendarEventEntity?> = combine(
-        _selectedDate,
-        _refreshTrigger
-    ) { date, _ ->
-        date
-    }
-        .flatMapLatest { date ->
-            calendarRepository.observeEventByDate(date)
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = null
-        )
-
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Tất cả Outfit (để chọn gán vào ngày)
-    // ──────────────────────────────────────────────────────────────
-
-    /**
-     * Danh sách tất cả Outfit kèm ClothingItem — dùng cho BottomSheet
-     * chọn bộ đồ để gán vào ngày đã chọn.
-     */
-    val allOutfits: StateFlow<List<OutfitWithClothingItems>> =
-        outfitRepository.getAllOutfitsWithItems()
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = emptyList()
-            )
-
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Outfit đã gán cho ngày đang chọn (để hiển thị)
-    // ──────────────────────────────────────────────────────────────
-
-    /**
-     * Outfit (kèm ClothingItem) đã được gán cho ngày đang chọn.
-     * null nếu chưa có outfit nào được gán.
-     *
-     * 🐛 FIX: Sử dụng combine() thay vì .map{} để lắng nghe cả 2 flow cùng lúc,
-     * tránh race condition khi eventForSelectedDate thay đổi nhưng allOutfits chưa kịp cập nhật.
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val assignedOutfit: StateFlow<OutfitWithClothingItems?> = combine(
-        eventForSelectedDate,
-        allOutfits,
-        _refreshTrigger
-    ) { event, outfits, _ ->
-            if (event != null) {
-            outfits.find { it.outfit.id == event.outfitId }
-            } else null
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = null
-        )
-
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Các ngày có sự kiện trong tháng hiện tại
-    // ──────────────────────────────────────────────────────────────
-
-    /**
-     * Tập hợp các epoch midnight của những ngày có sự kiện trong tháng hiện tại.
-     * Dùng để hiển thị chấm tròn trên lịch tháng.
-     */
-    private val _eventsInMonth = MutableStateFlow<Set<Long>>(emptySet())
-    val eventsInMonth: StateFlow<Set<Long>> = _eventsInMonth
-    /**
-     * Load danh sách ngày có sự kiện trong tháng của [currentMonth].
-     * Được gọi từ UI khi tháng thay đổi.
-     */
-    fun loadEventsInMonth(currentMonthEpoch: Long) {
+        val dateFlow = MutableStateFlow(_uiState.value.selectedDate)
         viewModelScope.launch {
-            try {
-                val cal = epochToCalendar(currentMonthEpoch)
-                // Ngày đầu tháng
-                cal.set(Calendar.DAY_OF_MONTH, 1)
-                val startOfMonth = cal.timeInMillis
+            _uiState.collect { dateFlow.value = it.selectedDate }
+        }
 
-                // Ngày cuối tháng
-                cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
-                val endOfMonth = cal.timeInMillis
+        @OptIn(ExperimentalCoroutinesApi::class)
+        val eventFlow = dateFlow
+            .flatMapLatest { date -> calendarRepository.observeEventByDate(date) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-                calendarRepository.getEventsBetween(startOfMonth, endOfMonth)
-                    .collect { events ->
-                        _eventsInMonth.value = events.map { it.date }.toSet()
-                    }
-            } catch (e: Exception) {
-                Log.w(TAG, "⚠️ loadEventsInMonth() lỗi: ${e.message}")
-                _eventsInMonth.value = emptySet()
+        val outfitsFlow = outfitRepository.getAllOutfitsWithItems()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        val monthFlow = _monthTrigger
+            .flatMapLatest { epoch ->
+                val (start, end) = monthRange(epoch)
+                calendarRepository.getEventsBetween(start, end)
             }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+        viewModelScope.launch {
+            combine(eventFlow, outfitsFlow, monthFlow) { event, outfits, monthEvents ->
+                _uiState.value.copy(
+                    eventForSelectedDate = event,
+                    allOutfits = outfits,
+                    assignedOutfit = event?.let { ev -> outfits.find { it.outfit.id == ev.outfitId } },
+                    eventsInMonth = monthEvents.map { it.date }.toSet()
+                )
+            }.collect { newState -> _uiState.value = newState }
         }
     }
 
-    // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Loading & Error
-    // ──────────────────────────────────────────────────────────────
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
-
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage
-    // ═════════════════════════════════════════════════════════════
-    // 🎯 HÀM THAO TÁC
-    // ═════════════════════════════════════════════════════════════
-
-    /**
-     * 📅 Chọn một ngày trên lịch.
-     *
-     * @param date Epoch midnight của ngày được chọn.
-     */
     fun selectDate(date: Long) {
-        _selectedDate.value = date
-        Log.d(TAG, "📅 Đã chọn ngày: $date")
+        _uiState.value = _uiState.value.copy(selectedDate = date, error = null)
+        Log.d(TAG, "Chon ngay: $date")
     }
-/**
-     * 👔 Gán một bộ đồ vào ngày đang chọn.
-     *
-     * Nếu ngày đó đã có outfit, nó sẽ bị ghi đè.
-     *
-     * @param outfitId UUID của Outfit cần gán.
- */
+
+    fun loadEventsInMonth(currentMonthEpoch: Long) {
+        _monthTrigger.value = currentMonthEpoch
+    }
+
     fun assignOutfitToSelectedDate(outfitId: String) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                _isLoading.value = true
-                _errorMessage.value = null
-
                 val event = CalendarEventEntity(
                     id = UUID.randomUUID().toString(),
-                    date = _selectedDate.value,
+                    date = _uiState.value.selectedDate,
                     outfitId = outfitId
                 )
-
                 calendarRepository.assignOutfitToDate(event)
-                // 🔄 Refresh để UI cập nhật ngay lập tức
-                _refreshTrigger.value = System.currentTimeMillis()
-                Log.d(TAG, "✅ Đã gán outfit $outfitId cho ngày ${_selectedDate.value}")
-
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Lỗi khi gán outfit: ${e.message}", e)
-                _errorMessage.value = "Không thể gán bộ đồ: ${e.message}"
+                Log.e(TAG, "Loi gan outfit: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(error = CalendarError.AssignFailed(mapError(e)))
             } finally {
-                _isLoading.value = false
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
 
-    /**
-     * 🗑️ Xoá bộ đồ đã gán khỏi ngày đang chọn.
-     */
     fun removeOutfitFromSelectedDate() {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val event = eventForSelectedDate.value ?: return@launch
+                val event = _uiState.value.eventForSelectedDate ?: return@launch
                 calendarRepository.removeEvent(event)
-                // 🔄 Refresh để UI cập nhật ngay lập tức
-                _refreshTrigger.value = System.currentTimeMillis()
-                Log.d(TAG, "🗑️ Đã xoá outfit khỏi ngày ${_selectedDate.value}")
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Lỗi xoá outfit: ${e.message}", e)
-                _errorMessage.value = "Không thể xoá bộ đồ: ${e.message}"
+                Log.e(TAG, "Loi xoa outfit: ${e.message}", e)
+                _uiState.value = _uiState.value.copy(error = CalendarError.RemoveFailed(mapError(e)))
+            } finally {
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
     }
 
-    /**
-     * 🧹 Xoá thông báo lỗi.
-     */
     fun clearError() {
-        _errorMessage.value = null
+        _uiState.value = _uiState.value.copy(error = null)
     }
 
-    // ═════════════════════════════════════════════════════════════
-    // 🛠️ TIỆN ÍCH
-    // ═════════════════════════════════════════════════════════════
+    // -- Helpers (minSdk 25 compatible, no java.time) --
+
+    private fun mapError(e: Exception): ErrorReason = when (e) {
+        is java.net.SocketTimeoutException,
+        is java.net.UnknownHostException,
+        is java.net.ConnectException -> ErrorReason.NETWORK
+        else -> ErrorReason.DATABASE
+    }
 
     private fun todayEpochMidnight(): Long {
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
@@ -266,21 +160,27 @@ class CalendarViewModel(
         return cal.timeInMillis
     }
 
-    private fun epochToCalendar(epochMillis: Long): Calendar {
-        return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+    /** Returns (startOfMonth, endOfMonth) epoch millis */
+    private fun monthRange(epochMillis: Long): Pair<Long, Long> {
+        val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
             timeInMillis = epochMillis
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
         }
+        val start = cal.timeInMillis
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+        val end = cal.timeInMillis
+        return start to end
     }
 }
 
-/**
- * 🏭 CalendarViewModelFactory — Factory để inject [CalendarRepository] + [OutfitRepository].
- */
 class CalendarViewModelFactory(
     private val calendarRepository: CalendarRepository,
     private val outfitRepository: OutfitRepository
 ) : ViewModelProvider.Factory {
-
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(CalendarViewModel::class.java)) {

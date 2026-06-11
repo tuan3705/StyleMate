@@ -11,8 +11,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.stylemate.R
 
 /**
  * MaskEditor provides a simple drawing canvas to refine auto-segmentation masks.
@@ -36,10 +38,10 @@ fun MaskEditor(
             horizontalArrangement = Arrangement.SpaceAround
         ) {
             Button(onClick = { paths.clear() }) {
-                Text("Reset")
+                Text(stringResource(R.string.mask_editor_reset))
             }
             Button(onClick = { /* Undo logic */ }) {
-                Text("Undo")
+                Text(stringResource(R.string.mask_editor_undo))
             }
         }
 
@@ -88,7 +90,7 @@ fun MaskEditor(
         }
         
         Text(
-            text = "Use brush to refine the item mask",
+            text = stringResource(R.string.mask_editor_hint),
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.padding(8.dp)
         )

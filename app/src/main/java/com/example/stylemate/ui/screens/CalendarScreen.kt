@@ -61,8 +61,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.stylemate.R
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.CalendarRepository
 import com.example.stylemate.repository.OutfitRepository
@@ -92,10 +95,11 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
         factory = CalendarViewModelFactory(calendarRepo, outfitRepo)
     )
 
-    val selectedDateMillis by viewModel.selectedDate.collectAsState()
-    val assignedOutfit by viewModel.assignedOutfit.collectAsState()
-    val allOutfits by viewModel.allOutfits.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val selectedDateMillis = uiState.selectedDate
+    val assignedOutfit = uiState.assignedOutfit
+    val allOutfits = uiState.allOutfits
+    val isLoading = uiState.isLoading
 
     var showBottomSheet by remember { mutableStateOf(false) }
     var showMonthPicker by remember { mutableStateOf(false) }
@@ -116,13 +120,13 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Lịch", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.calendar_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = { showMonthPicker = true }) {
-                    Icon(Icons.Filled.DateRange, contentDescription = "Chọn tháng", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.select_month_content_desc), tint = MaterialTheme.colorScheme.primary)
                 }
                 IconButton(onClick = { viewModel.selectDate(todayEpochMidnight()) }) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = "Hôm nay", tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = stringResource(R.string.today_content_desc), tint = MaterialTheme.colorScheme.primary)
                 }
                 accountMenu()
             }
@@ -136,7 +140,7 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
             when {
                 isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 assignedOutfit != null -> AssignedOutfitCard(
-                    assignedOutfit!!,
+                    assignedOutfit,
                     onRemove = { viewModel.removeOutfitFromSelectedDate() },
                     onSelectAnother = { showBottomSheet = true }
                 )
@@ -175,18 +179,6 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
         }
     }
 }
-
-// ══════════════════════════════════════════════════════════════════════
-// 📅 WEEK CALENDAR STRIP — Thanh vuốt ngang 7 ngày trong tuần
-// ══════════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Hiển thị 7 ngày của tuần hiện tại (từ T2 → CN)
-//   - Cuộn ngang (LazyRow)
-//   - Ngày được chọn → nổi bật (primary container)
-//   - Ngày hôm nay → có chấm tròn nhỏ bên dưới
-//   - Dùng java.util.Calendar thay vì java.time (tương thích minSdk 25)
-// ══════════════════════════════════════════════════════════════════════
 
 /**
  * Helper: Tạo Calendar từ epoch midnight (UTC)
@@ -227,28 +219,29 @@ private fun getStartOfWeek(epochMillis: Long): Long {
 /**
  * Helper: Format tháng + năm từ epoch millis
  */
+@Composable
 private fun formatMonthYear(epochMillis: Long): String {
     val cal = epochToCalendar(epochMillis)
-    val monthNames = arrayOf(
-        "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
-        "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
-    )
-    return "${monthNames[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.YEAR)}"
+    val monthNames = com.example.stylemate.R.array.month_names
+    val names = androidx.compose.ui.res.stringArrayResource(monthNames)
+    return "${names[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.YEAR)}"
 }
 
 /**
  * Helper: Lấy tên thứ tiếng Việt từ epoch millis
  */
+@Composable
 private fun getDayOfWeekName(epochMillis: Long): String {
     val cal = epochToCalendar(epochMillis)
+    val dayNames = androidx.compose.ui.res.stringArrayResource(com.example.stylemate.R.array.day_of_week_names)
     return when (cal.get(Calendar.DAY_OF_WEEK)) {
-        Calendar.MONDAY -> "T2"
-        Calendar.TUESDAY -> "T3"
-        Calendar.WEDNESDAY -> "T4"
-        Calendar.THURSDAY -> "T5"
-        Calendar.FRIDAY -> "T6"
-        Calendar.SATURDAY -> "T7"
-        Calendar.SUNDAY -> "CN"
+        Calendar.MONDAY -> dayNames[0]
+        Calendar.TUESDAY -> dayNames[1]
+        Calendar.WEDNESDAY -> dayNames[2]
+        Calendar.THURSDAY -> dayNames[3]
+        Calendar.FRIDAY -> dayNames[4]
+        Calendar.SATURDAY -> dayNames[5]
+        Calendar.SUNDAY -> dayNames[6]
         else -> ""
     }
 }
@@ -436,8 +429,8 @@ private fun AssignedOutfitCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = "${items.size} món đồ",
+                Text(
+                        text = stringResource(R.string.outfit_items_count, items.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -445,7 +438,7 @@ private fun AssignedOutfitCard(
                 IconButton(onClick = onRemove) {
                     Icon(
                         Icons.Filled.Delete,
-                        contentDescription = "Xoá bộ đồ",
+                        contentDescription = stringResource(R.string.delete_outfit_button),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -455,8 +448,8 @@ private fun AssignedOutfitCard(
             if (items.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Món đồ trong bộ:",
-                    style = MaterialTheme.typography.labelMedium,
+                        text = stringResource(R.string.items_in_outfit_label),
+                        style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -482,11 +475,11 @@ private fun AssignedOutfitCard(
 
             // Nút chọn bộ đồ khác
             Button(
-                onClick = onSelectAnother,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Chọn bộ đồ khác")
-            }
+                    onClick = onSelectAnother,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.choose_other_outfit_button))
+                }
         }
     }
 }
@@ -554,14 +547,14 @@ private fun NoOutfitPlaceholder(onAssign: () -> Unit) {
             //Text(text = "📅", fontSize = 56.sp)
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Chưa có bộ đồ nào",
-                style = MaterialTheme.typography.titleMedium,
+                        text = stringResource(R.string.no_outfit_assigned),
+                        style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Gán một bộ đồ từ tủ của bạn cho ngày này",
-                style = MaterialTheme.typography.bodyMedium,
+                        text = stringResource(R.string.assign_outfit_hint),
+                        style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
@@ -572,7 +565,7 @@ private fun NoOutfitPlaceholder(onAssign: () -> Unit) {
             ) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Gán bộ đồ", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.assign_outfit_button), fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -609,12 +602,12 @@ private fun OutfitSelectionSheetContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Chọn bộ đồ",
-                style = MaterialTheme.typography.headlineSmall,
+                        text = stringResource(R.string.select_outfit_title),
+                        style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Filled.Close, contentDescription = "Đóng")
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close_content_desc_calendar))
             }
         }
 
@@ -632,13 +625,14 @@ private fun OutfitSelectionSheetContent(
                     Text(text = "🧥", fontSize = 48.sp)
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Chưa có bộ đồ nào trong tủ",
+                        text = stringResource(R.string.no_outfits_in_closet),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    val context = LocalContext.current
                     Text(
-                        text = "Hãy tạo bộ đồ ở tab Closet trước nhé!",
+                        text = context.getString(R.string.create_outfit_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -712,8 +706,8 @@ private fun OutfitSelectionItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${items.size} món đồ",
-                    style = MaterialTheme.typography.bodySmall,
+                        text = stringResource(R.string.outfit_items_count, items.size),
+                        style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -722,7 +716,7 @@ private fun OutfitSelectionItem(
             if (isSelected) {
                 Icon(
                     Icons.Filled.CheckCircle,
-                    contentDescription = "Đã chọn",
+                    contentDescription = stringResource(R.string.selected_outfit_content_desc),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
@@ -745,11 +739,10 @@ private fun MonthPickerSheet(
     val today = remember { todayEpochMidnight() }
     val daysInMonth = remember(year, month) { generateDaysInMonth(year, month) }
 
-    val monthNames = arrayOf(
-        "Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6",
-        "Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"
-    )
-    val dayHeader = listOf("T2","T3","T4","T5","T6","T7","CN")
+    val monthNames = com.example.stylemate.R.array.month_names
+    val rawMonthNames = androidx.compose.ui.res.stringArrayResource(monthNames)
+    val rawDayHeader = androidx.compose.ui.res.stringArrayResource(com.example.stylemate.R.array.day_of_week_names)
+    val dayHeader = rawDayHeader.toList()
 
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
         // Header: thang + nam + nut dong
@@ -758,8 +751,8 @@ private fun MonthPickerSheet(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("${monthNames[month]} $year", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = "Dong") }
+            Text("${rawMonthNames[month]} $year", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.close_content_desc_calendar)) }
         }
 
         // Dieu huong thang
@@ -769,17 +762,17 @@ private fun MonthPickerSheet(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { month--; if (month < 0) { month = 11; year-- } }) {
-                Icon(Icons.Filled.ChevronLeft, "Thang truoc", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Filled.ChevronLeft, stringResource(R.string.prev_month_content_desc), tint = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.width(12.dp))
             TextButton(onClick = {
                 val t = epochToCalendar(today)
                 year = t.get(Calendar.YEAR)
                 month = t.get(Calendar.MONTH)
-            }) { Text("Hom nay", color = MaterialTheme.colorScheme.primary) }
+                }) { Text(stringResource(R.string.today_button), color = MaterialTheme.colorScheme.primary) }
             Spacer(Modifier.width(12.dp))
             IconButton(onClick = { month++; if (month > 11) { month = 0; year++ } }) {
-                Icon(Icons.Filled.ChevronRight, "Thang sau", tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Filled.ChevronRight, stringResource(R.string.next_month_content_desc), tint = MaterialTheme.colorScheme.primary)
             }
         }
 

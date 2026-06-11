@@ -12,9 +12,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stylemate.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,10 +29,10 @@ fun AISettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Cài đặt gợi ý trang phục", style = MaterialTheme.typography.titleMedium) },
+                title = { Text(stringResource(R.string.ai_settings_title), style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -43,39 +45,39 @@ fun AISettingsScreen(
         ) {
             item {
                 SettingsItem(
-                    label = "Vị trí",
-                    value = "Hà Nội",
+                    label = stringResource(R.string.ai_settings_location),
+                    value = stringResource(R.string.ai_settings_location_default),
                     onClick = onNavigateToLocation
                 )
                 SettingsItem(
-                    label = "Tủ đồ để gợi ý trang phục",
-                    value = "Tất cả món đồ",
+                    label = stringResource(R.string.ai_settings_closet),
+                    value = stringResource(R.string.ai_closet_settings_all_items),
                     onClick = onNavigateToCloset
                 )
                 SettingsItem(
-                    label = "Cài đặt cảm nhận nhiệt độ",
-                    value = "Vừa phải 😊",
+                    label = stringResource(R.string.ai_settings_temperature_feel),
+                    value = stringResource(R.string.ai_settings_temperature_moderate),
                     onClick = { /* Open Bottom Sheet or Dialog */ }
                 )
                 SettingsItem(
-                    label = "Món đồ bị loại trừ",
+                    label = stringResource(R.string.ai_settings_excluded_items),
                     onClick = { /* Navigate */ }
                 )
                 SettingsItem(
-                    label = "Các cách phối không hợp",
+                    label = stringResource(R.string.ai_settings_incompatible_styles),
                     onClick = { /* Navigate */ }
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 SettingsItem(
-                    label = "Ghi chú cho Nhà tạo mẫu",
-                    description = "Có quy tắc nào Nhà tạo mẫu AI cá nhân của bạn cần lưu ý không?",
+                    label = stringResource(R.string.ai_settings_stylist_notes),
+                    description = stringResource(R.string.ai_settings_stylist_notes_desc),
                     onClick = onNavigateToNotes
                 )
                 SettingsItem(
-                    label = "Thương hiệu yêu thích",
-                    value = "Thương hiệu bình dân",
+                    label = stringResource(R.string.ai_settings_favorite_brands),
+                    value = stringResource(R.string.ai_settings_budget_brands),
                     onClick = { /* Navigate */ }
                 )
             }

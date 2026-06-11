@@ -12,9 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.stylemate.R
 import com.example.stylemate.data.models.JobStatus
 import com.example.stylemate.ui.components.StylistButton
 import androidx.compose.ui.tooling.preview.Preview
@@ -30,10 +32,10 @@ fun TryOnSetupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Virtual Try-On") },
+                title = { Text(stringResource(R.string.virtual_tryon_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -48,7 +50,7 @@ fun TryOnSetupScreen(
         ) {
             if (jobState == null) {
                 // Setup Phase
-                Text("Select your body image and the item to try on")
+                Text(stringResource(R.string.tryon_setup_hint))
                 Spacer(modifier = Modifier.height(24.dp))
                 
                 Box(
@@ -58,7 +60,7 @@ fun TryOnSetupScreen(
                         .background(Color.LightGray),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Body Image Placeholder")
+                    Text(stringResource(R.string.tryon_body_placeholder))
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -70,13 +72,13 @@ fun TryOnSetupScreen(
                         .background(Color.LightGray),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Item")
+                    Text(stringResource(R.string.tryon_item_placeholder))
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
                 
                 StylistButton(
-                    text = "Start Try-On",
+                    text = stringResource(R.string.start_try_on),
                     onClick = { viewModel.startTryOn("dummy_uri", "item_1") }
                 )
             } else {
@@ -87,14 +89,14 @@ fun TryOnSetupScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator(progress = { job.progress / 100f })
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Processing: ${job.progress}%")
-                            Text("Status: ${job.status}", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.tryon_processing_label, job.progress))
+                            Text(stringResource(R.string.tryon_status_label, job.status.toString()), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                     JobStatus.COMPLETED -> {
                         AsyncImage(
                             model = job.resultUrls.firstOrNull(),
-                            contentDescription = "Try-On Result",
+                            contentDescription = stringResource(R.string.tryon_result_content_desc),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(400.dp)
@@ -102,15 +104,15 @@ fun TryOnSetupScreen(
                             contentScale = ContentScale.Fit
                         )
                         Spacer(modifier = Modifier.height(24.dp))
-                        StylistButton(text = "Save Outfit", onClick = { /* TODO */ })
+                        StylistButton(text = stringResource(R.string.save_outfit_simple), onClick = { /* TODO */ })
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedButton(onClick = { viewModel.reset() }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Try Another")
+                            Text(stringResource(R.string.try_another_button))
                         }
                     }
                     JobStatus.FAILED -> {
-                        Text("Try-On Failed: ${job.error}", color = MaterialTheme.colorScheme.error)
-                        StylistButton(text = "Retry", onClick = { viewModel.reset() })
+                        Text(stringResource(R.string.tryon_failed_label, job.error ?: ""), color = MaterialTheme.colorScheme.error)
+                        StylistButton(text = stringResource(R.string.retry_button), onClick = { viewModel.reset() })
                     }
                     else -> {}
                 }

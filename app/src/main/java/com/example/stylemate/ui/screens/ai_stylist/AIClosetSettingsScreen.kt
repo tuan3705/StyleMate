@@ -20,8 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stylemate.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
@@ -46,10 +48,10 @@ fun AIClosetSettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Tủ đồ để gợi ý", style = MaterialTheme.typography.titleMedium) },
+                title = { Text(stringResource(R.string.ai_closet_settings_title), style = MaterialTheme.typography.titleMedium) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -62,7 +64,7 @@ fun AIClosetSettingsScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
                 ) {
-                    Text("Hoàn tất", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.ai_closet_settings_done), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -110,7 +112,7 @@ fun AIClosetSettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
             
-            Text(text = "Tất cả món đồ", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+            Text(text = stringResource(R.string.ai_closet_settings_all_items), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
             Text(text = "${items.size}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
     }

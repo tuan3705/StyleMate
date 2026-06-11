@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spacing -->
+    <dimen name="spacing_xxs">4dp</dimen>
+    <dimen name="spacing_xs">8dp</dimen>
+    <dimen name="spacing_sm">12dp</dimen>
+    <dimen name="spacing_md">16dp</dimen>
+    <dimen name="spacing_lg">20dp</dimen>
+    <dimen name="spacing_xl">24dp</dimen>
+    <dimen name="spacing_xxl">32dp</dimen>
+    <dimen name="spacing_xxxl">40dp</dimen>
+    <dimen name="spacing_48">48dp</dimen>
+    <dimen name="spacing_56">56dp</dimen>
+
+    <!-- Screen padding -->
+    <dimen name="screen_padding_horizontal">16dp</dimen>
+    <dimen name="screen_padding_vertical">16dp</dimen>
+    <dimen name="screen_padding_large">24dp</dimen>
+
+    <!-- Card dimensions -->
+    <dimen name="card_corner_radius_sm">8dp</dimen>
+    <dimen name="card_corner_radius_md">12dp</dimen>
+    <dimen name="card_corner_radius_lg">16dp</dimen>
+    <dimen name="card_corner_radius_xl">20dp</dimen>
+    <dimen name="card_corner_radius_24">24dp</dimen>
+    <dimen name="card_corner_radius_28">28dp</dimen>
+    <dimen name="card_elevation_default">2dp</dimen>
+    <dimen name="card_elevation_high">16dp</dimen>
+
+    <!-- Button dimensions -->
+    <dimen name="button_height_default">48dp</dimen>
+    <dimen name="button_height_large">52dp</dimen>
+    <dimen name="button_height_xl">56dp</dimen>
+    <dimen name="button_corner_radius">12dp</dimen>
+    <dimen name="button_corner_radius_rounded">24dp</dimen>
+    <dimen name="button_icon_size">18dp</dimen>
+
+    <!-- Icon sizes -->
+    <dimen name="icon_size_xs">16dp</dimen>
+    <dimen name="icon_size_sm">18dp</dimen>
+    <dimen name="icon_size_md">24dp</dimen>
+    <dimen name="icon_size_lg">32dp</dimen>
+    <dimen name="icon_size_xl">48dp</dimen>
+
+    <!-- Item/Image dimensions -->
+    <dimen name="item_image_size_sm">60dp</dimen>
+    <dimen name="item_image_size_md">80dp</dimen>
+    <dimen name="item_image_size_lg">100dp</dimen>
+    <dimen name="item_image_size_xl">150dp</dimen>
+    <dimen name="item_image_size_2xl">200dp</dimen>
+    <dimen name="item_image_preview_min">200dp</dimen>
+    <dimen name="item_image_preview_max">300dp</dimen>
+    <dimen name="image_height_preview">400dp</dimen>
+
+    <!-- Input field dimensions -->
+    <dimen name="input_field_corner_radius">12dp</dimen>
+    <dimen name="input_field_height">56dp</dimen>
+    <dimen name="input_field_width_max">400dp</dimen>
+
+    <!-- Chip dimensions -->
+    <dimen name="chip_corner_radius">20dp</dimen>
+    <dimen name="chip_padding_horizontal">20dp</dimen>
+    <dimen name="chip_padding_vertical">12dp</dimen>
+
+    <!-- Circular/round dimensions -->
+    <dimen name="circle_size_sm">36dp</dimen>
+    <dimen name="circle_size_md">48dp</dimen>
+    <dimen name="circle_size_lg">64dp</dimen>
+
+    <!-- Progress indicator -->
+    <dimen name="progress_stroke_width">2dp</dimen>
+    <dimen name="progress_size_sm">16dp</dimen>
+    <dimen name="progress_size_md">18dp</dimen>
+    <dimen name="progress_size_lg">24dp</dimen>
+
+    <!-- Font sizes (sp) - defined as dimen for reference, use sp in code -->
+    <dimen name="font_size_14">14sp</dimen>
+    <dimen name="font_size_15">15sp</dimen>
+    <dimen name="font_size_16">16sp</dimen>
+    <dimen name="font_size_20">20sp</dimen>
+    <dimen name="font_size_72">72sp</dimen>
+
+    <!-- Tab bar -->
+    <dimen name="tab_bar_height">56dp</dimen>
+
+    <!-- Divider -->
+    <dimen name="divider_thickness">1dp</dimen>
+
+    <!-- Chat specific -->
+    <dimen name="chat_input_height">56dp</dimen>
+
+    <!-- Grid -->
+    <dimen name="grid_spacing">12dp</dimen>
+    <dimen name="grid_item_aspect_ratio">0.8f</dimen>
+</resources>

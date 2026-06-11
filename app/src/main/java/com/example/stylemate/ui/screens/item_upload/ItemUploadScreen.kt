@@ -11,8 +11,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.stylemate.R
 import com.example.stylemate.ui.components.MaskEditor
 import com.example.stylemate.ui.components.StylistButton
 import com.example.stylemate.ui.components.StylistTextField
@@ -29,12 +31,12 @@ fun ItemUploadScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Upload Item") },
+                title = { Text(stringResource(R.string.upload_item_title)) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (step == UploadStep.SELECT_IMAGE) onBack() else viewModel.previousStep()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc))
                     }
                 }
             )
@@ -66,10 +68,10 @@ fun SelectImageStep(onNext: () -> Unit) {
                 .background(Color.LightGray),
             contentAlignment = Alignment.Center
         ) {
-            Text("Tap to select image")
+            Text(stringResource(R.string.select_image_hint))
         }
         Spacer(modifier = Modifier.height(24.dp))
-        StylistButton(text = "Next: Edit Mask", onClick = onNext)
+        StylistButton(text = stringResource(R.string.next_edit_mask), onClick = onNext)
     }
 }
 
@@ -81,7 +83,7 @@ fun MaskEditorStep(onNext: () -> Unit) {
             onMaskChanged = {}
         )
         Spacer(modifier = Modifier.height(16.dp))
-        StylistButton(text = "Next: Review Details", onClick = onNext)
+        StylistButton(text = stringResource(R.string.next_review_details), onClick = onNext)
     }
 }
 
@@ -91,12 +93,12 @@ fun ReviewMetadataStep(onComplete: () -> Unit) {
     var color by remember { mutableStateOf("#FFFFFF") }
 
     Column {
-        StylistTextField(value = category, onValueChange = { category = it }, label = "Category")
+        StylistTextField(value = category, onValueChange = { category = it }, label = stringResource(R.string.category_label))
         Spacer(modifier = Modifier.height(8.dp))
-        StylistTextField(value = color, onValueChange = { color = it }, label = "Color (Hex)")
+        StylistTextField(value = color, onValueChange = { color = it }, label = stringResource(R.string.color_hex_label))
         
         Spacer(modifier = Modifier.weight(1f))
-        StylistButton(text = "Save to Closet", onClick = onComplete)
+        StylistButton(text = stringResource(R.string.save_to_closet_button), onClick = onComplete)
     }
 }
 
