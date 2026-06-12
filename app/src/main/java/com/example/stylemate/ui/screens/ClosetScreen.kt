@@ -320,7 +320,12 @@ fun ClosetScreen(
                     allCategories = allCategories,
                     gridState = itemsGridState,
                     nestedScrollConnection = itemsScrollConnection,
-                    onItemClick = { itemId -> onEditItem(itemId) }
+                    onItemClick = { itemId -> onEditItem(itemId) },
+                    onDeleteItem = { item ->
+                        clothingVM.deleteClothingItem(item) {
+                            outfitVM.refreshAfterItemChange()
+                        }
+                    }
                 )
             }
             // ═══════════════════════════════════════════════════════
@@ -476,7 +481,8 @@ private fun ItemsTabContent(
     allCategories: List<String>,
     gridState: LazyGridState,
     nestedScrollConnection: NestedScrollConnection,
-    onItemClick: (String) -> Unit
+    onItemClick: (String) -> Unit,
+    onDeleteItem: (ClothingItemEntity) -> Unit
 ) {
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -546,7 +552,7 @@ private fun ItemsTabContent(
                             ClothingItemCard(
                                 item = clothingItem,
                                 onClick = { onItemClick(clothingItem.id) },
-                                onDelete = { clothingVM.deleteClothingItem(clothingItem) }
+                                onDelete = { onDeleteItem(clothingItem) }
                             )
                         }
                     }

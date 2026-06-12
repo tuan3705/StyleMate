@@ -97,6 +97,16 @@ class OutfitViewModel(
 
     val filteredOutfits: StateFlow<List<OutfitWithClothingItems>> = outfits
 
+    /**
+     * 🔄 Goi khi mot clothing item bi xoa/sua o noi khac (vd: ClothingViewModel).
+     * Xoa cache clothes + bump trigger de danh sach outfit (va preview canvas)
+     * re-fetch voi du lieu tuoi, loai bo item da xoa.
+     */
+    fun refreshAfterItemChange() {
+        repository.invalidateClothesCache()
+        _refreshTrigger.value = System.currentTimeMillis()
+    }
+
     // ─────────────────────────────────────────────────────────────
     // 🔷 Draft State: Danh sách items đang chọn để tạo outfit mới
     // ─────────────────────────────────────────────────────────────
