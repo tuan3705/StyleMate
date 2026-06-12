@@ -77,6 +77,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 // 3. Serve static files — Cho phép Android truy cập ảnh đã upload
 //    Android sẽ load ảnh qua URL: http://YOUR_IP:3000/uploads/abc.jpg
+//    Hỗ trợ cả file ở uploads/, uploads/items/, uploads/tryon/
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 4. Parse JSON body — Giới hạn kích thước 10MB (cho ảnh base64 sau này)

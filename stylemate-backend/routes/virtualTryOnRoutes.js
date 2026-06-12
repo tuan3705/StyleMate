@@ -4,7 +4,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const { requireAuth } = require('../middleware/authMiddleware');
 const virtualTryOnController = require('../controllers/virtualTryOnController');
+const { saveTryOnToCollection } = require('../controllers/saveTryOnController');
 
 // Ensure upload dir exists
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'tryon');
@@ -36,5 +38,8 @@ router.get('/:jobId/result', virtualTryOnController.getResult);
 
 // Follow-up question
 router.post('/:jobId/followup', virtualTryOnController.postFollowup);
+
+// Save try-on result to user's collection (clothing items) - yêu cầu xác thực
+router.post('/:jobId/save-to-collection', requireAuth, saveTryOnToCollection);
 
 module.exports = router;

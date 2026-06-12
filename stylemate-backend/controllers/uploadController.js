@@ -21,7 +21,12 @@ const multer = require('multer');
 // Cấu hình nơi lưu file và tên file
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const uploadDir = path.join(__dirname, '..', 'uploads');
+        const uploadDir = path.join(__dirname, '..', 'uploads', 'items');
+        // Tự động tạo thư mục nếu chưa có
+        const fs = require('fs');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
         cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
@@ -68,8 +73,8 @@ const uploadImage = asyncHandler(async (req, res) => {
         });
     }
 
-    // Trả về đường dẫn tương đối (relative URL)
-    const url = `/uploads/${req.file.filename}`;
+    // Trả về đường dẫn tương đối (relative URL) - lưu trong subfolder items/
+    const url = `/uploads/items/${req.file.filename}`;
 
     console.log(`📤 Ảnh đã upload: ${req.file.filename} (${(req.file.size / 1024).toFixed(1)} KB)`);
 

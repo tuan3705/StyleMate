@@ -3,6 +3,7 @@ const path = require('path');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const ProcessingJob = require('../models/ProcessingJob');
+const replicateTryOn = require('./replicateTryOnService');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads', 'tryon');
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -121,7 +122,8 @@ async function processJob(jobId) {
   const providedProvider = (doc.params.options && doc.params.options.provider) || process.env.TRYON_PROVIDER || 'AUTO';
   let provider = providedProvider;
   if (provider === 'AUTO') {
-    if (KLAI_ACCESS_KEY && KLAI_SECRET_KEY) provider = 'KLAI';
+    if (process.env.REPLICATE_API_TOKEN) provider = 'REPLICATE';
+    else if (KLAI_ACCESS_KEY && KLAI_SECRET_KEY) provider = 'KLAI';
     else if (process.env.STABLE_API_URL) provider = 'STABLE';
     else provider = 'SIMULATED';
   }
@@ -208,6 +210,88 @@ async function processJob(jobId) {
       return;
     }
   }
+  // If provider is REPLICATE, call IDM-VTON via Replicate
+  if (provider === 'REPLICATE' && process.env.REPLICATE_API_TOKEN) {
+    try {
+      const params = doc.params || {};
+      const bodyPath = params.bodyImagePath || null;
+      let clothPath = null;
+      let category = 'Upper body';
+      let garmentDes = '';
+
+      // Get cloth image: try selectedItemIds first (fetch from DB), download to local
+      if (params.selectedItemIds && params.selectedItemIds.length > 0) {
+        console.log(`[Replicate] Fetching ${params.selectedItemIds.length} items from DB by IDs...`);
+        const ClothingItem = require('../models/ClothingItem');
+        const items = await ClothingItem.find({ _id: { $in: params.selectedItemIds } }).lean();
+        
+        for (const item of items) {
+          const imgUrl = item.imageNoBg || item.imageOriginal;
+          if (!imgUrl || clothPath) continue;
+          
+          const fullUrl = imgUrl.startsWith('http') ? imgUrl 
+            : `http://localhost:${process.env.PORT || 3000}${imgUrl.startsWith('/') ? '' : '/'}${imgUrl}`;
+          
+          const tempFileName = `replicate_cloth_${item._id}_${Date.now()}.png`;
+          const tempPath = path.join(UPLOAD_DIR, tempFileName);
+          
+          try {
+            const imgResp = await axios.get(fullUrl, { responseType: 'arraybuffer', timeout: 10000 });
+            fs.writeFileSync(tempPath, Buffer.from(imgResp.data));
+            clothPath = tempPath;
+            garmentDes = item.name || item.category || '';
+            console.log(`[Replicate] Downloaded cloth: ${tempFileName}`);
+          } catch (downloadErr) {
+            console.warn(`[Replicate] Cannot download item ${item._id}: ${downloadErr.message}`);
+          }
+        }
+        // Set category from first item
+        if (items.length > 0) {
+          category = items[0].category || category;
+        }
+      }
+
+      // Fallback to uploaded itemImagePaths
+      if (!clothPath && params.itemImagePaths && params.itemImagePaths[0]) {
+        clothPath = params.itemImagePaths[0];
+      }
+
+      if (!bodyPath) throw new Error('Missing body image for Replicate try-on');
+      if (!clothPath) throw new Error('Missing cloth image for Replicate try-on');
+
+      doc.progress = 20; await doc.save();
+
+      console.log(`[Replicate] Processing job ${jobId}...`);
+      // Pass local file paths - replicate service will read as Buffer
+      const result = await replicateTryOn.generateTryOn(bodyPath, clothPath, category, garmentDes);
+
+      doc.progress = 80; await doc.save();
+
+      // Download result to our server
+      const resultFileName = `tryon_result_${jobId}.png`;
+      const destPath = path.join(UPLOAD_DIR, resultFileName);
+      await replicateTryOn.downloadResult(result.resultUrl, destPath);
+
+      doc.progress = 100;
+      doc.status = 'completed';
+      doc.result = {
+        jobId,
+        status: 'completed',
+        generatedImageUrl: `/uploads/tryon/${resultFileName}`,
+        message: 'Try-on generated via Replicate IDM-VTON',
+        suggestions: [],
+        llmSummary: { score: 0 }
+      };
+      await doc.save();
+      jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress, result: doc.result });
+      console.log(`[Replicate] ✅ Job ${jobId} completed`);
+      return;
+    } catch (err) {
+      console.error('[Replicate] ❌ Error:', err.message);
+      console.log('[Replicate] ⚠️ Falling through to simulation fallback...');
+    }
+  }
+
   // If provider is STABLE and a stable endpoint is configured, call it
   if (provider === 'STABLE' && process.env.STABLE_API_URL) {
     try {
@@ -276,7 +360,9 @@ async function processJob(jobId) {
     }
   }
 
-  // Fallback simulation when no provider configured
+
+  // Fallback simulation when no provider configured (e.g. REPLICATE_API_TOKEN commented out in .env)
+  // Dùng body image làm kết quả để test chức năng mà không tốn token
   for (let p = 5; p <= 95; p += 10) {
     doc.progress = p; await doc.save(); jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress });
     await sleep(400);
@@ -285,18 +371,58 @@ async function processJob(jobId) {
   // Simulate generating a result image by copying the bodyImage if available
   const resultFileName = `tryon_result_${jobId}.png`;
   const destPath = path.join(UPLOAD_DIR, resultFileName);
+  let fallbackSuccess = false;
   try {
     const params = doc.params || {};
+    
+    // Ưu tiên 1: bodyImagePath (file local upload lên)
     if (params.bodyImagePath && fs.existsSync(params.bodyImagePath)) {
       fs.copyFileSync(params.bodyImagePath, destPath);
-    } else {
-      // try to copy global placeholder if exists
+      fallbackSuccess = true;
+      console.log(`[Simulated] Copied bodyImagePath to result: ${params.bodyImagePath}`);
+    }
+    // Ưu tiên 2: Nếu có bodyImageBase64, decode và ghi thành file
+    else if (params.bodyImageBase64) {
+      let base64Data = params.bodyImageBase64;
+      // Xoá prefix data URI nếu có
+      if (base64Data.startsWith('data:')) {
+        base64Data = base64Data.replace(/^data:image\/\w+;base64,/, '');
+      }
+      const imgBuffer = Buffer.from(base64Data, 'base64');
+      if (imgBuffer.length > 100) { // đảm bảo file hợp lệ
+        fs.writeFileSync(destPath, imgBuffer);
+        fallbackSuccess = true;
+        console.log('[Simulated] Decoded bodyImageBase64 to result image');
+      }
+    }
+    // Ưu tiên 3: Nếu có bodyImageUrl, tải ảnh từ URL về
+    else if (params.bodyImageUrl) {
+      try {
+        const axios = require('axios');
+        const imgResp = await axios.get(params.bodyImageUrl, { responseType: 'arraybuffer', timeout: 10000 });
+        fs.writeFileSync(destPath, Buffer.from(imgResp.data));
+        fallbackSuccess = true;
+        console.log(`[Simulated] Downloaded bodyImageUrl to result: ${params.bodyImageUrl}`);
+      } catch (downloadErr) {
+        console.warn(`[Simulated] Cannot download bodyImageUrl: ${downloadErr.message}`);
+      }
+    }
+
+    if (!fallbackSuccess) {
+      // Fallback cuối: placeholder
       const placeholder = path.join(__dirname, '..', 'uploads', 'placeholder.png');
-      if (fs.existsSync(placeholder)) fs.copyFileSync(placeholder, destPath);
-      else fs.writeFileSync(destPath, '');
+      if (fs.existsSync(placeholder)) {
+        fs.copyFileSync(placeholder, destPath);
+        console.log('[Simulated] Copied placeholder to result');
+      } else {
+        // Tạo 1 file PNG tối thiểu (1x1 pixel transparent)
+        const minimalPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+        fs.writeFileSync(destPath, minimalPng);
+        console.log('[Simulated] Created minimal placeholder PNG');
+      }
     }
   } catch (err) {
-    console.warn('tryOnImageService: copy error', err.message);
+    console.warn('tryOnImageService: fallback copy error', err.message);
   }
 
   doc.progress = 100;
@@ -305,11 +431,9 @@ async function processJob(jobId) {
     jobId,
     status: 'completed',
     generatedImageUrl: `/uploads/tryon/${resultFileName}`,
-    message: 'Simulated try-on image generated.',
-    suggestions: [
-      { type: 'accessory', text: 'Add a slim brown belt', relatedItemIds: [] }
-    ],
-    llmSummary: { score: 7.0, comment: 'Simulated result — replace with real pipeline.' }
+    message: 'Simulated try-on image generated (no AI provider configured). Body image used as result.',
+    suggestions: [],
+    llmSummary: { score: 0, comment: 'Simulated fallback — no AI provider configured. Không tốn token.' }
   };
 
   await doc.save();

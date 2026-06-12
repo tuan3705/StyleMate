@@ -7,7 +7,12 @@ const asyncHandler = require('../middleware/asyncHandler');
  * Accepts multipart or JSON. Returns jobId immediately.
  */
 const kickoffTryOn = asyncHandler(async (req, res, next) => {
-  const userId = req.body.userId || null;
+  console.log('[TryOn] Received kickoff request');
+  console.log('[TryOn] - files keys:', Object.keys(req.files || {}));
+  console.log('[TryOn] - body keys:', Object.keys(req.body || {}));
+  console.log('[TryOn] - body.selectedItemIds:', req.body.selectedItemIds);
+
+  const userId = req.user?._id?.toString() || req.body.userId || null;
 
   // Files handled by multer in route
   const bodyImagePath = req.files?.bodyImage?.[0]?.path || null;
@@ -15,8 +20,19 @@ const kickoffTryOn = asyncHandler(async (req, res, next) => {
   const bodyImageUrl = req.body.bodyImageUrl || null;
   const bodyImageBase64 = req.body.bodyImageBase64 || null;
   const itemImageBase64 = req.body.itemImageBase64 ? (typeof req.body.itemImageBase64 === 'string' ? JSON.parse(req.body.itemImageBase64) : req.body.itemImageBase64) : null;
-  const selectedItemIds = req.body.selectedItemIds ? (Array.isArray(req.body.selectedItemIds) ? req.body.selectedItemIds : JSON.parse(req.body.selectedItemIds)) : [];
+  let selectedItemIds = [];
+  if (req.body.selectedItemIds) {
+    try {
+      selectedItemIds = typeof req.body.selectedItemIds === 'string' 
+        ? JSON.parse(req.body.selectedItemIds) 
+        : req.body.selectedItemIds;
+    } catch (e) {
+      selectedItemIds = [req.body.selectedItemIds].filter(Boolean);
+    }
+  }
   const options = req.body.options ? (typeof req.body.options === 'string' ? JSON.parse(req.body.options) : req.body.options) : {};
+  
+  console.log(`[TryOn] Parsed: bodyImage=${!!bodyImagePath}, selectedItemIds=${selectedItemIds.length}`);
 
   const jobMeta = await tryOnImageService.createJob({ userId, bodyImagePath, bodyImageUrl, bodyImageBase64, selectedItemIds, itemImagePaths, itemImageBase64, options });
 
