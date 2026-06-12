@@ -107,7 +107,7 @@ class ClothingViewModel(
      * Thêm một clothing item mới vào tủ đồ.
      */
     fun addClothingItem(
-        imageFile: File,
+        imageFile: File?,
         category: String,
         color: String,
         name: String,
@@ -122,10 +122,7 @@ class ClothingViewModel(
                 _isLoading.value = true
                 _errorMessage.value = null
 
-                Log.d(TAG, "📸 Bắt đầu xử lý ảnh: ${imageFile.name}")
-
-                // Đã gỡ bỏ logic tách nền (remove.bg)
-                val imagePath = imageFile.absolutePath
+                val imagePath = imageFile?.absolutePath ?: ""
 
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),

@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,14 +60,47 @@ fun getCategoryColor(category: String): Color = when (category) {
 }
 
 fun getCategoryIcon(category: String): String = when (category) {
-    "Tops" -> "👕"
-    "Bottoms" -> "👖"
-    "Dresses" -> "👗"
-    "Footwear" -> "👟"
-    "Bags" -> "👜"
-    "Accessories" -> "⌚"
-    "Jewelry" -> "💍"
-    else -> "🧥"
+    "Tops" -> "T"
+    "Bottoms" -> "B"
+    "Dresses" -> "D"
+    "Footwear" -> "F"
+    "Bags" -> "Ba"
+    "Accessories" -> "Ac"
+    "Jewelry" -> "J"
+    else -> "?"
+}
+
+fun getCategoryIconResId(category: String): Int = when (category) {
+    "Tops" -> R.drawable.ic_category_tops
+    "Bottoms" -> R.drawable.ic_category_bottoms
+    "Dresses" -> R.drawable.ic_category_dresses
+    "Footwear" -> R.drawable.ic_category_footwear
+    "Bags" -> R.drawable.ic_category_bags
+    "Accessories" -> R.drawable.ic_category_accessories
+    "Jewelry" -> R.drawable.ic_category_jewelry
+    else -> 0
+}
+
+@Composable
+fun CategoryIconImage(
+    category: String,
+    modifier: Modifier = Modifier,
+    fontSize: androidx.compose.ui.unit.TextUnit = 24.sp
+) {
+    val resId = getCategoryIconResId(category)
+    if (resId != 0) {
+        Icon(
+            painter = painterResource(id = resId),
+            contentDescription = category,
+            modifier = modifier.size(fontSize.value.dp)
+        )
+    } else {
+        Text(
+            text = getCategoryIcon(category),
+            fontSize = fontSize,
+            modifier = modifier
+        )
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════
@@ -156,7 +190,7 @@ fun OutfitCanvasPreview(
                                 .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+                            CategoryIconImage(category = item.category, fontSize = 24.sp)
                         }
                     }
                 }
@@ -270,7 +304,7 @@ fun OutfitCanvas(
                                 .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
+                            CategoryIconImage(category = item.category, fontSize = 28.sp)
                         }
                     }
 
@@ -551,7 +585,7 @@ fun AddItemSelectCard(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+                    CategoryIconImage(category = item.category, fontSize = 24.sp)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = item.name.ifBlank { item.category },

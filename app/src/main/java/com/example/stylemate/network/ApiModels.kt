@@ -3,9 +3,6 @@ package com.example.stylemate.network
 import com.google.gson.annotations.SerializedName
 
 /**
- * ═══════════════════════════════════════════════════════════════
- * 📦 API DATA CLASSES (DTOs) — Ánh xạ JSON từ Backend Node.js
- * ═══════════════════════════════════════════════════════════════
  *
  * Tất cả các class này dùng để unmarshal JSON từ Backend qua Gson.
  * Backend dùng '_id' làm key trong JSON → map về 'id' ở Kotlin
@@ -17,9 +14,6 @@ import com.google.gson.annotations.SerializedName
  * ───────────────────────────────────────────────────────────────
  */
 
-// ═══════════════════════════════════════════════════════════════
-// 👕 CLOTHING ITEM (Đồng bộ với ClothingItemEntity cũ)
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * DTO cho ClothingItem — map từ JSON của Backend.
@@ -46,9 +40,6 @@ data class ClothingItemDto(
     val createdAt: Long
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 👔 OUTFIT (Backend trả về dạng lồng nhau — items nằm trong outfit)
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Sub-DTO: Một item trong mảng clothingItems của Outfit.
@@ -75,7 +66,6 @@ data class OutfitClothingItemRefDto(
  *   "createdAt": 123456789
  * }
  *
- * ⚠️ Quan trọng: Backend KHÔNG tách bảng trung gian riêng.
  * Items đã được lồng sẵn trong mảng clothingItems.
  */
 data class OutfitDto(
@@ -103,9 +93,6 @@ data class OutfitWithClothingItemsResponse(
     val clothingItems: List<ClothingItemDto>
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 📅 CALENDAR EVENT
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * DTO cho CalendarEvent — map từ JSON Backend.
@@ -127,9 +114,6 @@ data class CalendarEventDto(
     val createdAt: Long
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 🌤️ WEATHER (WeatherAPI.com response — giữ nguyên từ code cũ)
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Các class cho Weather response — giữ nguyên từ WeatherModels.kt cũ.
@@ -183,9 +167,6 @@ data class WeatherCondition(
     val icon: String
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 🖼️ UPLOAD RESPONSE — Backend trả về sau khi upload ảnh
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Response từ API upload ảnh.
@@ -196,9 +177,6 @@ data class UploadResponse(
     val url: String
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 🤖 AI AUTO-FILL RESPONSE
-// ═══════════════════════════════════════════════════════════════
 
 data class AiFillCategoryCandidateDto(
     val category: String,
@@ -232,9 +210,6 @@ data class AiAutoTaggingSuggestionDto(
     val tags: List<AiAutoTagTagDto> = emptyList()
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 🗑️ Các class response wrapper (Backend trả về success/count/data)
-// ═══════════════════════════════════════════════════════════════
 
 /**
  * Generic response wrapper — Backend luôn trả về:
@@ -253,9 +228,6 @@ data class ApiSingleResponse<T>(
     val data: T
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 🔔 FCM TOKEN
-// ═══════════════════════════════════════════════════════════════
 
 data class FcmTokenRequest(
     val userId: String,
@@ -275,9 +247,6 @@ data class UserDeviceDto(
     val updatedAt: Long
 )
 
-// ═══════════════════════════════════════════════════════════════
-// 🤖 AI STYLIST / CHATBOT
-// ═══════════════════════════════════════════════════════════════
 
 data class ChatRequest(
     val userId: String,

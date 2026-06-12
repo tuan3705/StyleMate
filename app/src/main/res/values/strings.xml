@@ -201,59 +201,6 @@
     <string name="topic_party_club">Tiệc câu lạc bộ</string>
     <string name="topic_party_birthday">Tiệc sinh nhật</string>
 
-    <!-- Date Topics -->
-    <string name="topic_date_first">Buổi hẹn hò đầu tiên</string>
-    <string name="topic_date_movie">Xem phim</string>
-    <string name="topic_date_restaurant">Nhà hàng</string>
-    <string name="topic_date_anniversary">Kỷ niệm</string>
-    <string name="topic_date_outdoor">Hoạt động ngoài trời</string>
-    <string name="topic_date_exhibition">Triển lãm</string>
-
-    <!-- Wedding Topics -->
-    <string name="topic_wedding_hotel">Khách sạn/Trung tâm hội nghị</string>
-    <string name="topic_wedding_outdoor">Ngoài trời/Vườn</string>
-    <string name="topic_wedding_home">Tại nhà/Quy mô nhỏ</string>
-    <string name="topic_wedding_church">Nhà thờ lớn/Nhà thờ</string>
-
-    <!-- Shopping Topics -->
-    <string name="topic_shopping_mall">Trung tâm thương mại</string>
-    <string name="topic_shopping_outlet">Cửa hàng outlet</string>
-    <string name="topic_shopping_supermarket">Siêu thị</string>
-    <string name="topic_shopping_store">Cửa hàng</string>
-    <string name="topic_shopping_street_market">Chợ đường phố</string>
-
-    <!-- Walk Topics -->
-    <string name="topic_walk_park">Công viên</string>
-    <string name="topic_walk_river">Sông/Hồ</string>
-    <string name="topic_walk_beach">Bãi biển</string>
-    <string name="topic_walk_pets">Với thú cưng</string>
-    <string name="topic_walk_picnic">Dã ngoại</string>
-
-    <!-- Exercise Topics -->
-    <string name="topic_exercise_gym">Phòng gym/Thể hình</string>
-    <string name="topic_exercise_running">Chạy bộ</string>
-    <string name="topic_exercise_yoga">Yoga/Pilates</string>
-    <string name="topic_exercise_hiking">Đi bộ đường dài/Leo núi</string>
-
-    <!-- Church Topics -->
-    <string name="topic_church_service">Lễ thờ phụng</string>
-    <string name="topic_church_small_group">Nhóm nhỏ</string>
-    <string name="topic_church_event">Sự kiện</string>
-
-    <!-- Gathering Topics -->
-    <string name="topic_gathering_friends">Gặp gỡ bạn bè</string>
-    <string name="topic_gathering_housewarming">Tiệc tân gia</string>
-    <string name="topic_gathering_class_reunion">Họp lớp</string>
-    <string name="topic_gathering_family">Buổi họp mặt gia đình</string>
-
-    <!-- Dining Topics -->
-    <string name="topic_dining_casual">Bình thường</string>
-    <string name="topic_dining_brunch">Bữa nửa buổi</string>
-    <string name="topic_dining_family">Bữa ăn gia đình</string>
-    <string name="topic_dining_date">Bữa tối hẹn hò</string>
-    <string name="topic_dining_work">Liên quan đến công việc</string>
-    <string name="topic_dining_formal">Nhà hàng sang trọng/Kỷ niệm</string>
-
     <string name="style_casual">Thường ngày</string>
     <string name="style_classic">Cổ điển</string>
     <string name="style_street">Đường phố</string>
@@ -314,6 +261,14 @@
     <string name="weather_api_key_error">API key chưa đúng. Vào weatherapi.com đăng ký key miễn phí và thay vào RetrofitClient.kt</string>
     <string name="weather_network_error">Không có kết nối Internet. Vui lòng kiểm tra mạng.</string>
     <string name="weather_generic_error">Không thể tải dữ liệu thời tiết: %1$s</string>
+
+    <!-- Weather emoji icons -->
+    <string name="weather_emoji_very_cold">🥶</string>
+    <string name="weather_emoji_cold">❄️</string>
+    <string name="weather_emoji_cool">🌤️</string>
+    <string name="weather_emoji_warm">☀️</string>
+    <string name="weather_emoji_hot">🔥</string>
+    <string name="weather_emoji_thermometer">🌡️</string>
 
     <!-- ===================== VIRTUAL TRY-ON ===================== -->
     <string name="virtual_tryon_title">Virtual Try-On</string>
@@ -604,6 +559,59 @@
     <string name="wizard_occasion_concert">Buổi hòa nhạc</string>
     <string name="wizard_occasion_funeral">Tang lễ</string>
 
+    <!-- AI Chat topic options - Date -->
+    <string name="topic_date_first">Buổi hẹn đầu</string>
+    <string name="topic_date_movie">Đi xem phim</string>
+    <string name="topic_date_restaurant">Nhà hàng</string>
+    <string name="topic_date_anniversary">Kỷ niệm</string>
+    <string name="topic_date_outdoor">Ngoài trời</string>
+    <string name="topic_date_exhibition">Triển lãm</string>
+
+    <!-- AI Chat topic options - Wedding -->
+    <string name="topic_wedding_hotel">Tiệc khách sạn</string>
+    <string name="topic_wedding_outdoor">Tiệc ngoài trời</string>
+    <string name="topic_wedding_home">Tiệc tại nhà</string>
+    <string name="topic_wedding_church">Nhà thờ</string>
+
+    <!-- AI Chat topic options - Shopping -->
+    <string name="topic_shopping_mall">Trung tâm thương mại</string>
+    <string name="topic_shopping_outlet">Cửa hàng outlet</string>
+    <string name="topic_shopping_supermarket">Siêu thị</string>
+    <string name="topic_shopping_store">Cửa hàng nhỏ</string>
+    <string name="topic_shopping_street_market">Chợ đường phố</string>
+
+    <!-- AI Chat topic options - Walk -->
+    <string name="topic_walk_park">Công viên</string>
+    <string name="topic_walk_river">Bờ sông</string>
+    <string name="topic_walk_beach">Bãi biển</string>
+    <string name="topic_walk_pets">Dắt thú cưng</string>
+    <string name="topic_walk_picnic">Dã ngoại</string>
+
+    <!-- AI Chat topic options - Exercise -->
+    <string name="topic_exercise_gym">Phòng gym</string>
+    <string name="topic_exercise_running">Chạy bộ</string>
+    <string name="topic_exercise_yoga">Yoga</string>
+    <string name="topic_exercise_hiking">Leo núi</string>
+
+    <!-- AI Chat topic options - Church -->
+    <string name="topic_church_service">Lễ chính</string>
+    <string name="topic_church_small_group">Nhóm nhỏ</string>
+    <string name="topic_church_event">Sự kiện</string>
+
+    <!-- AI Chat topic options - Gathering -->
+    <string name="topic_gathering_friends">Bạn bè</string>
+    <string name="topic_gathering_housewarming">Tân gia</string>
+    <string name="topic_gathering_class_reunion">Họp lớp</string>
+    <string name="topic_gathering_family">Gia đình</string>
+
+    <!-- AI Chat topic options - Dining -->
+    <string name="topic_dining_casual">Bình dân</string>
+    <string name="topic_dining_brunch">Brunch</string>
+    <string name="topic_dining_family">Gia đình</string>
+    <string name="topic_dining_date">Hẹn hò</string>
+    <string name="topic_dining_work">Công việc</string>
+    <string name="topic_dining_formal">Trang trọng</string>
+
     <!-- ===================== COLOR INTRO SCREEN ===================== -->
     <string name="color_intro_title">Find My Colors</string>
     <string name="color_intro_description">Discover your seasonal color palette with AI analysis.</string>
@@ -656,7 +664,7 @@
     <string name="mask_editor_hint">Use brush to refine the item mask</string>
 
     <!-- ===================== CLOSET SCREEN (REMAINING) ===================== -->
-    <string name="closet_outfit_card_info_format">📅 %1$s · %2$d món</string>
+    <string name="closet_outfit_card_info_format">%1$s · %2$d món</string>
     <string name="closet_please_select_image">Please select an image</string>
     <string name="closet_enter_item_name">Enter item name</string>
 

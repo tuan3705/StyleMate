@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -559,7 +560,7 @@ private fun WeatherAnalysisCard(analysis: WeatherAnalysis) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = getWeatherAnalysisEmoji(analysis.label),
+                text = stringResource(id = getWeatherAnalysisEmojiResId(analysis.label)),
                 fontSize = 32.sp
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -582,16 +583,15 @@ private fun WeatherAnalysisCard(analysis: WeatherAnalysis) {
 }
 
 /**
- * Trả về emoji tương ứng với weather analysis label.
- * Sử dụng Unicode escape sequences thay vì ký tự trực tiếp trong code.
+ * Trả về emoji tương ứng với weather analysis label từ string resource.
  */
-private fun getWeatherAnalysisEmoji(label: String): String = when (label) {
-    "VeryCold" -> "\uD83E\uDD76"  // 🥶
-    "Cold" -> "\u2744\uFE0F"       // ❄️
-    "Cool" -> "\uD83C\uDF24\uFE0F" // 🌤️
-    "Warm" -> "\u2600\uFE0F"       // ☀️
-    "Hot" -> "\uD83D\uDD25"        // 🔥
-    else -> "\uD83C\uDF21\uFE0F"   // 🌡️
+private fun getWeatherAnalysisEmojiResId(label: String): Int = when (label) {
+    "VeryCold" -> R.string.weather_emoji_very_cold
+    "Cold" -> R.string.weather_emoji_cold
+    "Cool" -> R.string.weather_emoji_cool
+    "Warm" -> R.string.weather_emoji_warm
+    "Hot" -> R.string.weather_emoji_hot
+    else -> R.string.weather_emoji_thermometer
 }
 
 @Composable
@@ -648,8 +648,12 @@ private fun ForecastDayCard(forecastDay: ForecastDay) {
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            val emoji = getForecastEmoji(forecastDay.day.condition.text)
-            Text(text = emoji, fontSize = 28.sp)
+            Icon(
+                painter = painterResource(id = getForecastEmojiResId(forecastDay.day.condition.text)),
+                contentDescription = forecastDay.day.condition.text,
+                tint = Color.White,
+                modifier = Modifier.size(36.dp)
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -683,11 +687,11 @@ private fun ForecastDayCard(forecastDay: ForecastDay) {
  * Trả về emoji tương ứng với weather condition text.
  * Sử dụng Unicode escape sequences thay vì ký tự trực tiếp.
  */
-private fun getForecastEmoji(conditionText: String): String = when {
-    conditionText.contains("Sunny", ignoreCase = true) -> "\u2600\uFE0F"     // ☀️
-    conditionText.contains("Cloud", ignoreCase = true) -> "\u2601\uFE0F"     // ☁️
-    conditionText.contains("Rain", ignoreCase = true) -> "\uD83C\uDF27\uFE0F" // 🌧️
-    conditionText.contains("Snow", ignoreCase = true) -> "\u2744\uFE0F"       // ❄️
-    conditionText.contains("Clear", ignoreCase = true) -> "\uD83C\uDF19"     // 🌙
-    else -> "\uD83C\uDF24\uFE0F"                                              // 🌤️
+private fun getForecastEmojiResId(conditionText: String): Int = when {
+    conditionText.contains("Sunny", ignoreCase = true) -> R.drawable.ic_weather_sunny
+    conditionText.contains("Cloud", ignoreCase = true) -> R.drawable.ic_weather_cloudy
+    conditionText.contains("Rain", ignoreCase = true) -> R.drawable.ic_weather_rainy
+    conditionText.contains("Snow", ignoreCase = true) -> R.drawable.ic_weather_snow
+    conditionText.contains("Clear", ignoreCase = true) -> R.drawable.ic_weather_clear_night
+    else -> R.drawable.ic_weather_cloudy
 }

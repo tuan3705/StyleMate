@@ -45,6 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.example.stylemate.ui.components.CategoryIconImage
 import com.example.stylemate.ui.components.OutfitCanvasPreview
 import com.example.stylemate.viewmodel.OutfitViewModel
 import androidx.compose.runtime.Composable
@@ -445,7 +446,7 @@ private fun AssignedOutfitCard(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(text = "👔", fontSize = 24.sp)
+                        CategoryIconImage(category = items.firstOrNull()?.category ?: "Other", fontSize = 24.sp)
                     }
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -521,14 +522,7 @@ private fun OutfitItemMiniCard(
             modifier = Modifier.padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val icon = when (item.category) {
-                "Tops" -> "👕"
-                "Bottoms" -> "👖"
-                "Dresses" -> "👗"
-                "Footwear" -> "👟"
-                else -> "🧥"
-            }
-            Text(text = icon, fontSize = 20.sp)
+            CategoryIconImage(category = item.category, fontSize = 20.sp)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = item.name.ifBlank { item.category },
@@ -708,7 +702,7 @@ private fun OutfitSelectionItem(
                 modifier = Modifier.size(44.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(text = "👔", fontSize = 20.sp)
+                    CategoryIconImage(category = items.firstOrNull()?.category ?: "Other", fontSize = 20.sp)
                 }
             }
 

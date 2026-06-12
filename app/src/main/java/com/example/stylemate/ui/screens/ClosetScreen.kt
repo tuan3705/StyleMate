@@ -85,6 +85,7 @@ import com.example.stylemate.viewmodel.ImageProcessingViewModel
 import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import com.example.stylemate.viewmodel.ClothingViewModel
 import com.example.stylemate.viewmodel.ClothingViewModelFactory
+import com.example.stylemate.ui.components.CategoryIconImage
 import com.example.stylemate.viewmodel.OutfitViewModel
 import com.example.stylemate.viewmodel.OutfitViewModelFactory
 import androidx.compose.ui.platform.LocalContext
@@ -665,8 +666,8 @@ private fun SavedOutfitCard(
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = getCategoryIcon(items.firstOrNull()?.category ?: "Other"),
+                    CategoryIconImage(
+                            category = items.firstOrNull()?.category ?: "Other",
                             fontSize = 20.sp
                         )
                     }
@@ -796,7 +797,7 @@ private fun OutfitCanvasPreview(
                                 .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+                            CategoryIconImage(category = item.category, fontSize = 24.sp)
                         }
                     }
                 }
@@ -981,7 +982,7 @@ private fun OutfitCanvas(
                                 .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
+                            CategoryIconImage(category = item.category, fontSize = 28.sp)
                         }
                     }
                     if (isSelected) {
@@ -1125,7 +1126,7 @@ private fun AddItemSelectCard(
                         .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 24.sp)
+                    CategoryIconImage(category = item.category, fontSize = 24.sp)
                 }
             }
             if (isSelected) {
@@ -1363,7 +1364,7 @@ private fun SelectableItemCard(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 28.sp)
+                    CategoryIconImage(category = item.category, fontSize = 28.sp)
                     Spacer(Modifier.height(6.dp))
                     Text(
                         text = item.name.ifBlank { item.category },
@@ -1466,7 +1467,7 @@ private fun SelectableItemCard(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🃏 ClothingItemCard — Card hiển thị một clothing item (GIỮ NGUYÊN)
+// 🃏 ClothingItemCard — Card hiển thị một clothing item
 // ═════════════════════════════════════════════════════════════════
 
 @Composable
@@ -1492,7 +1493,7 @@ fun ClothingItemCard(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = getCategoryIcon(item.category), fontSize = 32.sp)
+                    CategoryIconImage(category = item.category, fontSize = 32.sp)
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = item.imageOriginal.substringAfterLast("/").take(15),
@@ -1605,14 +1606,14 @@ private fun getCategoryColor(category: String): Color = when (category) {
 }
 
 private fun getCategoryIcon(category: String): String = when (category) {
-    "Tops" -> "👕"
-    "Bottoms" -> "👖"
-    "Dresses" -> "👗"
-    "Footwear" -> "👟"
-    "Bags" -> "👜"
-    "Accessories" -> "⌚"
-    "Jewelry" -> "💍"
-    else -> "🧥"
+    "Tops" -> "T"
+    "Bottoms" -> "B"
+    "Dresses" -> "D"
+    "Footwear" -> "F"
+    "Bags" -> "Ba"
+    "Accessories" -> "Ac"
+    "Jewelry" -> "J"
+    else -> "?"
 }
 
 private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "Bags", "Accessories", "Jewelry")
@@ -2022,14 +2023,11 @@ fun NewClothingItemSheet(
         // ── ADD BUTTON ──────────────────────────────────────────
         Button(
             onClick = {
-                if (imagePath == null) {
-                onError(context.getString(R.string.please_select_image_error))
-                    return@Button
-                }
                 if (category.isBlank() || color.isBlank()) return@Button
                 val parsedPrice = price.toDoubleOrNull() ?: 0.0
+                val imageFile = imagePath?.let { File(it) }
                 viewModel.addClothingItem(
-                    imageFile = File(imagePath!!),
+                    imageFile = imageFile,
                     category = category,
                     color = color,
                     name = itemName,
@@ -2042,7 +2040,7 @@ fun NewClothingItemSheet(
                 onItemAdded()
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),
-            enabled = !isLoading && category.isNotBlank() && color.isNotBlank() && imagePath != null
+            enabled = !isLoading && category.isNotBlank() && color.isNotBlank()
         ) {
             if (isLoading) {
                 CircularProgressIndicator(

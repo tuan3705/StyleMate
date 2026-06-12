@@ -66,6 +66,8 @@ import com.example.stylemate.repository.OutfitRepository
 import com.example.stylemate.ui.common.ImagePickerSection
 import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.ui.common.resolveImageData
+import com.example.stylemate.ui.components.CategoryIconImage
+import com.example.stylemate.ui.components.getCategoryColor
 import com.example.stylemate.viewmodel.ImageProcessingViewModel
 import com.example.stylemate.viewmodel.ImageProcessingViewModelFactory
 import com.example.stylemate.viewmodel.ItemEditViewModel
@@ -552,7 +554,7 @@ private fun RelevantOutfitPreviewCard(
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(40.dp)) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(text = getCategoryIcon(items.firstOrNull()?.category ?: "Other"), fontSize = 20.sp)
+                    CategoryIconImage(category = items.firstOrNull()?.category ?: "Other", fontSize = 20.sp)
                     }
                 }
                 Spacer(Modifier.width(12.dp))
@@ -620,7 +622,7 @@ private fun RelevantOutfitCanvasPreview(items: List<OutfitPreviewItem>, modifier
                         AsyncImage(model = imageRequest, contentDescription = placement.item.name.ifBlank { placement.item.category }, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     } else {
                         Box(modifier = Modifier.fillMaxSize().background(getCategoryColor(placement.item.category).copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                            Text(text = getCategoryIcon(placement.item.category), fontSize = 24.sp)
+                            CategoryIconImage(category = placement.item.category, fontSize = 24.sp)
                         }
                     }
                 }

@@ -755,7 +755,7 @@ private fun SavedOutfitCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "📅 $formattedDate · ${stringResource(R.string.outfit_items_count, items.size)}",
+                        text = stringResource(R.string.closet_outfit_card_info_format, formattedDate, items.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -791,7 +791,7 @@ private fun SavedOutfitCard(
                 // Empty state (hiếm khi xảy ra nhờ validation)
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "⚠️ ${stringResource(R.string.no_items_placeholder)}",
+                    text = stringResource(R.string.no_items_placeholder),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                 )
