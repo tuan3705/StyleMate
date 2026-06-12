@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -75,6 +76,7 @@ fun LoginScreen(
         is AuthViewModel.LoginUiState.Form -> {
             LoginForm(
                 state = state,
+                onNameChange = viewModel::updateName,
                 onEmailChange = viewModel::updateEmail,
                 onPasswordChange = viewModel::updatePassword,
                 onConfirmPasswordChange = viewModel::updateConfirmPassword,
@@ -96,6 +98,7 @@ fun LoginScreen(
 @Composable
 private fun LoginForm(
     state: AuthViewModel.LoginUiState.Form,
+    onNameChange: (String) -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
@@ -140,6 +143,31 @@ private fun LoginForm(
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    if (state.isRegisterMode) {
+                        OutlinedTextField(
+                            value = state.name,
+                            onValueChange = {
+                                onNameChange(it)
+                                onClearError()
+                            },
+                            label = { Text(stringResource(R.string.name_label)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSubmitting,
+                            shape = MaterialTheme.shapes.small,
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     OutlinedTextField(
                         value = state.email,

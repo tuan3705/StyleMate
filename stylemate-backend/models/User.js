@@ -14,6 +14,12 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     index: true
   },
+  name: {
+    type: String,
+    trim: true,
+    maxlength: 80,
+    default: ''
+  },
   passwordHash: {
     type: String,
     required: [true, 'Password hash là bắt buộc'],

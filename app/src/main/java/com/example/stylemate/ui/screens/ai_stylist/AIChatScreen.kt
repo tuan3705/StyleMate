@@ -76,6 +76,8 @@ fun AIChatScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val recommendation by viewModel.currentRecommendation.collectAsStateWithLifecycle()
+    val userName by app.authStorage.userNameFlow.collectAsStateWithLifecycle(initialValue = null)
+    val userEmail by app.authStorage.userEmailFlow.collectAsStateWithLifecycle(initialValue = null)
 
     var inputText by remember { mutableStateOf("") }
     var showWizard by remember { mutableStateOf(false) }
@@ -265,7 +267,7 @@ fun AIChatScreen(
             ) {
                 when (val state = uiState) {
                     is AIChatUiState.Welcome -> {
-                        WelcomeView()
+                        WelcomeView(userName = userName, userEmail = userEmail)
                     }
                     is AIChatUiState.Typing -> {
                         LoadingView(lastMessageText = messages.lastOrNull { it.isFromUser }?.text ?: "")
@@ -315,14 +317,17 @@ fun AIChatScreen(
 }
 
 @Composable
-fun WelcomeView() {
+fun WelcomeView(userName: String?, userEmail: String?) {
+    val displayName = userName?.takeIf { it.isNotBlank() }
+        ?: userEmail?.substringBefore('@')?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.default_user_name)
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = stringResource(R.string.welcome_greeting),
+            text = stringResource(R.string.welcome_greeting, displayName),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Normal,

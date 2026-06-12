@@ -17,6 +17,7 @@ const {
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
+const normalizeName = (name) => (name || '').trim().replace(/\s+/g, ' ');
 
 const validateCredentials = (email, password) => {
   if (!email || !emailRegex.test(email)) {
@@ -35,7 +36,8 @@ const buildAuthResponse = (user, accessToken, refreshToken, isNewUser) => {
     data: {
       user: {
         id: user._id,
-        email: user.email
+        email: user.email,
+        name: user.name || ''
       },
       accessToken,
       refreshToken,
@@ -134,8 +136,13 @@ const logout = asyncHandler(async (req, res) => {
  * POST /api/auth/register
  */
 const register = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, name } = req.body;
   validateCredentials(email, password);
+
+  const normalizedName = normalizeName(name);
+  if (!normalizedName) {
+    throw new AppError('Tên người dùng là bắt buộc', 400);
+  }
 
   const normalizedEmail = normalizeEmail(email);
   const existingUser = await User.findOne({ email: normalizedEmail });
@@ -147,6 +154,7 @@ const register = asyncHandler(async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await User.create({
     email: normalizedEmail,
+    name: normalizedName,
     passwordHash
   });
 

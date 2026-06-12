@@ -23,6 +23,7 @@ class AuthStorage(private val context: Context) {
         val refreshToken = stringPreferencesKey("refresh_token")
         val userId = stringPreferencesKey("user_id")
         val email = stringPreferencesKey("user_email")
+        val name = stringPreferencesKey("user_name")
         val sessionExpired = booleanPreferencesKey("session_expired")
     }
 
@@ -38,6 +39,10 @@ class AuthStorage(private val context: Context) {
         prefs[Keys.email]
     }
 
+    val userNameFlow: Flow<String?> = context.authDataStore.data.map { prefs ->
+        prefs[Keys.name]
+    }
+
     val sessionExpiredFlow: Flow<Boolean> = context.authDataStore.data.map { prefs ->
         prefs[Keys.sessionExpired] ?: false
     }
@@ -50,13 +55,15 @@ class AuthStorage(private val context: Context) {
         accessToken: String,
         refreshToken: String,
         userId: String,
-        email: String
+        email: String,
+        name: String
     ) {
         context.authDataStore.edit { prefs ->
             prefs[Keys.accessToken] = accessToken
             prefs[Keys.refreshToken] = refreshToken
             prefs[Keys.userId] = userId
             prefs[Keys.email] = email
+            prefs[Keys.name] = name
             prefs[Keys.sessionExpired] = false
         }
     }
@@ -79,6 +86,7 @@ class AuthStorage(private val context: Context) {
             prefs.remove(Keys.refreshToken)
             prefs.remove(Keys.userId)
             prefs.remove(Keys.email)
+            prefs.remove(Keys.name)
             prefs[Keys.sessionExpired] = false
         }
     }
