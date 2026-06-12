@@ -32,7 +32,7 @@ async function getHomeSuggestions(userId, lat, lon) {
   // Fallback: Nếu không tìm thấy đồ phù hợp bằng heuristic, lấy 20 món mới nhất
   if (relevantItems.length === 0) {
     console.log(`[RAG LOG] Heuristic returned 0 items, falling back to latest items for user ${userId}`);
-    const latestItems = await ClothingItem.find({ userId: new mongoose.Types.ObjectId(userId) })
+    const latestItems = await ClothingItem.find({ userId })
       .sort({ createdAt: -1 })
       .limit(20)
       .lean()
