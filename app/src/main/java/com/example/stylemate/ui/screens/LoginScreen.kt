@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -109,6 +112,14 @@ private fun LoginForm(
     focusManager: FocusManager
 ) {
     val isSubmitting = state.isLoading
+    val canSubmit = if (state.isRegisterMode) {
+        state.email.isNotBlank() &&
+                state.password.isNotBlank() &&
+                state.confirmPassword.isNotBlank() &&
+                !state.isPasswordMismatch
+    } else {
+        state.isFormValid
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -117,6 +128,8 @@ private fun LoginForm(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -145,6 +158,7 @@ private fun LoginForm(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     if (state.isRegisterMode) {
+                        val isNameMissing = state.validationError == "name_required"
                         OutlinedTextField(
                             value = state.name,
                             onValueChange = {
@@ -156,6 +170,12 @@ private fun LoginForm(
                             enabled = !isSubmitting,
                             shape = MaterialTheme.shapes.small,
                             singleLine = true,
+                            isError = isNameMissing,
+                            supportingText = {
+                                if (isNameMissing) {
+                                    Text(stringResource(R.string.name_required))
+                                }
+                            },
                             leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Text,
@@ -276,11 +296,16 @@ private fun LoginForm(
                         )
                     }
 
-                    val displayError = state.validationError ?: state.errorMessage
+                    val displayError = if (state.validationError == "name_required") {
+                        state.errorMessage
+                    } else {
+                        state.validationError ?: state.errorMessage
+                    }
                     if (displayError != null) {
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = when (displayError) {
+                                "name_required" -> stringResource(R.string.name_required)
                                 "password_mismatch" -> stringResource(R.string.password_mismatch)
                                 "session_expired" -> stringResource(R.string.session_expired)
                                 else -> displayError
@@ -294,7 +319,7 @@ private fun LoginForm(
 
                     Button(
                         onClick = onSubmit,
-                        enabled = !isSubmitting && state.isFormValid,
+                        enabled = !isSubmitting && canSubmit,
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.small
                     ) {

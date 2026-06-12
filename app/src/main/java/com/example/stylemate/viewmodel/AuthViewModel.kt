@@ -130,15 +130,20 @@ class AuthViewModel(
 
     fun submit() {
         val current = _uiState.value as? LoginUiState.Form ?: return
-        if (!current.isFormValid) return
 
         if (current.isRegisterMode) {
+            if (current.name.isBlank()) {
+                _uiState.value = current.copy(validationError = "name_required")
+                return
+            }
             if (current.isPasswordMismatch) {
                 _uiState.value = current.copy(validationError = "password_mismatch")
                 return
             }
+            if (!current.isFormValid) return
             register(current.name, current.email, current.password)
         } else {
+            if (!current.isFormValid) return
             login(current.email, current.password)
         }
     }

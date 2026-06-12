@@ -10,6 +10,7 @@
     <string name="login_title">StyleMate Login</string>
     <string name="signup_title">StyleMate Sign Up</string>
     <string name="email_label">Email</string>
+    <string name="name_required">Vui lòng nhập tên</string>
     <string name="name_label">Tên của bạn</string>
     <string name="password_label">Mật khẩu</string>
     <string name="confirm_password_label">Xác nhận mật khẩu</string>

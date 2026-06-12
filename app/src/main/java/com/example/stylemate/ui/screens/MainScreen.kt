@@ -8,10 +8,13 @@ import android.provider.Settings
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -118,6 +121,10 @@ fun MainScreen(onLogout: () -> Unit) {
         currentRoute.startsWith("ai_settings")
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (!isFullScreenRoute) {
                 NavigationBar {
@@ -148,7 +155,10 @@ fun MainScreen(onLogout: () -> Unit) {
         NavHost(
             navController = navController,
             startDestination = BottomNavItem.Closet.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
         ) {
             composable(BottomNavItem.Closet.route) { backStackEntry ->
                 Log.d("MainScreen", "Route: CLOSET")

@@ -32,7 +32,11 @@ class StyleMateApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Log.d("StyleMateApp", "onCreate called")
-        val firebaseApp = FirebaseApp.initializeApp(this)
+        val firebaseApp = runCatching {
+            FirebaseApp.initializeApp(this)
+        }.onFailure { error ->
+            Log.e("StyleMateApp", "FirebaseApp initialization failed", error)
+        }.getOrNull()
         Log.d("StyleMateApp", "FirebaseApp initialized=${firebaseApp != null}")
         authStorage = AuthStorage(this)
         AuthTokenProvider.init(authStorage)
@@ -45,18 +49,24 @@ class StyleMateApp : Application() {
 
         ProcessLifecycleOwner.get().lifecycle.addObserver(AppForegroundTracker)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            repeat(5) { attempt ->
-                val token = fetchFcmToken()
-                if (!token.isNullOrBlank()) {
-                    fcmRepository.cacheFcmToken(token)
-                    fcmRepository.syncFcmToken(token)
-                    return@launch
-                }
-                if (attempt < 4) {
-                    delay(2000)
+        if (firebaseApp != null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                repeat(5) { attempt ->
+                    val token = runCatching { fetchFcmToken() }
+                        .onFailure { error -> Log.w("StyleMateApp", "FCM token fetch failed", error) }
+                        .getOrNull()
+                    if (!token.isNullOrBlank()) {
+                        fcmRepository.cacheFcmToken(token)
+                        fcmRepository.syncFcmToken(token)
+                        return@launch
+                    }
+                    if (attempt < 4) {
+                        delay(2000)
+                    }
                 }
             }
+        } else {
+            Log.w("StyleMateApp", "Skipping FCM token fetch because Firebase is unavailable")
         }
 
         CoroutineScope(Dispatchers.IO).launch {

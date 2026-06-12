@@ -96,17 +96,17 @@ fun AIChatScreen(
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val colorScheme = MaterialTheme.colorScheme
+    val chatBackground = Brush.verticalGradient(
+        0.0f to colorScheme.background,
+        0.55f to colorScheme.background,
+        1.0f to colorScheme.primaryContainer.copy(alpha = 0.45f)
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    0.0f to Color.White,
-                    0.4f to Color.White,
-                    1.0f to Color(0xFFD9EBFF)
-                )
-            )
+            .background(chatBackground)
     ) {
         Scaffold(
             topBar = {
@@ -119,10 +119,10 @@ fun AIChatScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc), tint = Color.Black)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_content_desc), tint = colorScheme.onBackground)
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_content_desc), tint = Color.Black)
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_content_desc), tint = colorScheme.onBackground)
                     }
                 }
             },
@@ -143,7 +143,11 @@ fun AIChatScreen(
                         stringResource(R.string.wizard_occasion_gathering),
                         stringResource(R.string.wizard_occasion_dining)
                     )
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .imePadding()
+                    ) {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -157,13 +161,13 @@ fun AIChatScreen(
                                         showWizard = true 
                                     },
                                     shape = RoundedCornerShape(24.dp),
-                                    color = Color.Gray.copy(alpha = 0.05f)
+                                    color = colorScheme.surfaceVariant
                                 ) {
                                     Text(
                                         text = prompt,
                                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                                         fontSize = 16.sp,
-                                        color = Color.Black.copy(alpha = 0.7f)
+                                        color = colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
@@ -184,11 +188,14 @@ fun AIChatScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                        color = Color.White,
+                        color = colorScheme.surface,
                         shadowElevation = 16.dp
                     ) {
                         Column(
-                            modifier = Modifier.padding(top = 12.dp),
+                            modifier = Modifier
+                                .padding(top = 12.dp)
+                                .navigationBarsPadding()
+                                .imePadding(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             IconButton(onClick = { 
@@ -203,7 +210,7 @@ fun AIChatScreen(
                                 Icon(
                                     imageVector = if (isChatHistoryVisible) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                                     contentDescription = stringResource(R.string.toggle_chat_content_desc),
-                                    tint = Color.Gray.copy(alpha = 0.5f)
+                                    tint = colorScheme.onSurfaceVariant
                                 )
                             }
                             
@@ -237,7 +244,8 @@ fun AIChatScreen(
                                             fontSize = 15.sp,
                                             lineHeight = 22.sp,
                                             modifier = Modifier.padding(vertical = 16.dp, horizontal = 24.dp),
-                                            fontWeight = FontWeight.Medium
+                                            fontWeight = FontWeight.Medium,
+                                            color = colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -332,7 +340,7 @@ fun WelcomeView(userName: String?, userEmail: String?) {
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.Normal,
             lineHeight = 40.sp,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -399,7 +407,7 @@ fun LoadingView(lastMessageText: String) {
                 text = displayedPrompt,
                 modifier = Modifier.padding(bottom = 64.dp).fillMaxWidth(),
                 fontSize = 18.sp,
-                color = Color.Black.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
                 lineHeight = 28.sp
             )
@@ -415,10 +423,10 @@ fun LoadingView(lastMessageText: String) {
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE3F2FD)),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Face, contentDescription = null, tint = Color(0xFF2196F3), modifier = Modifier.size(32.dp))
+                    Icon(Icons.Default.Face, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -427,7 +435,7 @@ fun LoadingView(lastMessageText: String) {
                     stringResource(R.string.loading_status_ai),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -438,13 +446,13 @@ fun LoadingView(lastMessageText: String) {
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    Text(stringResource(R.string.tip_title), color = Color(0xFF2196F3), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(stringResource(R.string.tip_title), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         stringResource(R.string.tip_content),
                         fontSize = 14.sp,
                         lineHeight = 22.sp,
-                        color = Color.Black.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
                 }
             }
@@ -488,7 +496,7 @@ fun RecommendationView(
                 Text(
                     text = recommendation.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 22.sp,
                     fontSize = 15.sp,
                     maxLines = if (isExpanded) Int.MAX_VALUE else 3,
@@ -496,7 +504,7 @@ fun RecommendationView(
                 )
                 Text(
                     text = if (isExpanded) stringResource(R.string.collapse) else stringResource(R.string.see_more), 
-                    color = Color.Gray, 
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp, 
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier
@@ -532,7 +540,7 @@ fun RecommendationView(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF2196F3)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -557,12 +565,10 @@ fun RecommendationView(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
                     stringResource(R.string.get_outfit_suggestion),
-                    color = Color.White, 
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -583,8 +589,8 @@ fun CategoryItemSection(label: String, detail: String, items: List<ClothingItemE
         ) {
             Text(label, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(detail, color = Color.Gray, fontSize = 14.sp)
-                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Color.Gray)
+                Text(detail, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         
@@ -598,10 +604,10 @@ fun CategoryItemSection(label: String, detail: String, items: List<ClothingItemE
                 items(items) { item ->
                     Card(
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         modifier = Modifier
                             .size(100.dp)
-                            .border(1.dp, Color.Gray.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         val imagePath = if (item.imageNoBg.isNotBlank()) item.imageNoBg else item.imageOriginal
@@ -632,7 +638,7 @@ fun CategoryItemSection(label: String, detail: String, items: List<ClothingItemE
                 },
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp, vertical = 24.dp),
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 15.sp,
                 lineHeight = 22.sp
             )
@@ -662,6 +668,7 @@ fun ChatInputBar(
     onSend: () -> Unit,
     focusRequester: FocusRequester
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
     val placeholders = listOf(
         context.getString(R.string.wizard_chat_placeholder_date),
@@ -693,7 +700,7 @@ fun ChatInputBar(
                 ),
                 shape = RoundedCornerShape(28.dp)
             )
-            .background(Color.White, shape = RoundedCornerShape(28.dp))
+            .background(colorScheme.surface, shape = RoundedCornerShape(28.dp))
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
@@ -703,7 +710,7 @@ fun ChatInputBar(
                 Icon(
                     imageVector = Icons.Default.Add, 
                     contentDescription = stringResource(R.string.chat_add_content_desc), 
-                    tint = Color.Gray,
+                    tint = colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -722,7 +729,7 @@ fun ChatInputBar(
                     ) { text ->
                         Text(
                             text = text, 
-                            color = Color.Gray.copy(alpha = 0.5f), 
+                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             fontSize = 16.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -735,7 +742,7 @@ fun ChatInputBar(
                     disabledContainerColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = Color(0xFF64B5F6)
+                    cursorColor = colorScheme.primary
                 ),
                 singleLine = true
             )
@@ -746,12 +753,12 @@ fun ChatInputBar(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(if (value.isNotBlank()) Color(0xFF64B5F6) else Color.LightGray.copy(alpha = 0.3f))
+                    .background(if (value.isNotBlank()) colorScheme.primary else colorScheme.surfaceVariant)
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowForward, 
                     contentDescription = stringResource(R.string.chat_send_content_desc), 
-                    tint = Color.White, 
+                    tint = if (value.isNotBlank()) colorScheme.onPrimary else colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -762,8 +769,8 @@ fun ChatInputBar(
 @Composable
 fun WeatherInfoItem(icon: ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Black.copy(alpha = 0.6f))
-        Text(text, fontSize = 14.sp, color = Color.Black.copy(alpha = 0.6f))
+        Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -786,10 +793,10 @@ fun SaveOutfitSheet(
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = sheetState,
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(stringResource(R.string.save_button), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -825,7 +832,7 @@ fun SaveOptionCard(
     Card(
         modifier = modifier.height(140.dp).clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -852,10 +859,10 @@ fun CalendarPickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(stringResource(R.string.select_date_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 16.dp))
@@ -872,11 +879,10 @@ fun CalendarPickerSheet(
             Button(
                 onClick = { datePickerState.selectedDateMillis?.let { onDateSelected(it) } },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = if (datePickerState.selectedDateMillis != null) Color.Black else Color.LightGray),
                 shape = RoundedCornerShape(12.dp),
                 enabled = datePickerState.selectedDateMillis != null
             ) {
-                Text(stringResource(R.string.save_date_button), color = Color.White, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.save_date_button), fontWeight = FontWeight.Bold)
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -918,13 +924,15 @@ fun OutfitWizardSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.85f)
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 20.dp)
         ) {
             // Header
@@ -952,51 +960,51 @@ fun OutfitWizardSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            when {
-                isTravel && step == 1 -> {
-                    WizardDestinationStep(
-                        onDestinationSelected = {
-                            selectedDestination = it
-                            step = 2
-                        }
-                    )
-                }
-                isTravel && step == 2 -> {
-                    WizardDateStep(
-                        onDateSelected = {
-                            selectedDateMillis = it
-                            step = 3
-                        }
-                    )
-                }
-                (!isTravel && step == 1) || (isTravel && step == 3) -> {
-                    WizardStepOne(
-                        occasion = occasion,
-                        selectedTopic = selectedTopic,
-                        onTopicSelected = { selectedTopic = it },
-                        selectedStyle = selectedStyle,
-                        onStyleSelected = { selectedStyle = it },
-                        onNext = { step++ },
-                        onSkip = { onFinish(context2.getString(R.string.no_topic_option), context2.getString(R.string.wizard_style_none), emptyList(), selectedDestination, selectedDateMillis) }
-                    )
-                }
-                (!isTravel && step == 2) || (isTravel && step == 4) -> {
-                    WizardStepTwo(
-                        allItems = allItems,
-                        selectedItems = selectedItems,
-                        onItemSelected = { item ->
-                            selectedItems = if (selectedItems.contains(item)) {
-                                selectedItems - item
-                            } else {
-                                selectedItems + item
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    isTravel && step == 1 -> {
+                        WizardDestinationStep(
+                            onDestinationSelected = {
+                                selectedDestination = it
+                                step = 2
                             }
-                        },
-                        onFinish = { onFinish(selectedTopic, selectedStyle, selectedItems.toList(), selectedDestination, selectedDateMillis) }
-                    )
+                        )
+                    }
+                    isTravel && step == 2 -> {
+                        WizardDateStep(
+                            onDateSelected = {
+                                selectedDateMillis = it
+                                step = 3
+                            }
+                        )
+                    }
+                    (!isTravel && step == 1) || (isTravel && step == 3) -> {
+                        WizardStepOne(
+                            occasion = occasion,
+                            selectedTopic = selectedTopic,
+                            onTopicSelected = { selectedTopic = it },
+                            selectedStyle = selectedStyle,
+                            onStyleSelected = { selectedStyle = it },
+                            onNext = { step++ },
+                            onSkip = { onFinish(context2.getString(R.string.no_topic_option), context2.getString(R.string.wizard_style_none), emptyList(), selectedDestination, selectedDateMillis) }
+                        )
+                    }
+                    (!isTravel && step == 2) || (isTravel && step == 4) -> {
+                        WizardStepTwo(
+                            allItems = allItems,
+                            selectedItems = selectedItems,
+                            onItemSelected = { item ->
+                                selectedItems = if (selectedItems.contains(item)) {
+                                    selectedItems - item
+                                } else {
+                                    selectedItems + item
+                                }
+                            },
+                            onFinish = { onFinish(selectedTopic, selectedStyle, selectedItems.toList(), selectedDestination, selectedDateMillis) }
+                        )
+                    }
                 }
             }
-            
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -1030,8 +1038,8 @@ fun WizardDestinationStep(onDestinationSelected: (String) -> Unit) {
             placeholder = { Text(stringResource(R.string.ai_location_search_placeholder)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFFF5F5F5),
-                unfocusedContainerColor = Color(0xFFF5F5F5),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             )
@@ -1039,13 +1047,17 @@ fun WizardDestinationStep(onDestinationSelected: (String) -> Unit) {
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
             items(filteredCities) { city ->
                 Row(
                     modifier = Modifier.fillMaxWidth().clickable { onDestinationSelected(city) }.padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(city, fontSize = 16.sp)
                 }
@@ -1075,10 +1087,18 @@ fun WizardDateStep(onDateSelected: (Long) -> Unit) {
             onClick = { datePickerState.selectedDateMillis?.let { onDateSelected(it) } },
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = if (datePickerState.selectedDateMillis != null) Color(0xFF1A1A1A) else Color.LightGray),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (datePickerState.selectedDateMillis != null) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                },
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
             enabled = datePickerState.selectedDateMillis != null
         ) {
-            Text(stringResource(R.string.next_button), color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.next_button), fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1248,54 +1268,58 @@ fun WizardStepOne(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(stringResource(R.string.topic_title), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        FlowRow(
-            modifier = Modifier.padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 16.dp)
         ) {
-            topics.forEach { topic ->
-                FilterChip(
-                    selected = selectedTopic == topic,
-                    onClick = { onTopicSelected(topic) },
-                    label = { Text(topic) },
-                    shape = RoundedCornerShape(20.dp)
-                )
+            Text(stringResource(R.string.topic_title), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            FlowRow(
+                modifier = Modifier.padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                topics.forEach { topic ->
+                    FilterChip(
+                        selected = selectedTopic == topic,
+                        onClick = { onTopicSelected(topic) },
+                        label = { Text(topic) },
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(stringResource(R.string.style_title), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            FlowRow(
+                modifier = Modifier.padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                styles.forEach { style ->
+                    FilterChip(
+                        selected = selectedStyle == style,
+                        onClick = { onStyleSelected(style) },
+                        label = { Text(style) },
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                }
             }
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(stringResource(R.string.style_title), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        FlowRow(
-            modifier = Modifier.padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            styles.forEach { style ->
-                FilterChip(
-                    selected = selectedStyle == style,
-                    onClick = { onStyleSelected(style) },
-                    label = { Text(style) },
-                    shape = RoundedCornerShape(20.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
 
         Button(
             onClick = onNext,
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text(stringResource(R.string.next_button), color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.next_button), fontWeight = FontWeight.Bold)
         }
         
         TextButton(
             onClick = onSkip,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
         ) {
-            Text(stringResource(R.string.skip_button), color = Color.Gray)
+            Text(stringResource(R.string.skip_button), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -1335,10 +1359,10 @@ fun WizardStepTwo(
                 Text(
                     stringResource(R.string.wizard_all_label),
                     fontWeight = if (selectedCategory == Categories.ALL) FontWeight.Bold else FontWeight.Normal,
-                    color = if (selectedCategory == Categories.ALL) Color.Black else Color.Gray
+                    color = if (selectedCategory == Categories.ALL) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (selectedCategory == Categories.ALL) {
-                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(MaterialTheme.colorScheme.primary))
                 }
             }
 
@@ -1350,10 +1374,10 @@ fun WizardStepTwo(
                 Text(
                     stringResource(R.string.wizard_category_tops),
                     fontWeight = if (selectedCategory == Categories.TOPS) FontWeight.Bold else FontWeight.Normal,
-                    color = if (selectedCategory == Categories.TOPS) Color.Black else Color.Gray
+                    color = if (selectedCategory == Categories.TOPS) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (selectedCategory == Categories.TOPS) {
-                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(MaterialTheme.colorScheme.primary))
                 }
             }
 
@@ -1365,10 +1389,10 @@ fun WizardStepTwo(
                 Text(
                     stringResource(R.string.wizard_category_bottoms),
                     fontWeight = if (selectedCategory == Categories.BOTTOMS) FontWeight.Bold else FontWeight.Normal,
-                    color = if (selectedCategory == Categories.BOTTOMS) Color.Black else Color.Gray
+                    color = if (selectedCategory == Categories.BOTTOMS) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (selectedCategory == Categories.BOTTOMS) {
-                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(Color.Black))
+                    Box(modifier = Modifier.width(20.dp).height(2.dp).background(MaterialTheme.colorScheme.primary))
                 }
             }
         }
@@ -1389,7 +1413,7 @@ fun WizardStepTwo(
                             else -> stringResource(R.string.all_clothes).lowercase()
                         }
                     ),
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
             }
@@ -1405,11 +1429,11 @@ fun WizardStepTwo(
                         modifier = Modifier
                             .aspectRatio(0.8f)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White)
+                            .background(MaterialTheme.colorScheme.surface)
                             .clickable { onItemSelected(item) }
                             .border(
                                 if (selectedItems.contains(item)) 2.dp else 1.dp,
-                                if (selectedItems.contains(item)) Color.Black else Color.LightGray,
+                                if (selectedItems.contains(item)) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
                                 RoundedCornerShape(8.dp)
                             )
                     ) {
@@ -1431,7 +1455,7 @@ fun WizardStepTwo(
                             Icon(
                                 Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = Color.Black,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
                             )
                         }
@@ -1445,10 +1469,9 @@ fun WizardStepTwo(
         Button(
             onClick = onFinish,
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A))
+            shape = RoundedCornerShape(12.dp)
         ) {
-            Text(stringResource(R.string.get_outfit_suggestion), color = Color.White, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.get_outfit_suggestion), fontWeight = FontWeight.Bold)
         }
     }
 }

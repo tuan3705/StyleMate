@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
@@ -25,9 +24,8 @@ android {
 
     buildTypes {
         debug {
-            // ADB Reverse: chạy lệnh 'adb reverse tcp:8080 tcp:3000' rồi build
-            // App sẽ gọi http://127.0.0.1:8080/ → qua ADB → backend localhost:3000
-            buildConfigField("String", "STYLEMATE_BASE_URL", "\"http://127.0.0.1:8080/\"")
+            // Android Emulator calls the host machine's localhost via 10.0.2.2.
+            buildConfigField("String", "STYLEMATE_BASE_URL", "\"http://10.0.2.2:3000/\"")
         }
 
         release {
@@ -47,14 +45,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
         isCoreLibraryDesugaringEnabled = true
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
         buildConfig = true
     }
-    buildToolsVersion = "34.0.0"
 }
 
 dependencies {

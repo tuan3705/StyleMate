@@ -127,6 +127,7 @@ fun AIStylistScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AIStylistHeader(userName = userName, userEmail = userEmail, accountMenu = accountMenu)
         }
@@ -179,11 +180,11 @@ fun AIStylistScreen(
                     OutlinedButton(
                         onClick = { /* TODO */ },
                         shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.ai_stylist_edit_home), color = Color.Black)
+                        Text(stringResource(R.string.ai_stylist_edit_home), color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
             }
@@ -193,7 +194,7 @@ fun AIStylistScreen(
                     stringResource(R.string.ai_stylist_edit_home_subtitle),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
             }
@@ -258,12 +259,12 @@ fun WeatherRecommendationSection(
                 modifier = Modifier.padding(start = 8.dp)
             ) {
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color.Gray)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 } else {
                     Icon(
                         Icons.Outlined.Refresh,
                         contentDescription = stringResource(R.string.ai_stylist_refresh_desc),
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -292,7 +293,7 @@ fun WeatherRecommendationSection(
                             .width(160.dp)
                             .height(200.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
                         Column(
@@ -311,7 +312,7 @@ fun WeatherRecommendationSection(
                                 )
                             }
                             if (imageUrls.isEmpty()) {
-                                Icon(Icons.Default.Checkroom, null, modifier = Modifier.size(60.dp), tint = Color.LightGray)
+                                Icon(Icons.Default.Checkroom, null, modifier = Modifier.size(60.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -340,8 +341,8 @@ fun StylistActionCard(onNavigate: () -> Unit) {
             .width(180.dp)
             .height(200.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0F0F0))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
@@ -354,7 +355,7 @@ fun StylistActionCard(onNavigate: () -> Unit) {
                 Icons.Default.Face,
                 contentDescription = null,
                 modifier = Modifier.size(32.dp),
-                tint = Color.Black
+                tint = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -366,11 +367,10 @@ fun StylistActionCard(onNavigate: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Button(
                 onClick = onNavigate,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.ai_stylist_try_now), color = Color.White, fontSize = 12.sp)
+                Text(stringResource(R.string.ai_stylist_try_now), fontSize = 12.sp)
             }
         }
     }
@@ -390,22 +390,22 @@ fun SeeMoreCard(onNavigate: () -> Unit) {
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color.White)
-                .border(1.dp, Color.LightGray, CircleShape),
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.ai_stylist_see_more_desc), modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Text(stringResource(R.string.ai_stylist_see_more), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Text(stringResource(R.string.ai_stylist_see_more), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 fun WeatherInfoItem(icon: ImageVector, text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-        Text(text = text, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+        Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -454,8 +454,8 @@ fun PopularFeaturesSection() {
             )
             TextButton(onClick = { /* TODO */ }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.ai_stylist_view_all), color = Color.Gray)
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                    Text(stringResource(R.string.ai_stylist_view_all), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -471,7 +471,7 @@ fun PopularFeaturesSection() {
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.ai_stylist_create_outfit),
                 icon = Icons.Default.AccessibilityNew,
-                iconColor = Color.Gray
+                iconColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -488,7 +488,7 @@ fun FeatureCard(modifier: Modifier = Modifier, title: String, icon: ImageVector,
     Card(
         modifier = modifier.height(100.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
             Text(
@@ -512,7 +512,7 @@ fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVe
     Card(
         modifier = modifier.height(100.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
             Text(
@@ -526,7 +526,7 @@ fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVe
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp).align(Alignment.TopEnd),
-                tint = Color.Gray.copy(alpha = 0.6f)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         }
     }
@@ -580,12 +580,12 @@ fun AIDesignerLargeCard(modifier: Modifier, title: String, hasUpdate: Boolean, o
         onClick = onClick,
         modifier = modifier.height(160.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
             if (hasUpdate) {
                 Surface(
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.align(Alignment.TopStart)
                 ) {
@@ -593,7 +593,7 @@ fun AIDesignerLargeCard(modifier: Modifier, title: String, hasUpdate: Boolean, o
                         stringResource(R.string.ai_stylist_update_badge),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -622,7 +622,7 @@ fun AIDesignerMediumCard(title: String, icon: ImageVector, onClick: () -> Unit =
             .fillMaxWidth()
             .height(74.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(12.dp),
@@ -630,7 +630,7 @@ fun AIDesignerMediumCard(title: String, icon: ImageVector, onClick: () -> Unit =
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = Color.LightGray)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -646,7 +646,7 @@ fun AIIconButton(modifier: Modifier, title: String, icon: ImageVector) {
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFF5F7FB)),
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
@@ -676,7 +676,7 @@ fun BrandImportSection() {
             item { BrandLogoCard("ZARA") }
             item {
                 Box(
-                    modifier = Modifier.size(70.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFF5F7FB)),
+                    modifier = Modifier.size(70.dp).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
@@ -691,8 +691,8 @@ fun BrandCard(icon: ImageVector, title: String) {
     Card(
         modifier = Modifier.size(70.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0F0F0))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -710,14 +710,14 @@ fun BrandLogoCard(name: String) {
     Card(
         modifier = Modifier.size(70.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = if (name == "GAP") Color(0xFF00245D) else Color.White),
-        border = if (name != "GAP") androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0F0F0)) else null
+        colors = CardDefaults.cardColors(containerColor = if (name == "GAP") Color(0xFF00245D) else MaterialTheme.colorScheme.surface),
+        border = if (name != "GAP") androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
                 name,
                 fontWeight = FontWeight.Bold,
-                color = if (name == "GAP") Color.White else Color.Black,
+                color = if (name == "GAP") Color.White else MaterialTheme.colorScheme.onSurface,
                 fontSize = 18.sp
             )
         }
@@ -737,7 +737,7 @@ fun RecentlyAddedSection() {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -746,21 +746,21 @@ fun RecentlyAddedSection() {
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF5F7FB)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.Gray)
+                    Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             items(5) {
                 Card(
                     modifier = Modifier.size(80.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF0F0F0))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Checkroom, contentDescription = null, tint = Color.LightGray)
+                        Icon(Icons.Default.Checkroom, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -783,8 +783,8 @@ fun OutfitCalendarSection() {
             )
             TextButton(onClick = { /* TODO */ }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.ai_stylist_view_calendar), color = Color.Gray)
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                    Text(stringResource(R.string.ai_stylist_view_calendar), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -799,23 +799,23 @@ fun OutfitCalendarSection() {
             items(days.size) { index ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (days[index] == todayStr) {
-                        Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(Color.Black))
+                        Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
                     } else {
                         Spacer(modifier = Modifier.size(4.dp))
                     }
                     Text(days[index], fontWeight = if (days[index] == todayStr) FontWeight.Bold else FontWeight.Normal, fontSize = 14.sp)
-                    Text(dates[index], color = Color.Gray, fontSize = 12.sp)
+                    Text(dates[index], color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                        Text(temps[index], fontSize = 11.sp, color = Color.Gray)
+                        Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(temps[index], fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Card(
                         modifier = Modifier.size(100.dp, 130.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F7FB))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = Color.Gray.copy(alpha = 0.5f))
+                            Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                         }
                     }
                 }
@@ -858,10 +858,10 @@ fun MagazineCard(title: String, date: String, isNew: Boolean) {
         Card(
             modifier = Modifier.fillMaxWidth().height(160.dp),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.LightGray)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(48.dp), tint = Color.White)
+                Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Text(
@@ -872,17 +872,17 @@ fun MagazineCard(title: String, date: String, isNew: Boolean) {
             overflow = TextOverflow.Ellipsis
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(date, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Text(date, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (isNew) {
                 Surface(
-                    color = Color(0xFFE3F2FD),
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
                         stringResource(R.string.ai_stylist_new_badge),
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF1976D2),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold
                     )
                 }
