@@ -69,6 +69,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.stylemate.R
 import com.example.stylemate.model.Categories
@@ -1326,6 +1327,61 @@ private fun CreateOutfitBottomSheetContent(
     }
 }
 
+// ═════════════════════════════════════════════════════════════════
+// 🖼️ Fallback composables cho item cards
+// ═════════════════════════════════════════════════════════════════
+
+@Composable
+private fun SelectableItemCardFallback(item: ClothingItemEntity, bgAlpha: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(getCategoryColor(item.category).copy(alpha = bgAlpha)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CategoryIconImage(category = item.category, fontSize = 28.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = item.name.ifBlank { item.category },
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+            Text(
+                text = item.color,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun ClothingItemCardFallback(item: ClothingItemEntity) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CategoryIconImage(category = item.category, fontSize = 32.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = item.imageOriginal.substringAfterLast("/").take(15),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.DarkGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 🔷 SelectableItemCard — Item trong grid có thể chọn/bỏ chọn
 // ════════════════════════════════════════════════════════════════
@@ -1357,38 +1413,17 @@ private fun SelectableItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(getCategoryColor(item.category).copy(alpha = bgAlpha)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CategoryIconImage(category = item.category, fontSize = 28.sp)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = item.name.ifBlank { item.category },
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                    Text(
-                        text = item.color,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                }
-            }
             if (imageModel != null) {
-                AsyncImage(
+                SubcomposeAsyncImage(
                     model = imageModel,
                     contentDescription = item.name.ifBlank { item.category },
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    loading = { SelectableItemCardFallback(item, bgAlpha) },
+                    error = { SelectableItemCardFallback(item, bgAlpha) }
                 )
+            } else {
+                SelectableItemCardFallback(item, bgAlpha)
             }
             if (isSelected) {
                 Icon(
@@ -1486,32 +1521,17 @@ fun ClothingItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(getCategoryColor(item.category).copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CategoryIconImage(category = item.category, fontSize = 32.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = item.imageOriginal.substringAfterLast("/").take(15),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.DarkGray,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
             if (imageModel != null) {
-                AsyncImage(
+                SubcomposeAsyncImage(
                     model = imageModel,
                     contentDescription = item.name.ifBlank { item.category },
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    loading = { ClothingItemCardFallback(item) },
+                    error = { ClothingItemCardFallback(item) }
                 )
+            } else {
+                ClothingItemCardFallback(item)
             }
             Column(
                 modifier = Modifier

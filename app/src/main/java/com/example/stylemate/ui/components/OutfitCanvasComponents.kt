@@ -37,6 +37,7 @@ import com.example.stylemate.R
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.viewmodel.OutfitViewModel
@@ -100,6 +101,26 @@ fun CategoryIconImage(
             fontSize = fontSize,
             modifier = modifier
         )
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════
+// 🖼️ OutfitItemFallback — Placeholder khi ảnh item không load được
+// ═════════════════════════════════════════════════════════════════
+
+@Composable
+private fun OutfitItemFallback(
+    item: ClothingItemEntity,
+    bgAlpha: Float,
+    iconSize: androidx.compose.ui.unit.TextUnit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(getCategoryColor(item.category).copy(alpha = bgAlpha)),
+        contentAlignment = Alignment.Center
+    ) {
+        CategoryIconImage(category = item.category, fontSize = iconSize)
     }
 }
 
@@ -177,21 +198,15 @@ fun OutfitCanvasPreview(
                         .size(itemSize * placement.scale)
                 ) {
                     if (imageModel != null) {
-                        AsyncImage(
+                        SubcomposeAsyncImage(
                             model = imageModel,
                             contentDescription = item.name.ifBlank { item.category },
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
+                            contentScale = ContentScale.Fit,
+                            error = { OutfitItemFallback(item, 0.2f, 24.sp) }
                         )
                     } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CategoryIconImage(category = item.category, fontSize = 24.sp)
-                        }
+                        OutfitItemFallback(item, 0.2f, 24.sp)
                     }
                 }
             }
@@ -291,21 +306,15 @@ fun OutfitCanvas(
                 ) {
                     // Item image hoặc placeholder
                     if (imageModel != null) {
-                        AsyncImage(
+                        SubcomposeAsyncImage(
                             model = imageModel,
                             contentDescription = item.name.ifBlank { item.category },
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
+                            contentScale = ContentScale.Fit,
+                            error = { OutfitItemFallback(item, 0.2f, 28.sp) }
                         )
                     } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CategoryIconImage(category = item.category, fontSize = 28.sp)
-                        }
+                        OutfitItemFallback(item, 0.2f, 28.sp)
                     }
 
                     // Overlay controls khi được chọn
