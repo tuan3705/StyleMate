@@ -55,6 +55,7 @@ import com.example.stylemate.ui.screens.ai_stylist.AINotesSettingsScreen
 import com.example.stylemate.ui.screens.ai_stylist.AISettingsScreen
 import com.example.stylemate.ui.screens.ai_stylist.OutfitSuggestionWizard
 import com.example.stylemate.ui.screens.ai_stylist.PersonalStylistScreen
+import com.example.stylemate.ui.screens.virtual_tryon.TryOnSetupScreen
 
 @Composable
 fun MainScreen(onLogout: () -> Unit) {
@@ -118,6 +119,7 @@ fun MainScreen(onLogout: () -> Unit) {
         currentRoute == StyleMateRoutes.AI_CHAT ||
         currentRoute == StyleMateRoutes.AI_PERSONAL_STYLIST ||
         currentRoute == StyleMateRoutes.OUTFIT_SUGGESTION ||
+        currentRoute == StyleMateRoutes.VIRTUAL_TRY_ON ||
         currentRoute.startsWith("ai_settings")
 
     Scaffold(
@@ -181,6 +183,9 @@ fun MainScreen(onLogout: () -> Unit) {
                     onNavigateToPersonalStylist = {
                         navController.navigate(StyleMateRoutes.AI_PERSONAL_STYLIST)
                     },
+                    onNavigateToVirtualTryOn = {
+                        navController.navigate(StyleMateRoutes.VIRTUAL_TRY_ON)
+                    },
                     accountMenu = { AccountMenu(onLogout = onLogout) }
                 )
             }
@@ -236,6 +241,14 @@ fun MainScreen(onLogout: () -> Unit) {
                         navController.previousBackStackEntry?.savedStateHandle?.set("wizard_result", message)
                         navController.popBackStack()
                     }
+                )
+            }
+
+            // ✅ VIRTUAL TRY-ON ROUTE
+            composable(StyleMateRoutes.VIRTUAL_TRY_ON) {
+                Log.d("MainScreen", "Route: VIRTUAL_TRY_ON")
+                TryOnSetupScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
 

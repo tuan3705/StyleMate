@@ -386,6 +386,58 @@ interface StylemateApiService {
     // 🌤️ WEATHER — /api/weather/forecast (Proxy)
     // ═════════════════════════════════════════════════════════════
 
+    // ═════════════════════════════════════════════════════════════
+    // 👗 VIRTUAL TRY-ON — /api/ai-stylist/virtual-tryon
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * POST /api/ai-stylist/virtual-tryon
+     * Kickoff virtual try-on with bodyImage + multiple itemImages (from an outfit)
+     */
+    @Multipart
+    @POST("api/ai-stylist/virtual-tryon")
+    suspend fun kickoffTryOn(
+        @Part bodyImage: MultipartBody.Part,
+        @Part itemImages: List<MultipartBody.Part>
+    ): Response<com.example.stylemate.repository.KickoffResponse>
+
+    /**
+     * POST /api/ai-stylist/virtual-tryon/create
+     * Kickoff with bodyImage + selectedItemIds as JSON field (backed fetches cloth images by ID)
+     * Uses /create alias to avoid Retrofit conflict with multipart endpoint
+     */
+    @Multipart
+    @POST("api/ai-stylist/virtual-tryon/create")
+    suspend fun kickoffTryOnWithItemIds(
+        @Part bodyImage: MultipartBody.Part,
+        @Part("selectedItemIds") selectedItemIds: okhttp3.RequestBody
+    ): Response<com.example.stylemate.repository.KickoffResponse>
+
+    /**
+     * GET /api/ai-stylist/virtual-tryon/:jobId/status
+     */
+    @GET("api/ai-stylist/virtual-tryon/{jobId}/status")
+    suspend fun getTryOnStatus(
+        @Path("jobId") jobId: String
+    ): Response<com.example.stylemate.repository.StatusResponse>
+
+    /**
+     * GET /api/ai-stylist/virtual-tryon/:jobId/result
+     */
+    @GET("api/ai-stylist/virtual-tryon/{jobId}/result")
+    suspend fun getTryOnResult(
+        @Path("jobId") jobId: String
+    ): Response<com.example.stylemate.repository.ResultResponse>
+
+    /**
+     * POST /api/ai-stylist/virtual-tryon/:jobId/save-to-collection
+     * Lưu kết quả try-on vào tủ đồ (yêu cầu xác thực + chủ sở hữu job)
+     */
+    @POST("api/ai-stylist/virtual-tryon/{jobId}/save-to-collection")
+    suspend fun saveTryOnToCollection(
+        @Path("jobId") jobId: String,
+        @Body body: SaveToCollectionRequest
+    ): Response<ApiSingleResponse<ClothingItemDto>>
     /**
      * GET /api/weather/forecast
      * Proxy: Backend gọi WeatherAPI.com thay Client.

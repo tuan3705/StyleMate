@@ -174,7 +174,21 @@ data class WeatherCondition(
  */
 data class UploadResponse(
     val success: Boolean,
-    val url: String
+    val url: String?
+)
+
+/**
+ * Request body for saving try-on result to collection.
+ * Gửi lên khi user muốn lưu ảnh kết quả try-on vào tủ đồ.
+ */
+data class SaveToCollectionRequest(
+    val name: String = "Try-On Result",
+    val category: String = "Tops",
+    val color: String = "",
+    val season: String = "",
+    val occasion: String = "",
+    val brand: String = "",
+    val price: Double = 0.0
 )
 
 

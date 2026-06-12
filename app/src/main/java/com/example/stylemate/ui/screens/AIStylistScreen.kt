@@ -61,6 +61,7 @@ import com.example.stylemate.viewmodel.WeatherViewModel
 fun AIStylistScreen(
     onNavigateToChat: () -> Unit = {},
     onNavigateToPersonalStylist: () -> Unit = {},
+    onNavigateToVirtualTryOn: () -> Unit = {},
     accountMenu: @Composable () -> Unit = {}
 ) {
     val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
@@ -155,7 +156,8 @@ fun AIStylistScreen(
             item {
                 AIDesignerSection(
                     onNavigateToPersonalStylist = onNavigateToPersonalStylist,
-                    onNavigateToChat = onNavigateToChat
+                    onNavigateToChat = onNavigateToChat,
+                    onNavigateToVirtualTryOn = onNavigateToVirtualTryOn
                 )
             }
 
@@ -535,7 +537,8 @@ fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVe
 @Composable
 fun AIDesignerSection(
     onNavigateToPersonalStylist: () -> Unit,
-    onNavigateToChat: () -> Unit
+    onNavigateToChat: () -> Unit,
+    onNavigateToVirtualTryOn: () -> Unit = {}
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
@@ -568,7 +571,12 @@ fun AIDesignerSection(
             AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_my_color), icon = Icons.Default.Palette)
             AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_my_fit), icon = Icons.Default.PersonOutline)
             AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_style_score), icon = Icons.Default.Star)
-            AIIconButton(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_virtual_tryon), icon = Icons.Default.ViewInAr)
+            AIIconButton(
+                modifier = Modifier.weight(1f),
+                title = stringResource(R.string.ai_stylist_virtual_tryon),
+                icon = Icons.Default.ViewInAr,
+                onClick = onNavigateToVirtualTryOn
+            )
         }
     }
 }
@@ -636,9 +644,9 @@ fun AIDesignerMediumCard(title: String, icon: ImageVector, onClick: () -> Unit =
 }
 
 @Composable
-fun AIIconButton(modifier: Modifier, title: String, icon: ImageVector) {
+fun AIIconButton(modifier: Modifier, title: String, icon: ImageVector, onClick: () -> Unit = {}) {
     Column(
-        modifier = modifier,
+        modifier = modifier.clickable { onClick() },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {

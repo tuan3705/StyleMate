@@ -275,16 +275,29 @@
 
     <!-- ===================== VIRTUAL TRY-ON ===================== -->
     <string name="virtual_tryon_title">Virtual Try-On</string>
-    <string name="tryon_setup_hint">Select your body image and the item to try on</string>
+    <string name="tryon_setup_hint">Chụp ảnh người và chọn bộ đồ để mặc thử</string>
+    <string name="tryon_body_label">Ảnh cơ thể của bạn</string>
+    <string name="tryon_cloth_label">Quần áo</string>
+    <string name="tryon_select_outfit">Chọn bộ đồ để mặc thử</string>
+    <string name="tryon_result_title">Kết quả Try-On</string>
     <string name="tryon_body_placeholder">Body Image Placeholder</string>
     <string name="tryon_item_placeholder">Item</string>
-    <string name="tryon_processing_label">Processing: %1$d%%</string>
-    <string name="tryon_status_label">Status: %1$s</string>
+    <string name="tryon_processing_label">Đang xử lý: %1$d%%</string>
+    <string name="tryon_status_label">Trạng thái: %1$s</string>
     <string name="tryon_result_content_desc">Try-On Result</string>
-    <string name="tryon_failed_label">Try-On Failed: %1$s</string>
-    <string name="start_try_on">Start Try-On</string>
-    <string name="save_outfit_simple">Save Outfit</string>
-    <string name="try_another_button">Try Another</string>
+    <string name="tryon_failed_label">Thử đồ thất bại: %1$s</string>
+    <string name="start_try_on">Bắt đầu thử đồ</string>
+    <string name="save_outfit_simple">Lưu bộ đồ</string>
+    <string name="tryon_save_to_gallery">📱 Lưu vào bộ sưu tập</string>
+    <string name="tryon_save_gallery_success">✅ Đã lưu vào thư viện ảnh!</string>
+    <string name="tryon_save_gallery_error">❌ Lỗi lưu ảnh: %1$s</string>
+    <string name="tryon_save_gallery_permission_denied">Không được cấp quyền. Không thể lưu ảnh vào thư viện.</string>
+    <string name="try_another_button">Thử lại</string>
+
+    <!-- Permission -->
+    <string name="permission_storage_title">Cần quyền lưu ảnh</string>
+    <string name="permission_storage_save_tryon">StyleMate cần quyền truy cập bộ nhớ để lưu ảnh kết quả try-on vào thư viện ảnh của bạn.</string>
+    <string name="permission_storage_settings_redirect">Vui lòng cấp quyền truy cập bộ nhớ trong Cài đặt ứng dụng để lưu ảnh vào thư viện.</string>
 
     <!-- ===================== ITEM UPLOAD ===================== -->
     <string name="upload_item_title">Upload Item</string>
