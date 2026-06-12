@@ -116,16 +116,15 @@ fun EditItemScreen(
     val aiFillState by imageProcessingViewModel.aiFillState.collectAsStateWithLifecycle()
     val autoTaggingState by imageProcessingViewModel.autoTaggingState.collectAsStateWithLifecycle()
 
+    val savedNoBg = uiState.imageNoBg.takeIf { it.isNotBlank() }
     val displayImagePath = pickedImagePath
-        ?: uiState.imageNoBg.takeIf { it.isNotBlank() }
+        ?: savedNoBg
         ?: uiState.imageOriginal
-    val isUsingSavedNoBg = pickedImagePath == null &&
-        uiState.imageNoBg.isNotBlank() &&
-        displayImagePath == uiState.imageNoBg
-    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
-    val canRemoveBackground = displayImagePath.isNotBlank() &&
-        !isUsingSavedNoBg &&
-        (lastRemoveBgPath == null || displayImagePath != lastRemoveBgPath)
+    // Path da xoa nen trong phien hien tai (sau khi bam Remove BG)
+    var sessionNoBgPath by remember { mutableStateOf<String?>(null) }
+    val isBgRemoved = displayImagePath.isNotBlank() &&
+        (displayImagePath == savedNoBg || displayImagePath == sessionNoBgPath)
+    val canRemoveBackground = displayImagePath.isNotBlank() && !isBgRemoved
 
     var relevantOutfitsRefreshKey by remember { mutableStateOf(0) }
 
@@ -183,12 +182,6 @@ fun EditItemScreen(
     LaunchedEffect(pickedImagePath) {
         if (pickedImagePath != null) {
             viewModel.updateImagePath(pickedImagePath)
-            lastRemoveBgPath = null
-        }
-    }
-    LaunchedEffect(uiState.imageNoBg, pickedImagePath) {
-        if (pickedImagePath == null) {
-            lastRemoveBgPath = uiState.imageNoBg.takeIf { it.isNotBlank() }
         }
     }
     LaunchedEffect(uiState.errorMessage) {
@@ -204,7 +197,7 @@ fun EditItemScreen(
             imageProcessingViewModel.clearResult()
             viewModel.saveRemovedBackground(newPath)
             relevantOutfitsRefreshKey += 1
-            lastRemoveBgPath = newPath
+            sessionNoBgPath = newPath
         }
     }
     LaunchedEffect(removeBgState.errorMessage) {

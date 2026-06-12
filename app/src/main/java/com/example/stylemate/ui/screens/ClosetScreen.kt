@@ -118,6 +118,8 @@ fun ClosetScreen(
     onEditItem: (String) -> Unit,
     refreshSignal: StateFlow<Boolean>,
     onRefreshConsumed: () -> Unit,
+    pendingActionSignal: StateFlow<String?>,
+    onPendingActionConsumed: () -> Unit,
     accountMenu: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -221,6 +223,23 @@ fun ClosetScreen(
         if (refreshRequested) {
             clothingVM.refreshItems()
             onRefreshConsumed()
+        }
+    }
+
+    // 🔗 Pending action tu AI Stylist: mo sheet tuong ung sau khi chuyen sang Closet
+    val pendingAction by pendingActionSignal.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingAction) {
+        when (pendingAction) {
+            "add_item" -> {
+                selectedTab = 0
+                showBottomSheet = true
+                onPendingActionConsumed()
+            }
+            "create_outfit" -> {
+                selectedTab = 1
+                showCreateOutfitSheet = true
+                onPendingActionConsumed()
+            }
         }
     }
 
@@ -1693,10 +1712,10 @@ fun NewClothingItemSheet(
     val isLoading by viewModel.isLoading.collectAsState()
     val imagePickerState = rememberImagePickerState(onError = onError)
     val imagePath by imagePickerState.imagePath
-    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
+    var noBgPath by remember { mutableStateOf<String?>(null) }
 
     val canRemoveBackground = imagePath?.let { current ->
-        lastRemoveBgPath == null || current != lastRemoveBgPath
+        current.isNotBlank() && current != noBgPath
     } ?: false
 
     val onRemoveBackgroundClick = {
@@ -1713,7 +1732,7 @@ fun NewClothingItemSheet(
         val newPath = removeBgState.resultPath
         if (!newPath.isNullOrBlank()) {
             imagePickerState.setImagePath(newPath)
-            lastRemoveBgPath = newPath
+            noBgPath = newPath
             imageProcessingViewModel.clearResult()
         }
     }
@@ -2052,6 +2071,7 @@ fun NewClothingItemSheet(
                 if (category.isBlank() || color.isBlank()) return@Button
                 val parsedPrice = price.toDoubleOrNull() ?: 0.0
                 val imageFile = imagePath?.let { File(it) }
+                val bgRemoved = imagePath != null && imagePath == noBgPath
                 viewModel.addClothingItem(
                     imageFile = imageFile,
                     category = category,
@@ -2061,7 +2081,8 @@ fun NewClothingItemSheet(
                     occasion = selectedOccasion,
                     brand = brand,
                     purchaseDate = purchaseDate,
-                    price = parsedPrice
+                    price = parsedPrice,
+                    bgRemoved = bgRemoved
                 )
                 onItemAdded()
             },

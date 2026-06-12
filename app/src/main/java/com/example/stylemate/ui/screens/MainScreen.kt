@@ -166,10 +166,14 @@ fun MainScreen(onLogout: () -> Unit) {
                 Log.d("MainScreen", "Route: CLOSET")
                 val refreshSignal =
                     backStackEntry.savedStateHandle.getStateFlow("refresh_items", false)
+                val pendingActionSignal =
+                    backStackEntry.savedStateHandle.getStateFlow<String?>("closet_pending_action", null)
                 ClosetScreen(
                     onEditItem = { itemId -> navController.navigate("edit_item/$itemId") },
                     refreshSignal = refreshSignal,
                     onRefreshConsumed = { backStackEntry.savedStateHandle["refresh_items"] = false },
+                    pendingActionSignal = pendingActionSignal,
+                    onPendingActionConsumed = { backStackEntry.savedStateHandle["closet_pending_action"] = null },
                     accountMenu = { AccountMenu(onLogout = onLogout) }
                 )
             }
@@ -185,6 +189,24 @@ fun MainScreen(onLogout: () -> Unit) {
                     },
                     onNavigateToVirtualTryOn = {
                         navController.navigate(StyleMateRoutes.VIRTUAL_TRY_ON)
+                    },
+                    onNavigateToAddItem = {
+                        navController.navigate(BottomNavItem.Closet.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                        navController.getBackStackEntry(BottomNavItem.Closet.route)
+                            .savedStateHandle["closet_pending_action"] = "add_item"
+                    },
+                    onNavigateToCreateOutfit = {
+                        navController.navigate(BottomNavItem.Closet.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                        navController.getBackStackEntry(BottomNavItem.Closet.route)
+                            .savedStateHandle["closet_pending_action"] = "create_outfit"
                     },
                     accountMenu = { AccountMenu(onLogout = onLogout) }
                 )

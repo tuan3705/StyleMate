@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.example.stylemate.data.local.ImageStorage
+import com.example.stylemate.network.RetrofitClient
 import com.example.stylemate.network.StylemateApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,25 +24,31 @@ class ImageProcessingRepository(
         private const val TAG = "ImageProcessingRepository"
     }
     private suspend fun resolveInputFile(path: String, prefix: String): File {
+        // Duong dan tuong doi cua backend (vd: /uploads/xxx.jpg) -> ghep BASE_URL thanh URL day du
+        val normalized = if (path.startsWith("/uploads/")) {
+            RetrofitClient.STYLEMATE_BASE_URL.trimEnd('/') + path
+        } else {
+            path
+        }
         return when {
-            path.startsWith("file://") -> File(path.removePrefix("file://"))
-            path.startsWith("content://") -> {
-                val uri = Uri.parse(path)
+            normalized.startsWith("file://") -> File(normalized.removePrefix("file://"))
+            normalized.startsWith("content://") -> {
+                val uri = Uri.parse(normalized)
                 ImageStorage.copyUriToInternalStorage(context, uri, prefix = prefix)
             }
-            path.startsWith("http://") || path.startsWith("https://") -> {
-                val extension = path.substringAfterLast('.', "")
+            normalized.startsWith("http://") || normalized.startsWith("https://") -> {
+                val extension = normalized.substringAfterLast('.', "")
                     .substringBefore('?')
                     .lowercase(Locale.ROOT)
                     .ifBlank { "jpg" }
                 ImageStorage.saveStreamToInternalStorage(
                     context = context,
-                    inputStream = URL(path).openStream(),
+                    inputStream = URL(normalized).openStream(),
                     prefix = prefix,
                     extension = extension
                 )
             }
-            else -> File(path)
+            else -> File(normalized)
         }
     }
 

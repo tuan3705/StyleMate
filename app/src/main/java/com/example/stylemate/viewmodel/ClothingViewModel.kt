@@ -117,7 +117,8 @@ class ClothingViewModel(
         occasion: String,
         brand: String,
         purchaseDate: Long,
-        price: Double
+        price: Double,
+        bgRemoved: Boolean = false
     ) {
         viewModelScope.launch {
             try {
@@ -129,7 +130,7 @@ class ClothingViewModel(
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),
                     imageOriginal = imagePath,
-                    imageNoBg = "",
+                    imageNoBg = if (bgRemoved && imagePath.isNotBlank()) imagePath else "",
                     category = category,
                     color = color,
                     name = name,

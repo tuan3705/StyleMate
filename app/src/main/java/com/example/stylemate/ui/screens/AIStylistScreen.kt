@@ -62,6 +62,8 @@ fun AIStylistScreen(
     onNavigateToChat: () -> Unit = {},
     onNavigateToPersonalStylist: () -> Unit = {},
     onNavigateToVirtualTryOn: () -> Unit = {},
+    onNavigateToAddItem: () -> Unit = {},
+    onNavigateToCreateOutfit: () -> Unit = {},
     accountMenu: @Composable () -> Unit = {}
 ) {
     val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
@@ -150,7 +152,10 @@ fun AIStylistScreen(
             }
 
             item {
-                PopularFeaturesSection()
+                PopularFeaturesSection(
+                    onAddItem = onNavigateToAddItem,
+                    onCreateOutfit = onNavigateToCreateOutfit
+                )
             }
 
             item {
@@ -442,7 +447,10 @@ private fun getLastKnownLocation(
 }
 
 @Composable
-fun PopularFeaturesSection() {
+fun PopularFeaturesSection(
+    onAddItem: () -> Unit = {},
+    onCreateOutfit: () -> Unit = {}
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -467,13 +475,15 @@ fun PopularFeaturesSection() {
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.ai_stylist_add_item),
                 icon = Icons.Default.AddCircle,
-                iconColor = Color(0xFF4A90E2)
+                iconColor = Color(0xFF4A90E2),
+                onClick = onAddItem
             )
             FeatureCard(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.ai_stylist_create_outfit),
                 icon = Icons.Default.AccessibilityNew,
-                iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                onClick = onCreateOutfit
             )
         }
 
@@ -486,9 +496,9 @@ fun PopularFeaturesSection() {
 }
 
 @Composable
-fun FeatureCard(modifier: Modifier = Modifier, title: String, icon: ImageVector, iconColor: Color) {
+fun FeatureCard(modifier: Modifier = Modifier, title: String, icon: ImageVector, iconColor: Color, onClick: () -> Unit = {}) {
     Card(
-        modifier = modifier.height(100.dp),
+        modifier = modifier.height(100.dp).clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
