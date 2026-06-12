@@ -1,5 +1,5 @@
 /**
- * 👕 Clothes Routes
+ * Clothes Routes
  * 
  * Định tuyến cho các API CRUD của ClothingItem.
  * 

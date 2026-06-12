@@ -1,5 +1,5 @@
 /**
- * 👕 ClothingItem Model
+ * ClothingItem Model
  * 
  * Schema cho Quần áo trong tủ đồ.
  * Dùng String _id để Client Android tự sinh UUID và gửi lên.

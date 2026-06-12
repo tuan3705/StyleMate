@@ -1,5 +1,5 @@
 /**
- * 👕 Clothes Controller
+ * Clothes Controller
  * 
  * Xử lý tất cả các logic CRUD cho ClothingItem.
  * Mỗi hàm là một async handler, được wrap bởi asyncHandler

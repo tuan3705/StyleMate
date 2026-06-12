@@ -21,38 +21,38 @@ const { requireAuth } = require('../middleware/authMiddleware');
  * @param {import('express').Application} app - Express app instance
  */
 const mountRoutes = (app) => {
-  // 👕 Quản lý tủ đồ
+  // Quản lý tủ đồ
   app.use('/api/clothes', requireAuth, clothesRoutes);
 
-  // 👔 Quản lý phối đồ
+  // Quản lý phối đồ
   app.use('/api/outfits', requireAuth, outfitsRoutes);
 
-  // 📅 Quản lý lịch
+  // Quản lý lịch
   app.use('/api/calendar', requireAuth, calendarRoutes);
 
-  // 🌤️ Proxy thời tiết
+  //  Proxy thời tiết
   app.use('/api/weather', requireAuth, weatherRoutes);
 
-  // 🔐 Auth (login/logout/refresh)
+  // Auth (login/logout/refresh)
   app.use('/api/auth', authRoutes);
 
-  // 📱 Quản lý FCM Token
+  // Quản lý FCM Token
   app.use('/api/user', requireAuth, userRoutes);
 
-  // 🖼️ Xử lý ảnh (remove background)
+  //  Xử lý ảnh (remove background)
   app.use('/api/images', requireAuth, imageRoutes);
 
-  // 📦 Quản lý Items (upload & extraction)
+  // Quản lý Items (upload & extraction)
   const itemRoutes = require('./itemRoutes');
   app.use('/api/items', requireAuth, itemRoutes);
 
-  // 🤖 AI Stylist
+  // AI Stylist
   app.use('/api/ai-stylist', aiStylistRoutes);
 
-  // 👗 Virtual Try-On
+  // Virtual Try-On
   app.use('/api/ai-stylist/virtual-tryon', virtualTryOnRoutes);
 
-  // 🏠 Route kiểm tra health
+  // Route kiểm tra health
   app.get('/api/health', (req, res) => {
     res.status(200).json({
       success: true,
