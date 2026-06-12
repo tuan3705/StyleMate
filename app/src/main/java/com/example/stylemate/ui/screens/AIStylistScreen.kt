@@ -72,6 +72,8 @@ fun AIStylistScreen(
         }
     )
     val uiState by viewModel.uiState.collectAsState()
+    val userName by app.authStorage.userNameFlow.collectAsState(initial = null)
+    val userEmail by app.authStorage.userEmailFlow.collectAsState(initial = null)
     val context = LocalContext.current
 
     // ── Trạng thái: đã thử lấy vị trí từ GPS chưa? ──────────────
@@ -126,7 +128,7 @@ fun AIStylistScreen(
 
     Scaffold(
         topBar = {
-            AIStylistHeader(accountMenu = accountMenu)
+            AIStylistHeader(userName = userName, userEmail = userEmail, accountMenu = accountMenu)
         }
     ) { innerPadding ->
         LazyColumn(
@@ -200,7 +202,14 @@ fun AIStylistScreen(
 }
 
 @Composable
-fun AIStylistHeader(accountMenu: @Composable () -> Unit = {}) {
+fun AIStylistHeader(
+    userName: String?,
+    userEmail: String?,
+    accountMenu: @Composable () -> Unit = {}
+) {
+    val displayName = userName?.takeIf { it.isNotBlank() }
+        ?: userEmail?.substringBefore('@')?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.default_user_name)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -209,7 +218,7 @@ fun AIStylistHeader(accountMenu: @Composable () -> Unit = {}) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = stringResource(R.string.ai_stylist_greeting),
+            text = stringResource(R.string.ai_stylist_greeting, displayName),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )

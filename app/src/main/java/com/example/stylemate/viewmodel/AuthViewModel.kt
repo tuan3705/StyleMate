@@ -28,6 +28,7 @@ class AuthViewModel(
 
         /** Form đăng nhập/đăng ký */
         data class Form(
+            val name: String = "",
             val email: String = "",
             val password: String = "",
             val confirmPassword: String = "",
@@ -42,6 +43,7 @@ class AuthViewModel(
 
             val isFormValid: Boolean
                 get() = email.isNotBlank() && password.isNotBlank() &&
+                        (!isRegisterMode || name.isNotBlank()) &&
                         (!isRegisterMode || confirmPassword.isNotBlank()) &&
                         !isPasswordMismatch
         }
@@ -83,6 +85,11 @@ class AuthViewModel(
     fun updateEmail(email: String) {
         val current = _uiState.value as? LoginUiState.Form ?: return
         _uiState.value = current.copy(email = email, errorMessage = null, validationError = null)
+    }
+
+    fun updateName(name: String) {
+        val current = _uiState.value as? LoginUiState.Form ?: return
+        _uiState.value = current.copy(name = name, errorMessage = null, validationError = null)
     }
 
     fun updatePassword(password: String) {
@@ -130,7 +137,7 @@ class AuthViewModel(
                 _uiState.value = current.copy(validationError = "password_mismatch")
                 return
             }
-            register(current.email, current.password)
+            register(current.name, current.email, current.password)
         } else {
             login(current.email, current.password)
         }
@@ -152,11 +159,11 @@ class AuthViewModel(
         }
     }
 
-    private fun register(email: String, password: String) {
+    private fun register(name: String, email: String, password: String) {
         val current = _uiState.value as? LoginUiState.Form ?: return
         viewModelScope.launch {
             _uiState.value = current.copy(isLoading = true, errorMessage = null)
-            val result = repository.register(email, password)
+            val result = repository.register(name, email, password)
             _uiState.value = if (result.isSuccess) {
                 LoginUiState.LoggedIn
             } else {

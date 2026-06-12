@@ -10,6 +10,7 @@
     <string name="login_title">StyleMate Login</string>
     <string name="signup_title">StyleMate Sign Up</string>
     <string name="email_label">Email</string>
+    <string name="name_label">Tên của bạn</string>
     <string name="password_label">Mật khẩu</string>
     <string name="confirm_password_label">Xác nhận mật khẩu</string>
     <string name="password_mismatch">Mật khẩu xác nhận không khớp</string>
@@ -124,7 +125,8 @@
     <string name="chat_send_content_desc">Send</string>
     <string name="chat_add_content_desc">Add</string>
     <string name="toggle_chat_content_desc">Toggle Chat</string>
-    <string name="welcome_greeting">Chào, HungBu\nBạn cần trang phục nào?</string>
+    <string name="default_user_name">StyleMate</string>
+    <string name="welcome_greeting">Chào, %1$s\nBạn cần trang phục nào?</string>
 
     <!-- Loading Screen -->
     <string name="loading_prompt_template">Trang phục %2$s %1$s cho %3$s.</string>
@@ -418,7 +420,7 @@
     <string name="price_prefix">₫</string>
 
     <!-- ===================== AI STYLIST SCREEN ===================== -->
-    <string name="ai_stylist_greeting">Xin chào, HungBu</string>
+    <string name="ai_stylist_greeting">Xin chào, %1$s</string>
     <string name="ai_stylist_calendar_desc">Calendar</string>
     <string name="ai_stylist_notification_desc">Notifications</string>
     <string name="ai_stylist_refresh_desc">Refresh</string>

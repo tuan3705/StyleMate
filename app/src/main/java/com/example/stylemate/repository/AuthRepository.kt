@@ -46,6 +46,10 @@ class AuthRepository(
         }
     }
 
+    private fun fallbackName(email: String): String {
+        return email.substringBefore('@').trim().ifBlank { "StyleMate" }
+    }
+
     suspend fun login(email: String, password: String): Result<AuthLoginData> {
         if (!AuthValidator.isValidEmail(email)) {
             return Result.failure(IllegalArgumentException("Email không hợp lệ"))
@@ -65,7 +69,8 @@ class AuthRepository(
                             accessToken = data.accessToken,
                             refreshToken = data.refreshToken,
                             userId = data.user.id,
-                            email = data.user.email
+                            email = data.user.email,
+                            name = data.user.name?.takeIf { it.isNotBlank() } ?: fallbackName(data.user.email)
                         )
                         Result.success<AuthLoginData>(data)
                     } else {
@@ -83,7 +88,11 @@ class AuthRepository(
         }
     }
 
-    suspend fun register(email: String, password: String): Result<AuthLoginData> {
+    suspend fun register(name: String, email: String, password: String): Result<AuthLoginData> {
+        val trimmedName = name.trim()
+        if (trimmedName.isBlank()) {
+            return Result.failure(IllegalArgumentException("Vui lòng nhập tên"))
+        }
         if (!AuthValidator.isValidEmail(email)) {
             return Result.failure(IllegalArgumentException("Email không hợp lệ"))
         }
@@ -93,7 +102,7 @@ class AuthRepository(
 
         return withContext(Dispatchers.IO) {
             try {
-                val response = apiService.register(RegisterRequest(email.trim(), password))
+                val response = apiService.register(RegisterRequest(trimmedName, email.trim(), password))
                 if (response.isSuccessful) {
                     val body = response.body()
                     val data = body?.data
@@ -102,7 +111,8 @@ class AuthRepository(
                             accessToken = data.accessToken,
                             refreshToken = data.refreshToken,
                             userId = data.user.id,
-                            email = data.user.email
+                            email = data.user.email,
+                            name = data.user.name?.takeIf { it.isNotBlank() } ?: trimmedName
                         )
                         Result.success<AuthLoginData>(data)
                     } else {

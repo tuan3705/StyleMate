@@ -9,7 +9,8 @@ import com.google.gson.annotations.SerializedName
 data class AuthUserDto(
     @SerializedName("id")
     val id: String,
-    val email: String
+    val email: String,
+    val name: String? = null
 )
 
 data class AuthLoginData(
@@ -44,6 +45,7 @@ data class SimpleMessageResponse(
 )
 
 data class RegisterRequest(
+    val name: String,
     val email: String,
     val password: String
 )
