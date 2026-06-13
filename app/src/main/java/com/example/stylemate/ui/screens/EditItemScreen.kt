@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -515,7 +516,9 @@ private data class OutfitPreviewItem(
     val item: ClothingItemEntity,
     val posX: Float,
     val posY: Float,
-    val scale: Float
+    val scale: Float,
+    val rotation: Float = 0f,
+    val flipX: Boolean = false
 )
 
 @Composable
@@ -559,11 +562,11 @@ private fun mapClothingItemsToPreviewPositions(items: List<ClothingItemEntity>):
     if (items.isEmpty()) return emptyList()
     val hasCustomPos = items.any { it.canvasPosX != 0f || it.canvasPosY != 0f }
     return if (hasCustomPos) {
-        items.map { OutfitPreviewItem(it, it.canvasPosX, it.canvasPosY, it.canvasScale) }
+        items.map { OutfitPreviewItem(it, it.canvasPosX, it.canvasPosY, it.canvasScale, it.canvasRotation, it.canvasFlipX) }
     } else {
         items.mapIndexed { index, item ->
             val (x, y) = defaultOutfitGridPosition(index)
-            OutfitPreviewItem(item, x, y, item.canvasScale)
+            OutfitPreviewItem(item, x, y, item.canvasScale, item.canvasRotation, item.canvasFlipX)
         }
     }
 }
@@ -608,7 +611,15 @@ private fun RelevantOutfitCanvasPreview(items: List<OutfitPreviewItem>, modifier
                     val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
                     val offsetX = (placement.posX * maxX).roundToInt()
                     val offsetY = (placement.posY * maxY).roundToInt()
-                    Box(modifier = Modifier.offset { IntOffset(offsetX, offsetY) }.size(itemSize)) {
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(offsetX, offsetY) }
+                            .size(itemSize)
+                            .graphicsLayer {
+                                rotationZ = placement.rotation
+                                scaleX = if (placement.flipX) -1f else 1f
+                            }
+                    ) {
                         if (imageRequest != null) {
                             AsyncImage(model = imageRequest, contentDescription = placement.item.name.ifBlank { placement.item.category }, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                         } else {

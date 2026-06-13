@@ -48,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -90,7 +91,11 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 // ═════════════════════════════════════════════════════════════════
 // 📱 ClosetScreen — Màn hình Tủ đồ (đã tích hợp Phối đồ)
@@ -415,6 +420,12 @@ fun ClosetScreen(
             },
             onScaleChange = { itemId, scale ->
                 outfitVM.updateEditingItemScale(itemId, scale)
+            },
+            onRotationChange = { itemId, rotation ->
+                outfitVM.updateEditingItemRotation(itemId, rotation)
+            },
+            onFlipChange = { itemId ->
+                outfitVM.toggleEditingItemFlip(itemId)
             },
             onDeleteItem = { itemId ->
                 outfitVM.removeEditingItem(itemId)
@@ -809,11 +820,11 @@ private fun mapClothingItemsToPlacements(
     // khi toàn bộ item chưa có vị trí (outfit cũ lưu vị trí 0).
     val hasCustomPos = items.any { it.canvasPosX != 0f || it.canvasPosY != 0f }
     return if (hasCustomPos) {
-        items.map { OutfitViewModel.OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, it.canvasScale) }
+        items.map { OutfitViewModel.OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, it.canvasScale, it.canvasRotation, it.canvasFlipX) }
     } else {
         items.mapIndexed { index, item ->
             val (x, y) = defaultOutfitGridPosition(index)
-            OutfitViewModel.OutfitItemPlacement(item, x, y, item.canvasScale)
+            OutfitViewModel.OutfitItemPlacement(item, x, y, item.canvasScale, item.canvasRotation, item.canvasFlipX)
         }
     }
 }
@@ -892,6 +903,10 @@ private fun OutfitCanvasPreview(
                         modifier = Modifier
                             .offset { IntOffset(offsetX, offsetY) }
                             .size(itemSize)
+                            .graphicsLayer {
+                                rotationZ = placement.rotation
+                                scaleX = if (placement.flipX) -1f else 1f
+                            }
                     ) {
                         if (imageModel != null) {
                             AsyncImage(
@@ -927,6 +942,8 @@ private fun OutfitCanvasEditorDialog(
     onSave: () -> Unit,
     onPositionChange: (String, Float, Float) -> Unit,
     onScaleChange: (String, Float) -> Unit,
+    onRotationChange: (String, Float) -> Unit,
+    onFlipChange: (String) -> Unit,
     onDeleteItem: (String) -> Unit
 ) {
     var selectedItemId by remember { mutableStateOf<String?>(null) }
@@ -971,7 +988,9 @@ private fun OutfitCanvasEditorDialog(
                         if (selectedItemId == itemId) selectedItemId = null
                     },
                     onPositionChange = onPositionChange,
-                    onScaleChange = onScaleChange
+                    onScaleChange = onScaleChange,
+                    onRotationChange = onRotationChange,
+                    onFlipChange = onFlipChange
                 )
 
                 Row(
@@ -1014,7 +1033,9 @@ private fun OutfitCanvas(
     onSelectItem: (String) -> Unit,
     onDeleteItem: (String) -> Unit,
     onPositionChange: (String, Float, Float) -> Unit,
-    onScaleChange: (String, Float) -> Unit
+    onScaleChange: (String, Float) -> Unit,
+    onRotationChange: (String, Float) -> Unit,
+    onFlipChange: (String) -> Unit
 ) {
     val density = LocalDensity.current
     val minScale = 0.4f
@@ -1045,6 +1066,8 @@ private fun OutfitCanvas(
             val canvasHeight = constraints.maxHeight.toFloat()
             // Base item size (chưa scale) — scale của từng item nhân lên trên giá trị này.
             val itemSizePx = canvasWidth * OUTFIT_ITEM_SIZE_FRACTION
+            // Nửa đường chéo item gốc (handle resize nằm ở góc) — dùng cho toán free-transform.
+            val baseHalfDiag = (itemSizePx / 2f) * sqrt(2f)
 
             items.forEach { placement ->
                 val item = placement.item
@@ -1056,11 +1079,25 @@ private fun OutfitCanvas(
                 var localScale by remember(item.id) {
                     mutableStateOf(placement.scale)
                 }
+                var localRotation by remember(item.id) {
+                    mutableStateOf(placement.rotation)
+                }
+                var localFlipX by remember(item.id) {
+                    mutableStateOf(placement.flipX)
+                }
+                // Vector từ tâm item tới handle (px) trong lúc kéo — neo cho toán rotate+scale.
+                var handleVec by remember(item.id) { mutableStateOf(Offset.Zero) }
                 LaunchedEffect(placement.posX, placement.posY) {
                     localPos = Offset(placement.posX, placement.posY)
                 }
                 LaunchedEffect(placement.scale) {
                     localScale = placement.scale
+                }
+                LaunchedEffect(placement.rotation) {
+                    localRotation = placement.rotation
+                }
+                LaunchedEffect(placement.flipX) {
+                    localFlipX = placement.flipX
                 }
 
                 // maxX/maxY phụ thuộc kích thước đã scale → tính theo từng item.
@@ -1094,21 +1131,31 @@ private fun OutfitCanvas(
                             )
                         }
                 ) {
-                    if (imageModel != null) {
-                        AsyncImage(
-                            model = imageModel,
-                            contentDescription = item.name.ifBlank { item.category },
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CategoryIconImage(category = item.category, fontSize = 28.sp)
+                    // Chỉ ẢNH được xoay/lật; viền chọn + handle (siblings bên dưới) giữ thẳng trục.
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .graphicsLayer {
+                                rotationZ = localRotation
+                                scaleX = if (localFlipX) -1f else 1f
+                            }
+                    ) {
+                        if (imageModel != null) {
+                            AsyncImage(
+                                model = imageModel,
+                                contentDescription = item.name.ifBlank { item.category },
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CategoryIconImage(category = item.category, fontSize = 28.sp)
+                            }
                         }
                     }
                     if (isSelected) {
@@ -1117,7 +1164,20 @@ private fun OutfitCanvas(
                                 .matchParentSize()
                                 .border(2.dp, Color(0xFFFFD54F), RoundedCornerShape(12.dp))
                         )
-                        // Handle resize (góc dưới-phải): kéo để phóng to/thu nhỏ item.
+                        // Nút lật ngang (giữa-trên ô): toggle mirror ảnh.
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-6).dp)
+                                .size(18.dp)
+                                .zIndex(1f)
+                                .background(Color(0xFF42A5F5), CircleShape)
+                                .clickable { onFlipChange(item.id) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "⇆", fontSize = 11.sp, color = Color.White)
+                        }
+                        // Handle (góc dưới-phải): kéo để vừa resize (khoảng cách) vừa xoay (góc).
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
@@ -1127,20 +1187,35 @@ private fun OutfitCanvas(
                                 .background(Color(0xFFFFD54F), CircleShape)
                                 .pointerInput(item.id, canvasWidth, canvasHeight) {
                                     detectDragGestures(
-                                        onDragStart = { onSelectItem(item.id) },
+                                        onDragStart = {
+                                            onSelectItem(item.id)
+                                            // Khởi tạo vector tâm→handle từ scale/rotation hiện tại.
+                                            val angleRad = Math.toRadians((45f + localRotation).toDouble())
+                                            val len = baseHalfDiag * localScale
+                                            handleVec = Offset(
+                                                (len * cos(angleRad)).toFloat(),
+                                                (len * sin(angleRad)).toFloat()
+                                            )
+                                        },
                                         onDrag = { change, dragAmount ->
                                             change.consumePositionChange()
-                                            // Giữ nguyên vị trí pixel hiện tại, đổi scale rồi
-                                            // tái chuẩn hoá pos theo maxX/maxY mới (item không nhảy/tràn).
+                                            // Neo vị trí pixel theo scale CŨ trước khi đổi.
                                             val curMaxX = (canvasWidth - itemSizePx * localScale).coerceAtLeast(1f)
                                             val curMaxY = (canvasHeight - itemSizePx * localScale).coerceAtLeast(1f)
                                             val curPxX = localPos.x * curMaxX
                                             val curPxY = localPos.y * curMaxY
-                                            val delta = (dragAmount.x + dragAmount.y) / itemSizePx
-                                            val newScale = (localScale + delta).coerceIn(minScale, maxScale)
+                                            // Vector handle += quãng kéo → độ dài = scale, góc = rotation.
+                                            handleVec += dragAmount
+                                            val newScale = (handleVec.getDistance() / baseHalfDiag)
+                                                .coerceIn(minScale, maxScale)
+                                            val newRotation = Math.toDegrees(
+                                                atan2(handleVec.y, handleVec.x).toDouble()
+                                            ).toFloat() - 45f
+                                            localScale = newScale
+                                            localRotation = newRotation
+                                            // Tái chuẩn hoá vị trí theo scale mới.
                                             val newMaxX = (canvasWidth - itemSizePx * newScale).coerceAtLeast(1f)
                                             val newMaxY = (canvasHeight - itemSizePx * newScale).coerceAtLeast(1f)
-                                            localScale = newScale
                                             localPos = Offset(
                                                 curPxX.coerceIn(0f, newMaxX) / newMaxX,
                                                 curPxY.coerceIn(0f, newMaxY) / newMaxY
@@ -1148,13 +1223,14 @@ private fun OutfitCanvas(
                                         },
                                         onDragEnd = {
                                             onScaleChange(item.id, localScale)
+                                            onRotationChange(item.id, localRotation)
                                             onPositionChange(item.id, localPos.x, localPos.y)
                                         }
                                     )
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "⇔", fontSize = 10.sp, color = Color.Black)
+                            Text(text = "⤢", fontSize = 10.sp, color = Color.Black)
                         }
                         Box(
                             modifier = Modifier

@@ -759,11 +759,13 @@ private fun OutfitCalendarPreviewCard(
     onNavigateToOutfit: ((String) -> Unit)? = null
 ) {
     val hasOutfit = previewDay.outfit != null
+    val clickModifier = if (hasOutfit && onNavigateToOutfit != null) {
+        Modifier.clickable { onNavigateToOutfit(previewDay.outfit.outfit.id) }
+    } else {
+        Modifier
+    }
     Card(
-        onClick = if (hasOutfit && onNavigateToOutfit != null) {
-            { onNavigateToOutfit(previewDay.outfit!!.outfit.id) }
-        } else null,
-        modifier = Modifier.size(100.dp, 130.dp),
+        modifier = Modifier.size(100.dp, 130.dp).then(clickModifier),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {

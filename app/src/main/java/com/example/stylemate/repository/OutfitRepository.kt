@@ -161,6 +161,8 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                     canvasPosX = ref.posX,
                     canvasPosY = ref.posY,
                     canvasScale = ref.scale,
+                    canvasRotation = ref.rotation,
+                    canvasFlipX = ref.flipX,
                     createdAt = fullItem.createdAt
                 )
             } else null
@@ -327,7 +329,9 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                         "clothingItemId" to ref.clothingItemId,
                         "posX" to ref.posX,
                         "posY" to ref.posY,
-                        "scale" to ref.scale
+                        "scale" to ref.scale,
+                        "rotation" to ref.rotation,
+                        "flipX" to ref.flipX
                     )
                 }
                 val updateMap = mapOf<String, Any>("clothingItems" to itemsPayload)

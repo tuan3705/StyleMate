@@ -17,6 +17,12 @@ const normalizeScale = (value) => {
   return Math.min(2.0, Math.max(0.4, parsed));
 };
 
+const normalizeRotation = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return parsed;
+};
+
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
@@ -158,7 +164,9 @@ const createOutfit = asyncHandler(async (req, res) => {
         clothingItemId: item.clothingItemId,
         posX: item.posX !== undefined ? item.posX : (index % 2 === 0 ? 0.1 : 0.55),
         posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25,
-        scale: normalizeScale(item.scale)
+        scale: normalizeScale(item.scale),
+        rotation: normalizeRotation(item.rotation),
+        flipX: item.flipX === true
       }))
     : [];
 
@@ -212,7 +220,9 @@ const updateOutfit = asyncHandler(async (req, res, next) => {
       clothingItemId: item.clothingItemId,
       posX: item.posX !== undefined ? item.posX : (index % 2 === 0 ? 0.1 : 0.55),
       posY: item.posY !== undefined ? item.posY : 0.1 + Math.floor(index / 2) * 0.25,
-      scale: normalizeScale(item.scale)
+      scale: normalizeScale(item.scale),
+      rotation: normalizeRotation(item.rotation),
+      flipX: item.flipX === true
     }));
   }
 

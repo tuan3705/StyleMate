@@ -17,5 +17,7 @@ data class OutfitClothingCrossRef(
     val clothingItemId: String,
     val posX: Float = 0.5f,
     val posY: Float = 0.5f,
-    val scale: Float = 1f
+    val scale: Float = 1f,
+    val rotation: Float = 0f,
+    val flipX: Boolean = false
 )
