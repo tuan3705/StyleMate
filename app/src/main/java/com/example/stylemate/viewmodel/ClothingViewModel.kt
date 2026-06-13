@@ -46,7 +46,9 @@ class ClothingViewModel(
      * Tất cả items (không filter category) — dùng cho AddItems BottomSheet.
      * ⚡ Share subscription qua ViewModel để tránh infinite recomposition loop.
      */
-    val allItems: StateFlow<List<ClothingItemEntity>> = repository.getAllItems()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val allItems: StateFlow<List<ClothingItemEntity>> = _refreshTrigger
+        .flatMapLatest { repository.getAllItems() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -115,7 +117,8 @@ class ClothingViewModel(
         occasion: String,
         brand: String,
         purchaseDate: Long,
-        price: Double
+        price: Double,
+        bgRemoved: Boolean = false
     ) {
         viewModelScope.launch {
             try {
@@ -127,7 +130,7 @@ class ClothingViewModel(
                 val newItem = ClothingItemEntity(
                     id = UUID.randomUUID().toString(),
                     imageOriginal = imagePath,
-                    imageNoBg = "",
+                    imageNoBg = if (bgRemoved && imagePath.isNotBlank()) imagePath else "",
                     category = category,
                     color = color,
                     name = name,
@@ -190,12 +193,13 @@ class ClothingViewModel(
         }
     }
 
-    fun deleteClothingItem(item: ClothingItemEntity) {
+    fun deleteClothingItem(item: ClothingItemEntity, onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             try {
                 repository.deleteItem(item)
                 _refreshTrigger.value = System.currentTimeMillis()
                 Log.d(TAG, "🗑️ Đã xoá item: ${item.id}")
+                onComplete()
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi xoá item: ${e.message}", e)
                 _errorMessage.value = "Không thể xoá item: ${e.message}"
@@ -228,6 +232,7 @@ class ClothingViewModel(
     }
 
     fun refreshItems() {
+        repository.invalidateCache()
         _refreshTrigger.value = System.currentTimeMillis()
     }
 

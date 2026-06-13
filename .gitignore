@@ -1,6 +1,7 @@
 # Android
 *.iml
 .gradle/
+
 local.properties
 .idea/
 build/
@@ -23,3 +24,5 @@ stylemate-backend/.env
 stylemate-backend/config/serviceAccount.json
 stylemate-backend/uploads/
 gradle.properties
+
+.claude/

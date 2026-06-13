@@ -111,6 +111,10 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
 
     val currentCal = remember(selectedDateMillis) { epochToCalendar(selectedDateMillis) }
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshCalendarData()
+    }
+
     LaunchedEffect(currentCal.get(Calendar.MONTH), currentCal.get(Calendar.YEAR)) {
         viewModel.loadEventsInMonth(currentCal.timeInMillis)
     }
@@ -145,9 +149,15 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
                 assignedOutfit != null -> AssignedOutfitCard(
                     assignedOutfit,
                     onRemove = { viewModel.removeOutfitFromSelectedDate() },
-                    onSelectAnother = { showBottomSheet = true }
+                    onSelectAnother = {
+                        viewModel.refreshOutfits()
+                        showBottomSheet = true
+                    }
                 )
-                else -> NoOutfitPlaceholder(onAssign = { showBottomSheet = true })
+                else -> NoOutfitPlaceholder(onAssign = {
+                    viewModel.refreshOutfits()
+                    showBottomSheet = true
+                })
             }
         }
     }

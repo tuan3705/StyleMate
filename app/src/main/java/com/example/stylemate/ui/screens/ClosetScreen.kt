@@ -118,6 +118,8 @@ fun ClosetScreen(
     onEditItem: (String) -> Unit,
     refreshSignal: StateFlow<Boolean>,
     onRefreshConsumed: () -> Unit,
+    pendingActionSignal: StateFlow<String?>,
+    onPendingActionConsumed: () -> Unit,
     accountMenu: @Composable () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -224,6 +226,23 @@ fun ClosetScreen(
         }
     }
 
+    // 🔗 Pending action tu AI Stylist: mo sheet tuong ung sau khi chuyen sang Closet
+    val pendingAction by pendingActionSignal.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingAction) {
+        when (pendingAction) {
+            "add_item" -> {
+                selectedTab = 0
+                showBottomSheet = true
+                onPendingActionConsumed()
+            }
+            "create_outfit" -> {
+                selectedTab = 1
+                showCreateOutfitSheet = true
+                onPendingActionConsumed()
+            }
+        }
+    }
+
     Scaffold(
         floatingActionButton = {
             // 🎯 FAB thay đổi hành vi theo tab
@@ -320,7 +339,12 @@ fun ClosetScreen(
                     allCategories = allCategories,
                     gridState = itemsGridState,
                     nestedScrollConnection = itemsScrollConnection,
-                    onItemClick = { itemId -> onEditItem(itemId) }
+                    onItemClick = { itemId -> onEditItem(itemId) },
+                    onDeleteItem = { item ->
+                        clothingVM.deleteClothingItem(item) {
+                            outfitVM.refreshAfterItemChange()
+                        }
+                    }
                 )
             }
             // ═══════════════════════════════════════════════════════
@@ -476,7 +500,8 @@ private fun ItemsTabContent(
     allCategories: List<String>,
     gridState: LazyGridState,
     nestedScrollConnection: NestedScrollConnection,
-    onItemClick: (String) -> Unit
+    onItemClick: (String) -> Unit,
+    onDeleteItem: (ClothingItemEntity) -> Unit
 ) {
     val context = LocalContext.current
     Column(modifier = Modifier.fillMaxSize()) {
@@ -546,7 +571,7 @@ private fun ItemsTabContent(
                             ClothingItemCard(
                                 item = clothingItem,
                                 onClick = { onItemClick(clothingItem.id) },
-                                onDelete = { clothingVM.deleteClothingItem(clothingItem) }
+                                onDelete = { onDeleteItem(clothingItem) }
                             )
                         }
                     }
@@ -1687,10 +1712,10 @@ fun NewClothingItemSheet(
     val isLoading by viewModel.isLoading.collectAsState()
     val imagePickerState = rememberImagePickerState(onError = onError)
     val imagePath by imagePickerState.imagePath
-    var lastRemoveBgPath by remember { mutableStateOf<String?>(null) }
+    var noBgPath by remember { mutableStateOf<String?>(null) }
 
     val canRemoveBackground = imagePath?.let { current ->
-        lastRemoveBgPath == null || current != lastRemoveBgPath
+        current.isNotBlank() && current != noBgPath
     } ?: false
 
     val onRemoveBackgroundClick = {
@@ -1707,7 +1732,7 @@ fun NewClothingItemSheet(
         val newPath = removeBgState.resultPath
         if (!newPath.isNullOrBlank()) {
             imagePickerState.setImagePath(newPath)
-            lastRemoveBgPath = newPath
+            noBgPath = newPath
             imageProcessingViewModel.clearResult()
         }
     }
@@ -2046,6 +2071,7 @@ fun NewClothingItemSheet(
                 if (category.isBlank() || color.isBlank()) return@Button
                 val parsedPrice = price.toDoubleOrNull() ?: 0.0
                 val imageFile = imagePath?.let { File(it) }
+                val bgRemoved = imagePath != null && imagePath == noBgPath
                 viewModel.addClothingItem(
                     imageFile = imageFile,
                     category = category,
@@ -2055,7 +2081,8 @@ fun NewClothingItemSheet(
                     occasion = selectedOccasion,
                     brand = brand,
                     purchaseDate = purchaseDate,
-                    price = parsedPrice
+                    price = parsedPrice,
+                    bgRemoved = bgRemoved
                 )
                 onItemAdded()
             },

@@ -251,10 +251,10 @@ class ClothingRepository(
     suspend fun insertItem(item: ClothingItemEntity) = withContext(Dispatchers.IO) {
         try {
             val uploadedOriginal = uploadImageToServer(item.imageOriginal)
-            val uploadedNoBg = if (item.imageNoBg.isNotBlank()) {
-                uploadImageToServer(item.imageNoBg)
-            } else {
-                ""
+            val uploadedNoBg = when {
+                item.imageNoBg.isBlank() -> ""
+                item.imageNoBg == item.imageOriginal -> uploadedOriginal
+                else -> uploadImageToServer(item.imageNoBg)
             }
             val dto = item.toDto().copy(
                 imageOriginal = uploadedOriginal,
@@ -270,10 +270,10 @@ class ClothingRepository(
     suspend fun updateItem(item: ClothingItemEntity) = withContext(Dispatchers.IO) {
         try {
             val uploadedOriginal = uploadImageToServer(item.imageOriginal)
-            val uploadedNoBg = if (item.imageNoBg.isNotBlank()) {
-                uploadImageToServer(item.imageNoBg)
-            } else {
-                ""
+            val uploadedNoBg = when {
+                item.imageNoBg.isBlank() -> ""
+                item.imageNoBg == item.imageOriginal -> uploadedOriginal
+                else -> uploadImageToServer(item.imageNoBg)
             }
             val updateMap = mapOf<String, Any>(
                 "imageOriginal" to uploadedOriginal,
