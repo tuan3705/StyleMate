@@ -75,25 +75,43 @@ Có **2 luồng** liên quan đến tạo/chỉnh sửa bộ đồ:
 
 ## 3. Canvas của Outfit
 
-Có **3 biến thể canvas**, tất cả trong `ui/screens/ClosetScreen.kt`:
+Có **3 biến thể canvas**, tất cả trong `ui/screens/ClosetScreen.kt` (lưu ý: số dòng có thể trôi sau các lần sửa — tra theo tên hàm):
 
-| Biến thể | Hàm | Dòng | Mục đích |
-|---|---|---|---|
-| Preview (chỉ xem) | `OutfitCanvasPreview()` | 767–833 | Thumbnail trong card outfit đã lưu (cao 220dp, item 72dp) |
-| Editor (kéo thả) | `OutfitCanvas()` | 923–1042 | Canvas chỉnh sửa (cao 360dp, item 96dp) |
-| Dialog bao ngoài editor | `OutfitCanvasEditorDialog()` | 836–921 | Khung dialog chứa `OutfitCanvas` + nút Add/Save |
+| Biến thể | Hàm | Mục đích |
+|---|---|---|
+| Preview (chỉ xem) | `OutfitCanvasPreview()` | Thumbnail trong card outfit đã lưu (Box cao tối đa 220dp, canvas con canh giữa) |
+| Editor (kéo thả + resize) | `OutfitCanvas()` | Canvas chỉnh sửa item |
+| Dialog bao ngoài editor | `OutfitCanvasEditorDialog()` | Khung dialog chứa `OutfitCanvas` + nút Add/Save |
+
+**Hình học dùng chung (đảm bảo editor & preview ĐỒNG DẠNG):** hai hằng số `OUTFIT_CANVAS_ASPECT_RATIO = 0.82f` (width/height) và `OUTFIT_ITEM_SIZE_FRACTION = 0.30f` (item width = 30% bề rộng canvas) — đặt cạnh `defaultOutfitGridPosition`. Cả hai canvas dùng `Modifier.aspectRatio(...)` + item size = `canvasWidth * fraction` nên bố cục chuẩn hoá 0..1 tái hiện y hệt giữa hai nơi (tránh item bị đè ở preview).
 
 **Luồng hoạt động (editor):**
-1. Mở từ tab Bộ đồ: click card → `outfitVM.startEditingOutfit(id, name)` (`ClosetScreen.kt:360`, VM `:294–307`) load items kèm vị trí → `_editingItems`.
-2. `OutfitCanvas` render từng item bằng `Modifier.offset` theo `posX/posY` (toạ độ chuẩn hoá 0..1 nhân với kích thước canvas khả dụng).
-3. **Kéo thả**: `detectDragGestures` (`:982–995`) — cập nhật `localPos` realtime; `onDragEnd` → `onPositionChange(item.id, x, y)` → `outfitVM.updateEditingItemPosition` (`VM:329`).
-4. **Chọn item**: `detectTapGestures` (`:980`) → viền vàng + nút xoá (X) đỏ góc trên (`:1014–1037`).
-5. Lưu: `onSave` → `outfitVM.saveEditingOutfit()` (`VM:361–393`) — xoá hết crossref cũ rồi ghi lại theo vị trí mới; set `_editSaveSuccess` → UI đóng dialog (`ClosetScreen.kt:215`).
+1. Mở từ tab Bộ đồ: click card → `outfitVM.startEditingOutfit(id, name)` (`OutfitViewModel.kt:294`) load items kèm vị trí + scale → `_editingItems`.
+2. `OutfitCanvas` render từng item bằng `Modifier.offset` theo `posX/posY` (toạ độ chuẩn hoá 0..1) và `.size(itemSize * localScale)`.
+3. **Kéo thả (di chuyển)**: `detectTapGestures` (chọn item) + `detectDragGestures` trên thân item — cập nhật `localPos` realtime; `onDragEnd` → `onPositionChange` → `outfitVM.updateEditingItemPosition` (`OutfitViewModel.kt:329`).
+4. **Resize**: xem mục 3a.
+5. **Chọn item**: viền vàng + nút xoá (X) đỏ góc trên-phải + handle resize (⇔) góc dưới-phải.
+6. Lưu: `onSave` → `outfitVM.saveEditingOutfit()` (`OutfitViewModel.kt:361`) — xoá hết crossref cũ rồi ghi lại theo `posX/posY/scale` mới; set `_editSaveSuccess` → UI đóng dialog.
 
 **Tham số quan trọng:**
-- Toạ độ **chuẩn hoá 0..1**, không phải pixel: `offsetX = posX * maxX`, với `maxX = canvasWidth - itemSizePx` (`:958, 972`). Đổi kích thước canvas vẫn giữ đúng vị trí tương đối.
-- `itemSize` (72dp preview / 96dp editor) ảnh hưởng trực tiếp `maxX/maxY` và do đó vùng kéo thả.
-- Ảnh item lấy từ `rememberItemImageModel` — ưu tiên `imageNoBg`, fallback `imageOriginal` (`ClosetScreen.kt:1624–1635`).
+- Toạ độ **chuẩn hoá 0..1**, không phải pixel: `offsetX = posX * maxX`, với `maxX = canvasWidth - scaledSizePx` (`scaledSizePx = itemSizePx * scale`). Đổi kích thước canvas vẫn giữ đúng vị trí tương đối.
+- `OUTFIT_ITEM_SIZE_FRACTION` quyết định kích thước item gốc (chưa scale); `scale` của từng item nhân lên trên đó.
+- Ảnh item lấy từ `rememberItemImageModel` — ưu tiên `imageNoBg`, fallback `imageOriginal`.
+
+### 3a. Resize item trong editor
+
+**Vị trí UI:** handle tròn màu vàng có ký hiệu `⇔` ở `Alignment.BottomEnd` của item, **chỉ hiện khi item được chọn** (trong block `if (isSelected)` của `OutfitCanvas`).
+
+**Luồng:**
+1. Kéo handle → `detectDragGestures.onDrag`: `delta = (dragAmount.x + dragAmount.y) / itemSizePx`, `newScale = (localScale + delta).coerceIn(0.4f, 2f)`; giữ nguyên vị trí pixel hiện tại rồi **tái chuẩn hoá `localPos`** theo `maxX/maxY` mới để item không nhảy/tràn khi đổi size.
+2. `onDragEnd` → `onScaleChange(item.id, scale)` + `onPositionChange(...)` → `outfitVM.updateEditingItemScale` (`OutfitViewModel.kt:337`) + `updateEditingItemPosition`.
+3. Save persist `scale` qua `OutfitClothingCrossRef.scale` → backend; load lại đúng qua `getOutfitItemsWithPosition` → `OutfitItemWithPosition.scale` → `mapWithDefaults`.
+
+**Tham số quan trọng:**
+- `minScale = 0.4f`, `maxScale = 2.0f` — giới hạn phóng to/thu nhỏ (khai báo đầu hàm `OutfitCanvas`).
+- Scale **theo từng outfit-instance**, không phải thuộc tính toàn cục của item (lưu ở crossref, không ở `ClothingItemEntity` gốc).
+
+**Đường đi của scale tới Preview:** vì `OutfitWithClothingItems.clothingItems` là `List<ClothingItemEntity>` (không mang scale của crossref), scale được "đi nhờ" qua field `ClothingItemEntity.canvasScale` — `OutfitRepository.toFullOutfitWithItems` gán `canvasScale = ref.scale`, rồi `mapClothingItemsToPlacements` đọc `it.canvasScale`, và `OutfitCanvasPreview` áp `placement.scale` vào `.size()` + `maxX/maxY`. Nhờ đồng dạng hình học, kích thước item hiển thị khớp giữa editor và preview.
 
 ---
 

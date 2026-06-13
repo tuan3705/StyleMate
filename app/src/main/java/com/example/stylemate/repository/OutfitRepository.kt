@@ -160,6 +160,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                     price = fullItem.price,
                     canvasPosX = ref.posX,
                     canvasPosY = ref.posY,
+                    canvasScale = ref.scale,
                     createdAt = fullItem.createdAt
                 )
             } else null

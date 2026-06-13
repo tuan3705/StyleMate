@@ -426,6 +426,9 @@ fun ClosetScreen(
             onPositionChange = { itemId, posX, posY ->
                 outfitVM.updateEditingItemPosition(itemId, posX, posY)
             },
+            onScaleChange = { itemId, scale ->
+                outfitVM.updateEditingItemScale(itemId, scale)
+            },
             onDeleteItem = { itemId ->
                 outfitVM.removeEditingItem(itemId)
             }
@@ -808,11 +811,11 @@ private fun mapClothingItemsToPlacements(
     // khi toàn bộ item chưa có vị trí (outfit cũ lưu vị trí 0).
     val hasCustomPos = items.any { it.canvasPosX != 0f || it.canvasPosY != 0f }
     return if (hasCustomPos) {
-        items.map { OutfitViewModel.OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, 1f) }
+        items.map { OutfitViewModel.OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, it.canvasScale) }
     } else {
         items.mapIndexed { index, item ->
             val (x, y) = defaultOutfitGridPosition(index)
-            OutfitViewModel.OutfitItemPlacement(item, x, y, 1f)
+            OutfitViewModel.OutfitItemPlacement(item, x, y, item.canvasScale)
         }
     }
 }
@@ -876,13 +879,14 @@ private fun OutfitCanvasPreview(
                 val canvasWidth = constraints.maxWidth.toFloat()
                 val canvasHeight = constraints.maxHeight.toFloat()
                 val itemSizePx = canvasWidth * OUTFIT_ITEM_SIZE_FRACTION
-                val itemSize = with(density) { itemSizePx.toDp() }
-                val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-                val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
                 items.forEach { placement ->
                     val item = placement.item
                     val imageModel = rememberItemImageModel(item)
+                    val scaledSizePx = itemSizePx * placement.scale
+                    val itemSize = with(density) { scaledSizePx.toDp() }
+                    val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                    val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
                     val offsetX = (placement.posX * maxX).roundToInt()
                     val offsetY = (placement.posY * maxY).roundToInt()
 
@@ -924,6 +928,7 @@ private fun OutfitCanvasEditorDialog(
     onAddItems: () -> Unit,
     onSave: () -> Unit,
     onPositionChange: (String, Float, Float) -> Unit,
+    onScaleChange: (String, Float) -> Unit,
     onDeleteItem: (String) -> Unit
 ) {
     var selectedItemId by remember { mutableStateOf<String?>(null) }
@@ -967,7 +972,8 @@ private fun OutfitCanvasEditorDialog(
                         onDeleteItem(itemId)
                         if (selectedItemId == itemId) selectedItemId = null
                     },
-                    onPositionChange = onPositionChange
+                    onPositionChange = onPositionChange,
+                    onScaleChange = onScaleChange
                 )
 
                 Row(
@@ -1009,9 +1015,12 @@ private fun OutfitCanvas(
     selectedItemId: String?,
     onSelectItem: (String) -> Unit,
     onDeleteItem: (String) -> Unit,
-    onPositionChange: (String, Float, Float) -> Unit
+    onPositionChange: (String, Float, Float) -> Unit,
+    onScaleChange: (String, Float) -> Unit
 ) {
     val density = LocalDensity.current
+    val minScale = 0.4f
+    val maxScale = 2.0f
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1036,10 +1045,8 @@ private fun OutfitCanvas(
 
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
+            // Base item size (chưa scale) — scale của từng item nhân lên trên giá trị này.
             val itemSizePx = canvasWidth * OUTFIT_ITEM_SIZE_FRACTION
-            val itemSize = with(density) { itemSizePx.toDp() }
-            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
             items.forEach { placement ->
                 val item = placement.item
@@ -1048,9 +1055,21 @@ private fun OutfitCanvas(
                 var localPos by remember(item.id) {
                     mutableStateOf(Offset(placement.posX, placement.posY))
                 }
+                var localScale by remember(item.id) {
+                    mutableStateOf(placement.scale)
+                }
                 LaunchedEffect(placement.posX, placement.posY) {
                     localPos = Offset(placement.posX, placement.posY)
                 }
+                LaunchedEffect(placement.scale) {
+                    localScale = placement.scale
+                }
+
+                // maxX/maxY phụ thuộc kích thước đã scale → tính theo từng item.
+                val scaledSizePx = itemSizePx * localScale
+                val itemSize = with(density) { scaledSizePx.toDp() }
+                val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
 
                 val offsetX = (localPos.x * maxX).roundToInt()
                 val offsetY = (localPos.y * maxY).roundToInt()
@@ -1100,6 +1119,45 @@ private fun OutfitCanvas(
                                 .matchParentSize()
                                 .border(2.dp, Color(0xFFFFD54F), RoundedCornerShape(12.dp))
                         )
+                        // Handle resize (góc dưới-phải): kéo để phóng to/thu nhỏ item.
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = 6.dp, y = 6.dp)
+                                .size(18.dp)
+                                .zIndex(1f)
+                                .background(Color(0xFFFFD54F), CircleShape)
+                                .pointerInput(item.id, canvasWidth, canvasHeight) {
+                                    detectDragGestures(
+                                        onDragStart = { onSelectItem(item.id) },
+                                        onDrag = { change, dragAmount ->
+                                            change.consumePositionChange()
+                                            // Giữ nguyên vị trí pixel hiện tại, đổi scale rồi
+                                            // tái chuẩn hoá pos theo maxX/maxY mới (item không nhảy/tràn).
+                                            val curMaxX = (canvasWidth - itemSizePx * localScale).coerceAtLeast(1f)
+                                            val curMaxY = (canvasHeight - itemSizePx * localScale).coerceAtLeast(1f)
+                                            val curPxX = localPos.x * curMaxX
+                                            val curPxY = localPos.y * curMaxY
+                                            val delta = (dragAmount.x + dragAmount.y) / itemSizePx
+                                            val newScale = (localScale + delta).coerceIn(minScale, maxScale)
+                                            val newMaxX = (canvasWidth - itemSizePx * newScale).coerceAtLeast(1f)
+                                            val newMaxY = (canvasHeight - itemSizePx * newScale).coerceAtLeast(1f)
+                                            localScale = newScale
+                                            localPos = Offset(
+                                                curPxX.coerceIn(0f, newMaxX) / newMaxX,
+                                                curPxY.coerceIn(0f, newMaxY) / newMaxY
+                                            )
+                                        },
+                                        onDragEnd = {
+                                            onScaleChange(item.id, localScale)
+                                            onPositionChange(item.id, localPos.x, localPos.y)
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "⇔", fontSize = 10.sp, color = Color.Black)
+                        }
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
