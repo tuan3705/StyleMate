@@ -218,7 +218,7 @@ fun OutfitScreen() {
                         outfitWithItems = outfitWithItems,
                         onDelete = { viewModel.deleteOutfit(outfitWithItems.outfit) },
                         onClick = {
-                            viewModel.startEditingOutfit(outfitWithItems.outfit.id, outfitWithItems.outfit.name)
+                            viewModel.startEditingOutfit(outfitWithItems.outfit.id, outfitWithItems.outfit.name, outfitWithItems.clothingItems)
                             showOutfitEditor = true
                         }
                     )

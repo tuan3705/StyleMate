@@ -26,3 +26,4 @@ stylemate-backend/uploads/
 gradle.properties
 
 .claude/
+docs/

@@ -354,7 +354,7 @@ fun ClosetScreen(
                     outfitRepo = outfitRepo,
                     onDeleteOutfit = { outfitPendingDelete = it },
                     onOutfitClick = { outfit ->
-                        outfitVM.startEditingOutfit(outfit.outfit.id, outfit.outfit.name)
+                        outfitVM.startEditingOutfit(outfit.outfit.id, outfit.outfit.name, outfit.clothingItems)
                         showOutfitEditor = true
                     }
                 )
@@ -833,8 +833,8 @@ private fun defaultOutfitGridPosition(index: Int): Pair<Float, Float> {
 // Cả hai phải ĐỒNG DẠNG (cùng aspect ratio + item theo cùng tỉ lệ bề rộng)
 // thì bố cục chuẩn hoá 0..1 mới tái hiện y hệt nhau (tránh đè item ở preview).
 // ─────────────────────────────────────────────────────────────────
-private const val OUTFIT_CANVAS_ASPECT_RATIO = 0.82f   // width / height
-private const val OUTFIT_ITEM_SIZE_FRACTION = 0.30f    // item width = 30% bề rộng canvas
+internal const val OUTFIT_CANVAS_ASPECT_RATIO = 0.82f   // width / height
+internal const val OUTFIT_ITEM_SIZE_FRACTION = 0.30f    // item width = 30% bề rộng canvas
 
 @Composable
 private fun OutfitCanvasPreview(

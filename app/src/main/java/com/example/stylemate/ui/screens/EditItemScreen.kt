@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,7 +36,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +59,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.stylemate.R
 import com.example.stylemate.model.ClothingItemEntity
-import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
 import com.example.stylemate.repository.ImageProcessingRepository
@@ -126,7 +126,6 @@ fun EditItemScreen(
         (displayImagePath == savedNoBg || displayImagePath == sessionNoBgPath)
     val canRemoveBackground = displayImagePath.isNotBlank() && !isBgRemoved
 
-    var relevantOutfitsRefreshKey by remember { mutableStateOf(0) }
 
     // Pre-resolve strings for non-composable usage
     val strSelectImageError = remember { context.getString(R.string.please_select_image_error) }
@@ -196,7 +195,6 @@ fun EditItemScreen(
             imagePickerState.setImagePath(newPath)
             imageProcessingViewModel.clearResult()
             viewModel.saveRemovedBackground(newPath)
-            relevantOutfitsRefreshKey += 1
             sessionNoBgPath = newPath
         }
     }
@@ -303,8 +301,6 @@ fun EditItemScreen(
                     items(relevantOutfits, key = { it.outfit.id }) { outfit ->
                         RelevantOutfitPreviewCard(
                             outfitWithItems = outfit,
-                            outfitRepo = outfitRepo,
-                            refreshKey = relevantOutfitsRefreshKey,
                             modifier = Modifier.width(relevantCardWidth)
                         )
                     }
@@ -525,18 +521,15 @@ private data class OutfitPreviewItem(
 @Composable
 private fun RelevantOutfitPreviewCard(
     outfitWithItems: OutfitWithClothingItems,
-    outfitRepo: OutfitRepository,
-    refreshKey: Any,
     modifier: Modifier = Modifier
 ) {
     val outfit = outfitWithItems.outfit
     val items = outfitWithItems.clothingItems
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
     val formattedDate = remember(outfit.createdAt) { dateFormat.format(Date(outfit.createdAt)) }
-    val itemsWithPosition by produceState(initialValue = emptyList<OutfitItemWithPosition>(), key1 = outfit.id, key2 = refreshKey) {
-        value = outfitRepo.getOutfitItemsWithPosition(outfit.id)
-    }
-    val previewPlacements = remember(itemsWithPosition) { mapOutfitPreviewPositions(itemsWithPosition) }
+    // ⚡ Dùng vị trí/scale có sẵn trong clothingItems (canvasPosX/Y/Scale) — KHÔNG gọi API riêng
+    // cho từng card (tránh N+1 + độ trễ load). Dữ liệu đã được load cùng danh sách relevant outfits.
+    val previewPlacements = remember(items) { mapClothingItemsToPreviewPositions(items) }
 
     Card(
         modifier = modifier,
@@ -562,15 +555,15 @@ private fun RelevantOutfitPreviewCard(
     }
 }
 
-private fun mapOutfitPreviewPositions(items: List<OutfitItemWithPosition>): List<OutfitPreviewItem> {
+private fun mapClothingItemsToPreviewPositions(items: List<ClothingItemEntity>): List<OutfitPreviewItem> {
     if (items.isEmpty()) return emptyList()
-    val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
+    val hasCustomPos = items.any { it.canvasPosX != 0f || it.canvasPosY != 0f }
     return if (hasCustomPos) {
-        items.map { OutfitPreviewItem(it.item, it.posX, it.posY, it.scale) }
+        items.map { OutfitPreviewItem(it, it.canvasPosX, it.canvasPosY, it.canvasScale) }
     } else {
-        items.mapIndexed { index, entry ->
+        items.mapIndexed { index, item ->
             val (x, y) = defaultOutfitGridPosition(index)
-            OutfitPreviewItem(entry.item, x, y, entry.scale)
+            OutfitPreviewItem(item, x, y, item.canvasScale)
         }
     }
 }
@@ -584,38 +577,44 @@ private fun defaultOutfitGridPosition(index: Int): Pair<Float, Float> {
 
 @Composable
 private fun RelevantOutfitCanvasPreview(items: List<OutfitPreviewItem>, modifier: Modifier = Modifier) {
-    val scale = 2f / 3f
-    val itemSize = (72f * scale).dp
     val density = LocalDensity.current
-    val itemSizePx = with(density) { itemSize.toPx() }
 
     Card(
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F2EA))
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth().height((220f * scale).dp)) {
-            if (items.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = stringResource(R.string.no_items_in_outfit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                return@BoxWithConstraints
+        if (items.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                Text(text = stringResource(R.string.no_items_in_outfit), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            val canvasWidth = constraints.maxWidth.toFloat()
-            val canvasHeight = constraints.maxHeight.toFloat()
-            items.forEach { placement ->
-                val imageRequest = rememberOutfitItemImageRequest(placement.item)
-                val scaledSizePx = itemSizePx * placement.scale
-                val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
-                val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
-                val offsetX = (placement.posX * maxX).roundToInt()
-                val offsetY = (placement.posY * maxY).roundToInt()
-                Box(modifier = Modifier.offset { IntOffset(offsetX, offsetY) }.size(itemSize * placement.scale)) {
-                    if (imageRequest != null) {
-                        AsyncImage(model = imageRequest, contentDescription = placement.item.name.ifBlank { placement.item.category }, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize().background(getCategoryColor(placement.item.category).copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
-                            CategoryIconImage(category = placement.item.category, fontSize = 24.sp)
+            return@Card
+        }
+        // Đồng dạng với editor & preview tab Outfit: cap chiều cao, canvas con giữ aspect ratio
+        // OUTFIT_CANVAS_ASPECT_RATIO + item = OUTFIT_ITEM_SIZE_FRACTION * bề rộng canvas.
+        Box(
+            modifier = Modifier.fillMaxWidth().height(160.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            BoxWithConstraints(modifier = Modifier.fillMaxHeight().aspectRatio(OUTFIT_CANVAS_ASPECT_RATIO)) {
+                val canvasWidth = constraints.maxWidth.toFloat()
+                val canvasHeight = constraints.maxHeight.toFloat()
+                val itemSizePx = canvasWidth * OUTFIT_ITEM_SIZE_FRACTION
+                items.forEach { placement ->
+                    val imageRequest = rememberOutfitItemImageRequest(placement.item)
+                    val scaledSizePx = itemSizePx * placement.scale
+                    val itemSize = with(density) { scaledSizePx.toDp() }
+                    val maxX = (canvasWidth - scaledSizePx).coerceAtLeast(1f)
+                    val maxY = (canvasHeight - scaledSizePx).coerceAtLeast(1f)
+                    val offsetX = (placement.posX * maxX).roundToInt()
+                    val offsetY = (placement.posY * maxY).roundToInt()
+                    Box(modifier = Modifier.offset { IntOffset(offsetX, offsetY) }.size(itemSize)) {
+                        if (imageRequest != null) {
+                            AsyncImage(model = imageRequest, contentDescription = placement.item.name.ifBlank { placement.item.category }, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize().background(getCategoryColor(placement.item.category).copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
+                                CategoryIconImage(category = placement.item.category, fontSize = 24.sp)
+                            }
                         }
                     }
                 }

@@ -8,7 +8,6 @@ import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitClothingCrossRef
 import com.example.stylemate.model.OutfitEntity
 import com.example.stylemate.model.OutfitWithClothingItems
-import com.example.stylemate.model.OutfitItemWithPosition
 import kotlin.math.min
 import com.example.stylemate.repository.OutfitRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -291,30 +290,24 @@ class OutfitViewModel(
         }
     }
 
-    fun startEditingOutfit(outfitId: String, outfitName: String) {
+    fun startEditingOutfit(outfitId: String, outfitName: String, items: List<ClothingItemEntity>) {
         _editingOutfitId.value = outfitId
         _editingOutfitName.value = outfitName
         _editSaveSuccess.value = false
-        viewModelScope.launch {
-            try {
-                val items = repository.getOutfitItemsWithPosition(outfitId)
-                _editingItems.value = mapWithDefaults(items)
-            } catch (e: Exception) {
-                Log.e(TAG, "❌ Lỗi khi load outfit editor: ${e.message}", e)
-                _errorMessage.value = "Cannot load outfit: ${e.message}"
-            }
-        }
+        // ⚡ Dùng vị trí/scale có sẵn trong clothingItems (canvasPosX/Y/Scale) — set NGAY LẬP TỨC,
+        // không gọi API riêng (tránh nháy canvas cũ rồi mới load canvas hiện tại).
+        _editingItems.value = mapClothingItemsWithDefaults(items)
     }
 
-    private fun mapWithDefaults(items: List<OutfitItemWithPosition>): List<OutfitItemPlacement> {
+    private fun mapClothingItemsWithDefaults(items: List<ClothingItemEntity>): List<OutfitItemPlacement> {
         if (items.isEmpty()) return emptyList()
-        val hasCustomPos = items.any { it.posX != 0f || it.posY != 0f }
+        val hasCustomPos = items.any { it.canvasPosX != 0f || it.canvasPosY != 0f }
         if (hasCustomPos) {
-            return items.map { OutfitItemPlacement(it.item, it.posX, it.posY, it.scale) }
+            return items.map { OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, it.canvasScale) }
         }
-        return items.mapIndexed { index, entry ->
+        return items.mapIndexed { index, item ->
             val (x, y) = defaultGridPosition(index)
-            OutfitItemPlacement(entry.item, x, y, entry.scale)
+            OutfitItemPlacement(item, x, y, item.canvasScale)
         }
     }
 
