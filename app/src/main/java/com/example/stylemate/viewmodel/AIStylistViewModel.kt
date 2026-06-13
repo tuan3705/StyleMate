@@ -24,7 +24,18 @@ data class AIStylistUiState(
     val tempText: String = "26 / 22°C",
     val suggestedOutfits: List<SuggestedOutfitDto> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isFromCache: Boolean = false
+)
+
+/**
+ * ⚡ Cache entry for HomeSuggestion results
+ */
+private data class HomeSuggestionCacheEntry(
+    val headline: String,
+    val recommendationText: String,
+    val suggestedOutfits: List<SuggestedOutfitDto>,
+    val timestamp: Long
 )
 
 class AIStylistViewModel(
@@ -35,10 +46,18 @@ class AIStylistViewModel(
     private val _uiState = MutableStateFlow(AIStylistUiState())
     val uiState: StateFlow<AIStylistUiState> = _uiState
 
+    // ⚡ Cache: key = "userId_lat_lon", value = cached data
+    private val homeSuggestionCache = mutableMapOf<String, HomeSuggestionCacheEntry>()
+    private val CACHE_TTL_MS = 10 * 60 * 1000L // 10 phút
+
+    // Cache cho weather data (theo tọa độ)
+    private var cachedWeatherResponse: WeatherApiResponse? = null
+    private var cachedWeatherLat: Double = 0.0
+    private var cachedWeatherLon: Double = 0.0
+    private var cachedWeatherTimestamp: Long = 0L
+    private val WEATHER_CACHE_TTL_MS = 5 * 60 * 1000L // 5 phút
+
     init {
-        // Initial load with default coordinates if needed,
-        // or wait for explicit refresh.
-        // For now, let's just keep the default dummy state.
         val sdf = SimpleDateFormat("MMM d", Locale.ENGLISH)
         _uiState.value = _uiState.value.copy(dateText = sdf.format(Date()))
     }
@@ -51,19 +70,52 @@ class AIStylistViewModel(
                 return@launch
             }
 
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            try {
-                // Use provided coordinates or fallback to a sensible default if null.
-                // In a real app, this fallback should ideally be the last known location or a user-selected city.
-                val finalLat = lat ?: 10.8231
-                val finalLon = lon ?: 106.6297
+            val finalLat = lat ?: 10.8231
+            val finalLon = lon ?: 106.6297
 
-                // 1. Fetch Weather
-                val weather = weatherRepository.getWeatherForecast(finalLat, finalLon)
-                val location = "${weather.location.name}, ${weather.location.region}"
-                val currentTemp = weather.current.tempC.toInt()
-                val minTemp = weather.forecast.forecastDay.firstOrNull()?.day?.minTempC?.toInt() ?: (currentTemp - 5)
-                val maxTemp = weather.forecast.forecastDay.firstOrNull()?.day?.maxTempC?.toInt() ?: (currentTemp + 5)
+            // ⚡ Kiểm tra cache HomeSuggestion trước
+            val roundedLat = Math.round(finalLat * 100.0) / 100.0
+            val roundedLon = Math.round(finalLon * 100.0) / 100.0
+            val cacheKey = "${userId}_${roundedLat}_${roundedLon}"
+            val cached = homeSuggestionCache[cacheKey]
+            val now = System.currentTimeMillis()
+
+            if (cached != null && now - cached.timestamp < CACHE_TTL_MS) {
+                // Dùng cache cho HomeSuggestion, nhưng vẫn cập nhật weather + date
+                val weather = getCachedOrFetchWeather(finalLat, finalLon)
+                val location = if (weather != null) {
+                    "${weather.location.name}, ${weather.location.region}"
+                } else {
+                    _uiState.value.locationText
+                }
+                val sdf = SimpleDateFormat("MMM d", Locale.ENGLISH)
+                val dateStr = sdf.format(Date())
+
+                _uiState.value = _uiState.value.copy(
+                    headline = cached.headline,
+                    recommendationText = cached.recommendationText,
+                    suggestedOutfits = cached.suggestedOutfits,
+                    locationText = location,
+                    dateText = dateStr,
+                    isLoading = false,
+                    error = null,
+                    isFromCache = true
+                )
+                return@launch
+            }
+
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null, isFromCache = false)
+            try {
+                // 1. Fetch Weather (dùng cache nếu có)
+                val weather = getCachedOrFetchWeather(finalLat, finalLon)
+                val location = if (weather != null) {
+                    "${weather.location.name}, ${weather.location.region}"
+                } else {
+                    "Hanoi"
+                }
+                val currentTemp = weather?.current?.tempC?.toInt() ?: 25
+                val minTemp = weather?.forecast?.forecastDay?.firstOrNull()?.day?.minTempC?.toInt() ?: (currentTemp - 5)
+                val maxTemp = weather?.forecast?.forecastDay?.firstOrNull()?.day?.maxTempC?.toInt() ?: (currentTemp + 5)
 
                 val sdf = SimpleDateFormat("MMM d", Locale.ENGLISH)
                 val dateStr = sdf.format(Date())
@@ -77,14 +129,27 @@ class AIStylistViewModel(
 
                 if (response.isSuccessful) {
                     val data = response.body()
+                    val newHeadline = data?.headline ?: "Today's suggestion"
+                    val newMessage = data?.message ?: ""
+                    val newOutfits = data?.suggested_outfits ?: emptyList()
+
+                    // ⚡ Lưu vào cache
+                    homeSuggestionCache[cacheKey] = HomeSuggestionCacheEntry(
+                        headline = newHeadline,
+                        recommendationText = newMessage,
+                        suggestedOutfits = newOutfits,
+                        timestamp = now
+                    )
+
                     _uiState.value = _uiState.value.copy(
-                        headline = data?.headline ?: "Today's suggestion",
-                        recommendationText = data?.message ?: _uiState.value.recommendationText,
-                        suggestedOutfits = data?.suggested_outfits ?: emptyList(),
+                        headline = newHeadline,
+                        recommendationText = newMessage,
+                        suggestedOutfits = newOutfits,
                         locationText = location,
                         tempText = "$maxTemp / $minTemp°C",
                         dateText = dateStr,
-                        isLoading = false
+                        isLoading = false,
+                        isFromCache = false
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -99,9 +164,34 @@ class AIStylistViewModel(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Lỗi: ${e.message}"
+                    error = "Error: ${e.message}"
                 )
             }
+        }
+    }
+
+    /**
+     * ⚡ Lấy weather từ cache nếu còn hạn, nếu không thì fetch mới
+     */
+    private suspend fun getCachedOrFetchWeather(lat: Double, lon: Double): WeatherApiResponse? {
+        val now = System.currentTimeMillis()
+        if (cachedWeatherResponse != null &&
+            cachedWeatherLat == lat &&
+            cachedWeatherLon == lon &&
+            now - cachedWeatherTimestamp < WEATHER_CACHE_TTL_MS) {
+            return cachedWeatherResponse
+        }
+
+        return try {
+            val weather = weatherRepository.getWeatherForecast(lat, lon)
+            cachedWeatherResponse = weather
+            cachedWeatherLat = lat
+            cachedWeatherLon = lon
+            cachedWeatherTimestamp = now
+            weather
+        } catch (e: Exception) {
+            // Nếu fetch thất bại, trả về cache cũ nếu có
+            cachedWeatherResponse
         }
     }
 }

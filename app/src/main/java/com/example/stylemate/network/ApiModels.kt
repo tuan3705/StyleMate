@@ -286,6 +286,8 @@ data class SuggestedOutfitDto(
     val temp: String? = null,
     val sections: List<OutfitSectionDto>? = null,
     val name: String? = null,
+    val headline: String? = null,
+    val message: String? = null,
     val reason: String? = null,
     val confidence: Double? = null,
     val image_urls: Map<String, String>? = null,

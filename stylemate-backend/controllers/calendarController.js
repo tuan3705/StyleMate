@@ -140,9 +140,10 @@ const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
 
   // ⚡ UPSERT: tìm theo userId+date → nếu chưa có thì tạo, nếu có thì cập nhật outfitId
   // Dùng upsert thay vì find + create để tránh E11000 duplicate key (index cũ date_1)
+  // QUAN TRỌNG: Không được $set _id vì _id là immutable khi đã tồn tại
   const updatedEvent = await CalendarEvent.findOneAndUpdate(
     { userId: currentUserId, date: dateNum },
-    { $set: { outfitId, _id: _id } },
+    { $set: { outfitId }, $setOnInsert: { _id } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 

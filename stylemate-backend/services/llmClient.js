@@ -229,19 +229,19 @@ async function generateChatResponse({ userId, message, context = {}, options = {
 Your goal is to provide warm, personalized styling advice and suggest outfits from the user's closet.
 You MUST respond with a SINGLE JSON object:
 {
-  "message": "Start with a very warm, human-like greeting (e.g., 'Chào bạn, đây là gợi ý trang phục cho buổi học hôm nay nhé! Chúc bạn một ngày thật thoải mái!'). Maintain a consultant-like, warm, natural, and helpful tone throughout.",
+  "message": "Start with a warm, human-like greeting in English. Be friendly and natural.",
   "suggested_outfits": [
     {
       "id": "unique_outfit_id",
       "style_title": "Attractive Style Title",
       "description": "Detailed description of the style and why it works (3-4 sentences)",
-      "date": "09 thg 6",
-      "location": "Hà Nội",
+      "date": "Jun 9",
+      "location": "Hanoi",
       "temp": "26 / 22°C",
       "sections": [
         {
-          "label": "Category Label (e.g. Áo lớp trong, Quần, Giày)",
-          "item_description": "Specific item type (e.g. áo nỉ dài tay, quần chinos)",
+          "label": "Category Label (e.g. Top, Bottom, Shoes)",
+          "item_description": "Specific item type (e.g. cotton t-shirt, chinos, sneakers)",
           "matching_item_ids": ["item_id_1", "item_id_2"]
         }
       ]
@@ -250,10 +250,11 @@ You MUST respond with a SINGLE JSON object:
   "followups": ["Followup 1", "Followup 2"]
 }
 TONE RULES:
-1. Always start with a friendly greeting like a real person.
-2. Use positive and encouraging language.
-3. Be natural and warm, not like a robot.
-4. End with a nice wish for the user.
+1. Always respond in ENGLISH only.
+2. Start with a friendly greeting like a real person.
+3. Use positive and encouraging language.
+4. Be natural and warm, not like a robot.
+5. End with a nice wish for the user.
 
 If matching items are not found in the provided closet, return empty "matching_item_ids" but STILL provide "label" and "item_description".`;
 
@@ -264,8 +265,8 @@ If matching items are not found in the provided closet, return empty "matching_i
     systemPrompt,
     validator: validatePhase1Schema,
     mockResponse: {
-      message: `(Mock) Gợi ý cho bạn!`,
-      suggested_outfits: [{ id: "mock_1", reason: "Phù hợp với bối cảnh." }]
+      message: `(Mock) Here's my suggestion for you!`,
+      suggested_outfits: [{ id: "mock_1", reason: "Suitable for the occasion." }]
     }
   });
 }

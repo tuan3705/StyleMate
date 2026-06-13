@@ -12,16 +12,16 @@ const ClothingItem = require('../models/ClothingItem');
 const homeSuggestionSchema = require('../schemas/home-suggestion.json');
 
 /**
- * Lấy gợi ý trang phục cho trang chủ (Chỉ dùng UUID thật từ DB)
+ * Get outfit suggestions for the home page (Only using real UUIDs from DB)
  */
 async function getHomeSuggestions(userId, lat, lon) {
   const context = await contextService.buildContext({ userId, lat, lon });
-  const weatherText = context.weather?.current?.condition?.text || 'bình thường';
+  const weatherText = context.weather?.current?.condition?.text || 'normal';
   const tempC = context.weather?.current?.temp_c || 25;
 
   console.log(`[HOME SUGGESTION] Request for user: ${userId}, Weather: ${weatherText}, Temp: ${tempC}C`);
 
-  // 1. RAG: Lấy đồ THẬT và bộ đồ THẬT từ tủ đồ của chính user này
+  // 1. RAG: Fetch real items and real outfits from this user's closet
   let [relevantItems, relevantOutfits] = await Promise.all([
     closetSearchService.findRelevantItems(userId, `weather ${weatherText}, temperature ${tempC} degrees Celsius`),
     closetSearchService.findRelevantOutfits(userId, `weather ${weatherText}, temperature ${tempC} degrees Celsius`)
@@ -29,7 +29,7 @@ async function getHomeSuggestions(userId, lat, lon) {
 
   console.log(`[RAG LOG] Initial retrieval: ${relevantItems.length} items, ${relevantOutfits.length} outfits`);
 
-  // Fallback: Nếu không tìm thấy đồ phù hợp bằng heuristic, lấy 20 món mới nhất
+  // Fallback: If no matching items found by heuristic, get the latest 20 items
   if (relevantItems.length === 0) {
     console.log(`[RAG LOG] Heuristic returned 0 items, falling back to latest items for user ${userId}`);
     const latestItems = await ClothingItem.find({ userId })
@@ -56,19 +56,19 @@ async function getHomeSuggestions(userId, lat, lon) {
     console.log(`[HOME SUGGESTION] Closet is empty for user ${userId}`);
     return {
       success: true,
-      headline: "Chào ngày mới!",
-      message: "Tủ đồ của bạn đang trống, hãy thêm đồ để AI giúp bạn phối đồ nhé!",
+      headline: "Hello!",
+      message: "Your closet is empty. Add some clothes and AI will help you create outfits!",
       suggested_outfits: []
     };
   }
 
-  // 2. Chuẩn bị context cho AI (Thêm Season/Occasion cho AI chọn thông minh hơn)
+  // 2. Prepare context for AI (Add Season/Occasion for smarter selection)
   const itemsPool = relevantItems.map(i => `[${i.id}] Name: ${i.name}, Cat: ${i.category}, Color: ${i.color}, Season: ${i.season}, Occasion: ${i.occasion}`).join('\n');
   const outfitsPool = relevantOutfits.length > 0
     ? relevantOutfits.map(o => `[SAVED_OUTFIT:${o.id}] Name: ${o.name}, Contains: ${o.items.join(', ')}`).join('\n')
     : 'No saved outfits yet.';
 
-  // 3. System Prompt cải tiến
+  // 3. Enhanced System Prompt - English
   const systemPrompt = `You are StyleMate's Professional Wardrobe Orchestrator.
 Target Weather: ${weatherText}, ${tempC}C.
 
@@ -80,7 +80,7 @@ YOUR MISSION:
 1. Suggest exactly 3 outfits for the user.
 2. PRIORITY: If a SAVED OUTFIT fits the weather, recommend it! (Set type: "saved").
 3. INNOVATION: Create NEW combinations from INDIVIDUAL ITEMS if they are more suitable. (Set type: "new").
-4. Provide a 'headline' and 'message' in Vietnamese. Make it warm, personal, and fashionable.
+4. Provide a 'headline' and 'message' in English. Make it warm, personal, and fashionable.
 
 RULES:
 - For 'type': use "saved" for pre-made outfits, "new" for your own combinations.
@@ -107,13 +107,15 @@ Response must be a clean JSON object.`;
     });
 
     // 4. Hydration & Validation
+    // AI might return "outfits" or "suggested_outfits" - handle both
+    const outfitsArray = response.suggested_outfits || response.outfits || [];
     const itemIdsInPool = new Set(relevantItems.map(i => i.id));
-    const allSuggestedItemIds = [...new Set((response.suggested_outfits || []).flatMap(o => o.item_ids))];
+    const allSuggestedItemIds = [...new Set(outfitsArray.flatMap(o => o.item_ids || []))];
 
     const itemsInDb = await ClothingItem.find({ _id: { $in: allSuggestedItemIds } }).lean();
     const itemMap = new Map(itemsInDb.map(i => [String(i._id), i]));
 
-    const finalOutfits = (response.suggested_outfits || []).map(outfit => {
+    const finalOutfits = outfitsArray.map(outfit => {
       const details = (outfit.item_ids || [])
         .filter(id => itemMap.has(id))
         .map(id => {
@@ -133,10 +135,13 @@ Response must be a clean JSON object.`;
       };
     }).filter(Boolean);
 
+    // Extract headline and message from the first outfit if not present at top level
+    // AI returns these inside each outfit, not at the top-level response
+    const firstOutfit = outfitsArray.length > 0 ? outfitsArray[0] : null;
     return {
       success: true,
-      headline: response.headline || "Phong cách cá nhân",
-      message: response.message || "Chúc bạn một ngày mặc đẹp!",
+      headline: response.headline || firstOutfit?.headline || (firstOutfit?.message?.split('.')[0]) || "Personal style",
+      message: response.message || firstOutfit?.message || firstOutfit?.reason || "Have a great day looking stylish!",
       suggested_outfits: finalOutfits
     };
 

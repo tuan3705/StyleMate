@@ -139,7 +139,11 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
             }
         }
 
-        WeekCalendarStrip(selectedDateMillis, onDateSelected = { viewModel.selectDate(it) })
+        WeekCalendarStrip(
+            selectedDateMillis = selectedDateMillis,
+            eventsInMonth = uiState.eventsInMonth,
+            onDateSelected = { viewModel.selectDate(it) }
+        )
 
         Spacer(Modifier.height(16.dp))
 
@@ -288,6 +292,7 @@ private fun isSameDay(epoch1: Long, epoch2: Long): Boolean {
 @Composable
 private fun WeekCalendarStrip(
     selectedDateMillis: Long,
+    eventsInMonth: Set<Long> = emptySet(),
     onDateSelected: (Long) -> Unit
 ) {
     val todayEpoch = remember { todayEpochMidnight() }
@@ -316,11 +321,13 @@ private fun WeekCalendarStrip(
             weekDays.forEach { dayEpoch ->
                 val isSelected = isSameDay(dayEpoch, selectedDateMillis)
                 val isToday = isSameDay(dayEpoch, todayEpoch)
+                val hasOutfit = eventsInMonth.contains(dayEpoch)
 
                 DayCell(
                     dayEpoch = dayEpoch,
                     isSelected = isSelected,
                     isToday = isToday,
+                    hasOutfit = hasOutfit,
                     onClick = { onDateSelected(dayEpoch) }
                 )
             }
@@ -333,6 +340,7 @@ private fun DayCell(
     dayEpoch: Long,
     isSelected: Boolean,
     isToday: Boolean,
+    hasOutfit: Boolean = false,
     onClick: () -> Unit
 ) {
     val dayName = getDayOfWeekName(dayEpoch)
@@ -370,18 +378,21 @@ private fun DayCell(
             fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
             color = textColor
         )
-        // Chấm tròn cho hôm nay
-        if (isToday) {
-            Spacer(modifier = Modifier.height(2.dp))
+        // Chấm tròn báo hiệu ngày đã có outfit
+        Spacer(modifier = Modifier.height(2.dp))
+        if (hasOutfit) {
             Box(
                 modifier = Modifier
-                    .size(4.dp)
+                    .size(5.dp)
                     .clip(CircleShape)
                     .background(
                         if (isSelected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.primary
                     )
             )
+        } else {
+            // Placeholder để giữ khoảng cách đều nhau
+            Spacer(modifier = Modifier.size(5.dp))
         }
     }
 }

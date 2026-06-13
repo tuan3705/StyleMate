@@ -8,26 +8,26 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * 🏪 WeatherRepository — Repository Pattern cho module Thời tiết.
+ * 🏪 WeatherRepository — Repository Pattern for Weather module.
  *
- * 🔒 Gọi Backend proxy (/api/weather/forecast), KHÔNG gọi trực tiếp WeatherAPI.com.
- *    -> WEATHER_API_KEY chi nam o server (file .env), khong lo tren Client.
+ * 🔒 Calls Backend proxy (/api/weather/forecast), NOT WeatherAPI.com directly.
+ *    -> WEATHER_API_KEY only stored on server (.env), not exposed on Client.
  *
- * ViewModel se goi repository nay de lay du lieu thoi tiet.
+ * ViewModel calls this repository to fetch weather data.
  */
 class WeatherRepository(
     private val apiService: StylemateApiService = RetrofitClient.stylemateApiService
 ) {
 
     /**
-     * Lay du lieu thoi tiet + du bao 3 ngay qua Backend proxy.
+     * Fetches weather data + 3-day forecast via Backend proxy.
      *
-     * Backend nhan lat+lon, tu them API Key, goi WeatherAPI.com, tra JSON ve.
+     * Backend receives lat+lon, adds API Key, calls WeatherAPI.com, returns JSON.
      *
-     * @param lat Vi do.
-     * @param lon Kinh do.
-     * @return [WeatherApiResponse] neu thanh cong.
-     * @throws Exception neu network error hoac API tra ve loi.
+     * @param lat Latitude.
+     * @param lon Longitude.
+     * @return [WeatherApiResponse] if successful.
+     * @throws Exception if network error or API returns an error.
      */
     suspend fun getWeatherForecast(lat: Double, lon: Double): WeatherApiResponse =
         withContext(Dispatchers.IO) {
@@ -40,39 +40,39 @@ class WeatherRepository(
         }
 
     /**
-     * Phan tich nhanh thoi tiet de lam context cho Chatbot.
+     * Quick weather analysis for Chatbot context.
      *
-     * Quy tac don gian dua tren nhiet do:
+     * Simple rules based on temperature:
      *   - < 10°C  -> "VeryCold"
      *   - < 20°C  -> "Cold"
      *   - < 25°C  -> "Cool"
      *   - < 30°C  -> "Warm"
      *   - >= 30°C -> "Hot"
      *
-     * @param tempC Nhiet do hien tai (°C).
-     * @return [WeatherAnalysis] chua nhan + goi y.
+     * @param tempC Current temperature (°C).
+     * @return [WeatherAnalysis] with label + suggestion.
      */
     fun analyzeWeather(tempC: Double): WeatherAnalysis {
         return when {
             tempC < 10 -> WeatherAnalysis(
                 label = "VeryCold",
-                suggestion = "Troi rat lanh! Hay mac ao khoac day, khan quang co va gang tay."
+                suggestion = "Very cold! Wear a heavy coat, scarf, and gloves."
             )
             tempC < 20 -> WeatherAnalysis(
                 label = "Cold",
-                suggestion = "Troi lanh. Ao len, ao khoac nhe va quan dai la lua chon phu hop."
+                suggestion = "Cold weather. Sweater, light jacket, and long pants are suitable."
             )
             tempC < 25 -> WeatherAnalysis(
                 label = "Cool",
-                suggestion = "Troi mat me. Ao dai tay, quan jeans hoac chan vay nhe."
+                suggestion = "Cool weather. Long sleeves, jeans, or light skirt."
             )
             tempC < 30 -> WeatherAnalysis(
                 label = "Warm",
-                suggestion = "Troi am ap. Ao ngan tay, vay mat, quan vai nhe."
+                suggestion = "Warm weather. Short sleeves, dresses, lightweight pants."
             )
             else -> WeatherAnalysis(
                 label = "Hot",
-                suggestion = "Troi nong! Quan short, ao ba lo, vay maxi, chat lieu thoang mat."
+                suggestion = "Hot weather! Shorts, tank tops, maxi dresses, breathable fabrics."
             )
         }
     }

@@ -107,14 +107,15 @@ fun AIChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(chatBackground)
+            .imePadding()
     ) {
         Scaffold(
             topBar = {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 4.dp, vertical = 4.dp),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
