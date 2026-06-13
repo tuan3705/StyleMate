@@ -76,6 +76,8 @@ import com.example.stylemate.notification.fetchFcmToken
 import com.example.stylemate.repository.WeatherRepository
 import com.example.stylemate.ui.common.PermissionRationaleDialog
 import com.example.stylemate.ui.common.PermissionSettingsRedirectDialog
+import com.example.stylemate.ui.common.AppPermissions
+import com.example.stylemate.ui.common.rememberAnyPermissionGranted
 import com.example.stylemate.viewmodel.WeatherViewModel
 import com.example.stylemate.viewmodel.WeatherViewModelFactory
 import kotlinx.coroutines.launch
@@ -100,11 +102,18 @@ fun WeatherScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
-    var hasAttemptedLocation by remember { mutableStateOf(false) }
-
     // ── Permission Rationale State ─────────────────────────────────
     var showLocationRationale by remember { mutableStateOf(false) }
     var showLocationSettingsRedirect by remember { mutableStateOf(false) }
+    var showGpsDialog by remember { mutableStateOf(false) }
+
+    val hasLocationPermission = rememberAnyPermissionGranted(AppPermissions.LOCATION)
+    var deniedCount by remember { mutableStateOf(0) }
+
+    fun isGpsEnabled(): Boolean {
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+    }
 
     fun syncDeviceLocation(lat: Double, lon: Double) {
         scope.launch {
@@ -118,24 +127,16 @@ fun WeatherScreen(
             viewModel.fetchWeatherByGps(lat, lon)
             syncDeviceLocation(lat, lon)
         }
-        hasAttemptedLocation = true
     }
 
-    // Pre-resolve string resource for non-composable usage
     val locationFallbackMessage = remember { context.getString(R.string.location_fallback) }
 
     fun useDefaultLocation() {
-        Toast.makeText(
-            context,
-            locationFallbackMessage,
-            Toast.LENGTH_SHORT
-        ).show()
+        Toast.makeText(context, locationFallbackMessage, Toast.LENGTH_SHORT).show()
         viewModel.fetchWeather(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
         syncDeviceLocation(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
-        hasAttemptedLocation = true
     }
 
-    // ── Location Permission Launcher ───────────────────────────────
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -143,16 +144,20 @@ fun WeatherScreen(
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
 
         if (fineGranted || coarseGranted) {
-            fetchWeatherData()
+            deniedCount = 0
+            // Đã có quyền → kiểm tra GPS có bật không?
+            if (!isGpsEnabled()) {
+                showGpsDialog = true
+            } else {
+                fetchWeatherData()
+            }
         } else {
-            // User denied permanently → show settings redirect
+            deniedCount++
             showLocationSettingsRedirect = true
             useDefaultLocation()
         }
     }
 
-    // ── Kiểm tra: cần show rationale hay không ─────────────────────
-    // `LocalContext.current` trả về Activity context trong composable
     val shouldShowRationale = remember {
         val activity = context as Activity
         ActivityCompat.shouldShowRequestPermissionRationale(
@@ -162,23 +167,19 @@ fun WeatherScreen(
         )
     }
 
-    LaunchedEffect(Unit) {
-        if (!hasAttemptedLocation) {
-            val hasFinePermission = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-            val hasCoarsePermission = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-
-            if (hasFinePermission || hasCoarsePermission) {
-                // ✅ Đã có quyền → fetch weather ngay
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) {
+            deniedCount = 0
+            // Đã có quyền → luôn kiểm tra GPS
+            if (!isGpsEnabled()) {
+                showGpsDialog = true
+            } else {
                 fetchWeatherData()
-            } else if (shouldShowRationale) {
-                // 🔔 Cần giải thích trước → show rationale dialog
+            }
+        } else if (deniedCount == 0) {
+            if (shouldShowRationale) {
                 showLocationRationale = true
             } else {
-                // 📢 Lần đầu → request trực tiếp
                 locationPermissionLauncher.launch(
                     arrayOf(
                         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -187,6 +188,25 @@ fun WeatherScreen(
                 )
             }
         }
+    }
+
+    // ── GPS Dialog ─────────────────────────────────────────────────
+    if (showGpsDialog) {
+        PermissionSettingsRedirectDialog(
+            title = stringResource(R.string.location_permission_rationale_title),
+            message = stringResource(R.string.gps_required_message),
+            icon = Icons.Default.GpsFixed,
+            onGoToSettings = {
+                showGpsDialog = false
+                context.startActivity(
+                    Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                )
+            },
+            onDismiss = {
+                showGpsDialog = false
+                useDefaultLocation()
+            }
+        )
     }
 
     // ── UI ──────────────────────────────────────────────────────────
@@ -313,7 +333,6 @@ private fun getLastKnownLocation(
         val locationManager =
             context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        // Kiểm tra quyền an toàn trước khi gọi API location
         val hasPermission = ContextCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED ||
@@ -322,10 +341,7 @@ private fun getLastKnownLocation(
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!hasPermission) {
-            onResult(
-                WeatherViewModel.DEFAULT_LAT,
-                WeatherViewModel.DEFAULT_LON
-            )
+            onResult(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
             return
         }
 
@@ -340,9 +356,7 @@ private fun getLastKnownLocation(
                 ) {
                     bestLocation = location
                 }
-            } catch (_: Exception) {
-                // Bỏ qua provider lỗi
-            }
+            } catch (_: Exception) { }
         }
 
         if (bestLocation != null) {
@@ -350,17 +364,13 @@ private fun getLastKnownLocation(
             return
         }
 
-        onResult(
-            WeatherViewModel.DEFAULT_LAT,
-            WeatherViewModel.DEFAULT_LON
-        )
+        onResult(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
     } catch (_: Exception) {
-        onResult(
-            WeatherViewModel.DEFAULT_LAT,
-            WeatherViewModel.DEFAULT_LON
-        )
+        onResult(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
     }
 }
+
+// ── UI Components (unchanged) ─────────────────────────────────────
 
 @Composable
 private fun WeatherContent(
@@ -372,83 +382,31 @@ private fun WeatherContent(
     accountMenu: @Composable () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
-
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(20.dp)
+        modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(20.dp)
     ) {
-        // ── Location Row ──────────────────────────────────────────
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 4.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Filled.LocationOn,
-                contentDescription = stringResource(R.string.location_content_desc),
-                tint = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.size(18.dp)
-            )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+            Icon(Icons.Filled.LocationOn, contentDescription = stringResource(R.string.location_content_desc),
+                tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = locationName,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f)
-            )
+            Text(text = locationName, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
         }
-
-        // ── Header + Refresh ────────────────────────────────────
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.weather_today),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(text = stringResource(R.string.weather_today), style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold, color = Color.White)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onRefresh, enabled = !isLoading) {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = stringResource(R.string.refresh_content_desc),
-                        tint = Color.White
-                    )
+                    Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.refresh_content_desc), tint = Color.White)
                 }
                 accountMenu()
             }
         }
-
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(8.dp),
-                color = Color.White,
-                strokeWidth = 2.dp
-            )
-        }
-
+        if (isLoading) CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally).padding(8.dp), color = Color.White, strokeWidth = 2.dp)
         Spacer(modifier = Modifier.height(16.dp))
-
         CurrentWeatherCard(weatherData)
-
         Spacer(modifier = Modifier.height(12.dp))
-
-        if (weatherAnalysis != null) {
-            WeatherAnalysisCard(weatherAnalysis)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        Text(
-            text = stringResource(R.string.weather_forecast_3_days),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White
-        )
+        if (weatherAnalysis != null) { WeatherAnalysisCard(weatherAnalysis); Spacer(modifier = Modifier.height(12.dp)) }
+        Text(text = stringResource(R.string.weather_forecast_3_days), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = Color.White)
         Spacer(modifier = Modifier.height(8.dp))
         ForecastRow(weatherData.forecast.forecastDay)
     }
@@ -457,64 +415,19 @@ private fun WeatherContent(
 @Composable
 private fun CurrentWeatherCard(weatherData: WeatherApiResponse) {
     val current = weatherData.current
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.15f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f))) {
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${current.tempC.toInt()}",
-                    fontSize = 72.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "\u00B0C",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(top = 16.dp)
-                )
+                Text(text = "${current.tempC.toInt()}", fontSize = 72.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(text = "\u00B0C", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(top = 16.dp))
             }
-
-            Text(
-                text = current.condition.text,
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontWeight = FontWeight.Medium
-            )
-
+            Text(text = current.condition.text, style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                WeatherInfoItem(
-                    icon = Icons.Filled.Water,
-                    label = stringResource(R.string.humidity_label),
-                    value = "${current.humidity}%"
-                )
-                WeatherInfoItem(
-                    icon = Icons.Filled.Air,
-                    label = stringResource(R.string.feels_like_label),
-                    value = "${current.feelsLikeC.toInt()}\u00B0"
-                )
-                WeatherInfoItem(
-                    icon = Icons.Filled.WbSunny,
-                    label = stringResource(R.string.uv_label),
-                    value = "${current.uv.toInt()}"
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                WeatherInfoItem(Icons.Filled.Water, stringResource(R.string.humidity_label), "${current.humidity}%")
+                WeatherInfoItem(Icons.Filled.Air, stringResource(R.string.feels_like_label), "${current.feelsLikeC.toInt()}\u00B0")
+                WeatherInfoItem(Icons.Filled.WbSunny, stringResource(R.string.uv_label), "${current.uv.toInt()}")
             }
         }
     }
@@ -523,86 +436,40 @@ private fun CurrentWeatherCard(weatherData: WeatherApiResponse) {
 @Composable
 private fun WeatherInfoItem(icon: ImageVector, label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = Color.White.copy(alpha = 0.8f),
-            modifier = Modifier.size(24.dp)
-        )
+        Icon(icon, contentDescription = label, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.7f)
-        )
+        Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.7f))
     }
 }
 
 @Composable
 private fun WeatherAnalysisCard(analysis: WeatherAnalysis) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2E7D32).copy(alpha = 0.3f)
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(id = getWeatherAnalysisEmojiResId(analysis.label)),
-                fontSize = 32.sp
-            )
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2E7D32).copy(alpha = 0.3f))) {
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(text = stringResource(id = getWeatherAnalysisEmojiResId(analysis.label)), fontSize = 32.sp)
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(
-                    text = stringResource(R.string.weather_analysis_label_format, analysis.label),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Text(text = stringResource(R.string.weather_analysis_label_format, analysis.label),
+                    style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = analysis.suggestion,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
+                Text(text = analysis.suggestion, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
             }
         }
     }
 }
 
-/**
- * Trả về emoji tương ứng với weather analysis label từ string resource.
- */
 private fun getWeatherAnalysisEmojiResId(label: String): Int = when (label) {
-    "VeryCold" -> R.string.weather_emoji_very_cold
-    "Cold" -> R.string.weather_emoji_cold
-    "Cool" -> R.string.weather_emoji_cool
-    "Warm" -> R.string.weather_emoji_warm
-    "Hot" -> R.string.weather_emoji_hot
+    "VeryCold" -> R.string.weather_emoji_very_cold; "Cold" -> R.string.weather_emoji_cold
+    "Cool" -> R.string.weather_emoji_cool; "Warm" -> R.string.weather_emoji_warm; "Hot" -> R.string.weather_emoji_hot
     else -> R.string.weather_emoji_thermometer
 }
 
 @Composable
 private fun ForecastRow(forecastDays: List<ForecastDay>) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(vertical = 4.dp)
-    ) {
-        items(forecastDays) { day ->
-            ForecastDayCard(day)
-        }
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 4.dp)) {
+        items(forecastDays) { day -> ForecastDayCard(day) }
     }
 }
 
@@ -611,82 +478,32 @@ private fun ForecastDayCard(forecastDay: ForecastDay) {
     val displayDate = try {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val date = sdf.parse(forecastDay.date)
-        val cal = Calendar.getInstance()
-        cal.time = date!!
+        val cal = Calendar.getInstance(); cal.time = date!!
         when (cal.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> "T2"
-            Calendar.TUESDAY -> "T3"
-            Calendar.WEDNESDAY -> "T4"
-            Calendar.THURSDAY -> "T5"
-            Calendar.FRIDAY -> "T6"
-            Calendar.SATURDAY -> "T7"
-            Calendar.SUNDAY -> "CN"
-            else -> forecastDay.date.takeLast(5)
+            Calendar.MONDAY -> "T2"; Calendar.TUESDAY -> "T3"; Calendar.WEDNESDAY -> "T4"
+            Calendar.THURSDAY -> "T5"; Calendar.FRIDAY -> "T6"; Calendar.SATURDAY -> "T7"
+            Calendar.SUNDAY -> "CN"; else -> forecastDay.date.takeLast(5)
         }
-    } catch (e: Exception) {
-        forecastDay.date.takeLast(5)
-    }
+    } catch (_: Exception) { forecastDay.date.takeLast(5) }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.12f)
-        ),
-        modifier = Modifier.width(120.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = displayDate,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
+    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.12f)),
+        modifier = Modifier.width(120.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = displayDate, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = Color.White)
             Spacer(modifier = Modifier.height(8.dp))
-
-            Icon(
-                painter = painterResource(id = getForecastEmojiResId(forecastDay.day.condition.text)),
-                contentDescription = forecastDay.day.condition.text,
-                tint = Color.White,
-                modifier = Modifier.size(36.dp)
-            )
-
+            Icon(painter = painterResource(id = getForecastEmojiResId(forecastDay.day.condition.text)),
+                contentDescription = forecastDay.day.condition.text, tint = Color.White, modifier = Modifier.size(36.dp))
             Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = forecastDay.day.condition.text,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.8f),
-                maxLines = 1
-            )
-
+            Text(text = forecastDay.day.condition.text, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.8f), maxLines = 1)
             Spacer(modifier = Modifier.height(4.dp))
-
             Row {
-                Text(
-                    text = "${forecastDay.day.maxTempC.toInt()}\u00B0",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = "/${forecastDay.day.minTempC.toInt()}\u00B0",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.6f)
-                )
+                Text(text = "${forecastDay.day.maxTempC.toInt()}\u00B0", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(text = "/${forecastDay.day.minTempC.toInt()}\u00B0", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.6f))
             }
         }
     }
 }
 
-/**
- * Trả về emoji tương ứng với weather condition text.
- * Sử dụng Unicode escape sequences thay vì ký tự trực tiếp.
- */
 private fun getForecastEmojiResId(conditionText: String): Int = when {
     conditionText.contains("Sunny", ignoreCase = true) -> R.drawable.ic_weather_sunny
     conditionText.contains("Cloud", ignoreCase = true) -> R.drawable.ic_weather_cloudy

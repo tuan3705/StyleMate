@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +8,25 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.services)
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 📄 Đọc STYLEMATE_BASE_URL từ local.properties
+// ═══════════════════════════════════════════════════════════════
+// Cách dùng:
+//   1. Mở file local.properties (cùng thư mục với build.gradle.kts)
+//   2. Thêm dòng:   STYLEMATE_BASE_URL=http://IP_CUA_BAN:3000/
+//      - Máy thật + adb reverse: http://127.0.0.1:8080/
+//      - Máy thật + WiFi:        http://192.168.x.x:3000/
+//      - Android Emulator:       http://10.0.2.2:3000/
+//   3. Build lại app
+// ═══════════════════════════════════════════════════════════════
+
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localProps.load(FileInputStream(localPropsFile))
+}
+val baseUrl: String = localProps.getProperty("STYLEMATE_BASE_URL", "http://10.0.2.2:3000/")
 
 android {
     namespace = "com.example.stylemate"
@@ -20,19 +40,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // BuildConfig.STYLEMATE_BASE_URL = giá trị từ local.properties
+        buildConfigField("String", "STYLEMATE_BASE_URL", "\"${baseUrl}\"")
     }
 
     buildTypes {
         debug {
-            // Android Emulator calls the host machine's localhost via 10.0.2.2.
-            buildConfigField("String", "STYLEMATE_BASE_URL", "\"http://10.0.2.2:3000/\"")
         }
-
         release {
             isMinifyEnabled = false
-
-            // Nếu muốn URL production riêng, thay URL ở dòng dưới
-            buildConfigField("String", "STYLEMATE_BASE_URL", "\"http://10.0.2.2:3000/\"")
 
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

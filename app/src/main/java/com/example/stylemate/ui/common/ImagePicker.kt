@@ -3,8 +3,11 @@ package com.example.stylemate.ui.common
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,6 +61,17 @@ class ImagePickerState internal constructor(
     val setImagePath: (String?) -> Unit
 )
 
+/**
+ * Lấy permission cần để đọc thư viện ảnh theo Android version
+ */
+private fun getGalleryPermission(): String {
+    return if (Build.VERSION.SDK_INT >= 33) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+}
+
 @Composable
 fun rememberImagePickerState(
     context: Context = LocalContext.current,
@@ -70,12 +84,18 @@ fun rememberImagePickerState(
 
     // Pre-resolve string resources for non-composable usage
     val cameraDeniedMessage = remember { context.getString(R.string.camera_permission_denied) }
+    val galleryPermName = getGalleryPermission()
+    val galleryDeniedMessage = remember { context.getString(R.string.gallery_permission_denied) }
 
-    // ── Camera Permission States ──────────────────────────────────
+    // ── Permission States ──────────────────────────────────────────
     var showCameraRationale by remember { mutableStateOf(false) }
     var showCameraSettingsRedirect by remember { mutableStateOf(false) }
+    var showGalleryRationale by remember { mutableStateOf(false) }
+    var showGallerySettingsRedirect by remember { mutableStateOf(false) }
 
-    // ⚠️ Phải khai báo TakePicture LAUNCHER TRƯỚC vì nó được reference trong callback
+    // ⚠️ TẤT CẢ LAUNCHERS phải khai báo TRƯỚC khi được reference
+
+    // ── Take Picture ──────────────────────────────────────────────
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val file = pendingCameraFile
         if (success && file != null) {
@@ -86,7 +106,27 @@ fun rememberImagePickerState(
         pendingCameraFile = null
     }
 
-    // ── Camera Permission Launcher ────────────────────────────────
+    fun handlePickedUri(uri: Uri) {
+        coroutineScope.launch {
+            try {
+                val file = ImageStorage.copyUriToInternalStorage(context, uri, prefix = "gallery_")
+                imagePathState.value = file.absolutePath
+            } catch (e: Exception) {
+                onError("Unable to load image: ${e.message}")
+            }
+        }
+    }
+
+    // 📸 Photo Picker Launchers — khai báo TRƯỚC Gallery Permission
+    val pickMediaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let { handlePickedUri(it) }
+    }
+
+    val getContentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { handlePickedUri(it) }
+    }
+
+    // ── Camera Permission ─────────────────────────────────────────
     val requestCameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -108,30 +148,29 @@ fun rememberImagePickerState(
         }
     }
 
-    fun handlePickedUri(uri: Uri) {
-        coroutineScope.launch {
-            try {
-                val file = ImageStorage.copyUriToInternalStorage(context, uri, prefix = "gallery_")
-                imagePathState.value = file.absolutePath
-            } catch (e: Exception) {
-                onError("Unable to load image: ${e.message}")
+    // ── Gallery Permission ─────────────────────────────────────────
+    val requestGalleryPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            // Có quyền → mở picker
+            openPhotoPicker(context, pickMediaLauncher, getContentLauncher)
+        } else {
+            val activity = context as? Activity
+            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity, galleryPermName
+                )
+            ) {
+                showGallerySettingsRedirect = true
+            } else {
+                onError(galleryDeniedMessage)
             }
         }
     }
 
-    val pickMediaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { handlePickedUri(it) }
-    }
-
-    val getContentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { handlePickedUri(it) }
-    }
-
+    // ── Camera Click ──────────────────────────────────────────────
     val onCameraClick = {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
+        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
         if (hasPermission) {
             val file = ImageStorage.createImageFile(context, prefix = "camera_")
@@ -140,10 +179,7 @@ fun rememberImagePickerState(
             takePictureLauncher.launch(uri)
         } else {
             val activity = context as? Activity
-            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity, Manifest.permission.CAMERA
-                )
-            ) {
+            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)) {
                 showCameraRationale = true
             } else {
                 requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -151,18 +187,23 @@ fun rememberImagePickerState(
         }
     }
 
+    // ── Gallery Click — PHẢI request permission TRƯỚC khi mở ──────
     val onGalleryClick = {
-        val isPhotoPickerAvailable = ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)
-        if (isPhotoPickerAvailable) {
-            pickMediaLauncher.launch(
-                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-            )
+        val hasPermission = ContextCompat.checkSelfPermission(context, galleryPermName) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            openPhotoPicker(context, pickMediaLauncher, getContentLauncher)
         } else {
-            getContentLauncher.launch("image/*")
+            val activity = context as? Activity
+            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, galleryPermName)) {
+                showGalleryRationale = true
+            } else {
+                requestGalleryPermissionLauncher.launch(galleryPermName)
+            }
         }
     }
 
-    // ── Camera Permission Dialogs ──────────────────────────────────
+    // ── Camera Dialogs ────────────────────────────────────────────
     if (showCameraRationale) {
         PermissionRationaleDialog(
             title = stringResource(R.string.camera_permission_rationale_title),
@@ -186,13 +227,43 @@ fun rememberImagePickerState(
             icon = Icons.Default.PhotoCamera,
             onGoToSettings = {
                 showCameraSettingsRedirect = false
-                context.startActivity(
-                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = android.net.Uri.fromParts("package", context.packageName, null)
-                    }
-                )
+                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                })
             },
             onDismiss = { showCameraSettingsRedirect = false }
+        )
+    }
+
+    // ── Gallery Dialogs ───────────────────────────────────────────
+    if (showGalleryRationale) {
+        PermissionRationaleDialog(
+            title = stringResource(R.string.gallery_permission_rationale_title),
+            message = stringResource(R.string.gallery_permission_rationale),
+            icon = Icons.Default.PhotoLibrary,
+            onGrant = {
+                showGalleryRationale = false
+                requestGalleryPermissionLauncher.launch(galleryPermName)
+            },
+            onDeny = {
+                showGalleryRationale = false
+                onError(galleryDeniedMessage)
+            }
+        )
+    }
+
+    if (showGallerySettingsRedirect) {
+        PermissionSettingsRedirectDialog(
+            title = stringResource(R.string.gallery_permission_rationale_title),
+            message = stringResource(R.string.permission_settings_redirect),
+            icon = Icons.Default.PhotoLibrary,
+            onGoToSettings = {
+                showGallerySettingsRedirect = false
+                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                })
+            },
+            onDismiss = { showGallerySettingsRedirect = false }
         )
     }
 
@@ -203,6 +274,24 @@ fun rememberImagePickerState(
         onRemoveBackgroundClick = onRemoveBackground,
         setImagePath = { newPath -> imagePathState.value = newPath }
     )
+}
+
+/**
+ * Hàm mở photo picker — chỉ gọi khi đã có quyền
+ */
+private fun openPhotoPicker(
+    context: Context,
+    pickMediaLauncher: androidx.activity.result.ActivityResultLauncher<PickVisualMediaRequest>,
+    getContentLauncher: androidx.activity.result.ActivityResultLauncher<String>
+) {
+    val isPhotoPickerAvailable = ActivityResultContracts.PickVisualMedia.isPhotoPickerAvailable(context)
+    if (isPhotoPickerAvailable) {
+        pickMediaLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    } else {
+        getContentLauncher.launch("image/*")
+    }
 }
 
 @Composable
