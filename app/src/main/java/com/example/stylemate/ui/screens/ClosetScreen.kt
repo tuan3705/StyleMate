@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
@@ -74,6 +73,7 @@ import coil.request.ImageRequest
 import com.example.stylemate.R
 import com.example.stylemate.model.Categories
 import com.example.stylemate.model.ClothingItemEntity
+import com.example.stylemate.model.OutfitEntity
 import com.example.stylemate.model.OutfitItemWithPosition
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.repository.ClothingRepository
@@ -159,6 +159,8 @@ fun ClosetScreen(
     var showOutfitEditor by remember { mutableStateOf(false) }
     var showAddItemsSheet by remember { mutableStateOf(false) }
     var showSearchBar by rememberSaveable { mutableStateOf(false) }
+    var itemPendingDelete by remember { mutableStateOf<ClothingItemEntity?>(null) }
+    var outfitPendingDelete by remember { mutableStateOf<OutfitEntity?>(null) }
     val itemsGridState = rememberLazyGridState()
     // Mỗi BottomSheet có sheetState riêng để vuốt mượt, không conflict
     val quickAddSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -281,9 +283,6 @@ fun ClosetScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { /* Filter action */ }) {
-                        Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.filter_content_desc))
-                    }
                     accountMenu()
                 }
             }
@@ -341,9 +340,7 @@ fun ClosetScreen(
                     nestedScrollConnection = itemsScrollConnection,
                     onItemClick = { itemId -> onEditItem(itemId) },
                     onDeleteItem = { item ->
-                        clothingVM.deleteClothingItem(item) {
-                            outfitVM.refreshAfterItemChange()
-                        }
+                        itemPendingDelete = item
                     }
                 )
             }
@@ -355,7 +352,7 @@ fun ClosetScreen(
                     outfits = outfits,
                     isLoading = isOutfitLoading,
                     outfitRepo = outfitRepo,
-                    onDeleteOutfit = { outfitVM.deleteOutfit(it) },
+                    onDeleteOutfit = { outfitPendingDelete = it },
                     onOutfitClick = { outfit ->
                         outfitVM.startEditingOutfit(outfit.outfit.id, outfit.outfit.name)
                         showOutfitEditor = true
@@ -446,6 +443,62 @@ fun ClosetScreen(
             }
         )
     }
+
+    itemPendingDelete?.let { item ->
+        DeleteConfirmDialog(
+            title = stringResource(R.string.confirm_delete_item_title),
+            message = stringResource(R.string.confirm_delete_item_message),
+            onDismiss = { itemPendingDelete = null },
+            onConfirm = {
+                itemPendingDelete = null
+                clothingVM.deleteClothingItem(item) {
+                    outfitVM.refreshAfterItemChange()
+                }
+            }
+        )
+    }
+
+    outfitPendingDelete?.let { outfit ->
+        DeleteConfirmDialog(
+            title = stringResource(R.string.confirm_delete_outfit_title),
+            message = stringResource(R.string.confirm_delete_outfit_message),
+            onDismiss = { outfitPendingDelete = null },
+            onConfirm = {
+                outfitPendingDelete = null
+                outfitVM.deleteOutfit(outfit)
+            }
+        )
+    }
+}
+
+@Composable
+private fun DeleteConfirmDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(message) },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text(stringResource(R.string.delete_confirm_button))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel_button))
+            }
+        }
+    )
 }
 
 @Composable

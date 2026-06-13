@@ -5,7 +5,7 @@
  */
 const express = require('express');
 const router = express.Router();
-const { register, login, refresh, logout } = require('../controllers/authController');
+const { register, login, refresh, logout, changePassword } = require('../controllers/authController');
 const { requireAuth } = require('../middleware/authMiddleware');
 
 // POST /api/auth/register
@@ -19,5 +19,8 @@ router.post('/refresh', refresh);
 
 // POST /api/auth/logout
 router.post('/logout', requireAuth, logout);
+
+// POST /api/auth/change-password
+router.post('/change-password', requireAuth, changePassword);
 
 module.exports = router;

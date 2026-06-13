@@ -346,6 +346,15 @@ interface StylemateApiService {
     @POST("api/auth/logout")
     suspend fun logout(): Response<SimpleMessageResponse>
 
+    /**
+     * POST /api/auth/change-password
+     * Doi mat khau cho nguoi dung dang dang nhap.
+     */
+    @POST("api/auth/change-password")
+    suspend fun changePassword(
+        @Body request: ChangePasswordRequest
+    ): Response<SimpleMessageResponse>
+
     // ═════════════════════════════════════════════════════════════
     // 🔔 FCM — /api/user/fcm-token
     // ═════════════════════════════════════════════════════════════

@@ -113,6 +113,11 @@
     <string name="add_outfit_button">Add</string>
     <string name="delete_outfit_content_desc">Xoá bộ đồ</string>
     <string name="delete_item_content_desc">Delete item</string>
+    <string name="delete_confirm_button">Xoá</string>
+    <string name="confirm_delete_item_title">Xoá món đồ?</string>
+    <string name="confirm_delete_item_message">Bạn có chắc chắn muốn xoá món đồ này không?</string>
+    <string name="confirm_delete_outfit_title">Xoá bộ đồ?</string>
+    <string name="confirm_delete_outfit_message">Bạn có chắc chắn muốn xoá bộ đồ này không?</string>
     <string name="close_content_desc">Close</string>
     <string name="remove_item_content_desc">Remove item</string>
     <string name="selected_content_desc">Selected</string>
@@ -407,6 +412,15 @@
     <!-- ===================== ACCOUNT / COMMON ===================== -->
     <string name="account_content_desc">Tài khoản</string>
     <string name="logout_label">Đăng xuất</string>
+    <string name="change_password_label">Đổi mật khẩu</string>
+    <string name="current_password_label">Mật khẩu hiện tại</string>
+    <string name="new_password_label">Mật khẩu mới</string>
+    <string name="confirm_new_password_label">Xác nhận mật khẩu mới</string>
+    <string name="current_password_invalid">Mật khẩu hiện tại tối thiểu 6 ký tự</string>
+    <string name="new_password_invalid">Mật khẩu mới tối thiểu 6 ký tự</string>
+    <string name="new_password_same_as_current">Mật khẩu mới phải khác mật khẩu hiện tại</string>
+    <string name="change_password_success">Đã đổi mật khẩu</string>
+    <string name="change_password_failed">Đổi mật khẩu thất bại</string>
 
     <!-- ===================== AI CHAT SCREEN ===================== -->
     <string name="prompts_list">[\"Hàng ngày\",\"Trường học\",\"Làm việc\",\"Du lịch\",\"Bữa tiệc\",\"Hẹn hò\",\"Đám cưới\"]</string>

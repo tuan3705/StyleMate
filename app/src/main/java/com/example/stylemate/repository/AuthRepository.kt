@@ -3,6 +3,7 @@ package com.example.stylemate.repository
 import com.example.stylemate.data.auth.AuthStorage
 import com.example.stylemate.data.auth.AuthValidator
 import com.example.stylemate.network.AuthLoginData
+import com.example.stylemate.network.ChangePasswordRequest
 import com.example.stylemate.network.LoginRequest
 import com.example.stylemate.network.RefreshRequest
 import com.example.stylemate.network.RegisterRequest
@@ -164,6 +165,39 @@ class AuthRepository(
             }
             authStorage.clearSession()
             Result.success(Unit)
+        }
+    }
+
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
+        if (!AuthValidator.isValidPassword(currentPassword)) {
+            return Result.failure(IllegalArgumentException("Mat khau hien tai toi thieu 6 ky tu"))
+        }
+        if (!AuthValidator.isValidPassword(newPassword)) {
+            return Result.failure(IllegalArgumentException("Mat khau moi toi thieu 6 ky tu"))
+        }
+        if (currentPassword == newPassword) {
+            return Result.failure(IllegalArgumentException("Mat khau moi phai khac mat khau hien tai"))
+        }
+
+        return withContext(Dispatchers.IO) {
+            try {
+                val response = apiService.changePassword(
+                    ChangePasswordRequest(
+                        currentPassword = currentPassword,
+                        newPassword = newPassword
+                    )
+                )
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    val message = parseErrorMessage(response.errorBody())
+                        ?: "Doi mat khau that bai: ${response.code()}"
+                    Result.failure(IllegalStateException(message))
+                }
+            } catch (e: Exception) {
+                val message = mapNetworkError(e) ?: (e.message ?: "Doi mat khau that bai")
+                Result.failure(IllegalStateException(message))
+            }
         }
     }
 }
