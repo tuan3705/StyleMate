@@ -47,7 +47,7 @@ class WeatherViewModel(
     // 🔷 State: Tên thành phố / vị trí đang hiển thị
     // ──────────────────────────────────────────────────────────────
 
-    private val _locationName = MutableStateFlow("Đang xác định...")
+    private val _locationName = MutableStateFlow("Determining…")
     val locationName: StateFlow<String> = _locationName
 
     // ──────────────────────────────────────────────────────────────
@@ -126,10 +126,10 @@ class WeatherViewModel(
                 val msg = e.message ?: ""
                 _errorMessage.value = when {
                     msg.contains("403") ->
-                        "API key chưa đúng. Vào weatherapi.com đăng ký key miễn phí và thay vào RetrofitClient.kt"
+                        "Invalid API key. Register a free key at weatherapi.com and set it in RetrofitClient.kt"
                     msg.contains("Unable to resolve host") || msg.contains("Failed to connect") ->
-                        "Không có kết nối Internet. Vui lòng kiểm tra mạng."
-                    else -> "Không thể tải dữ liệu thời tiết: ${e.message}"
+                        "No internet connection. Please check your network."
+                    else -> "Unable to load weather data: ${e.message}"
                 }
             } finally {
                 // ── Bước 6: Tắt loading ──────────────────────────
@@ -145,7 +145,7 @@ class WeatherViewModel(
      * @param lon Kinh độ từ GPS.
      */
     fun fetchWeatherByGps(lat: Double, lon: Double) {
-        _locationName.value = "Vị trí hiện tại"
+        _locationName.value = "Current location"
         fetchWeather(lat, lon, null)
     }
 

@@ -40,7 +40,7 @@ class FcmRepository(
         if (userId.isNullOrBlank()) {
             Log.w(TAG, "Missing userId; caching token for later sync")
             tokenStore.savePendingToken(resolvedToken)
-            return@withContext Result.failure(IllegalStateException("Thiếu userId để lưu FCM token"))
+            return@withContext Result.failure(IllegalStateException("Missing userId to save FCM token"))
         }
 
         return@withContext try {
@@ -59,7 +59,7 @@ class FcmRepository(
             } else {
                 tokenStore.savePendingToken(resolvedToken)
                 Log.w(TAG, "Failed to sync FCM token: ${'$'}{response.code()}")
-                Result.failure(IllegalStateException("Không thể lưu FCM token: ${'$'}{response.code()}"))
+                Result.failure(IllegalStateException("Cannot save FCM token: ${'$'}{response.code()}"))
             }
         } catch (e: Exception) {
             tokenStore.savePendingToken(resolvedToken)

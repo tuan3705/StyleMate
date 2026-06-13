@@ -40,9 +40,9 @@ class AuthRepository(
 
     private fun mapNetworkError(exception: Exception): String? {
         return when (exception) {
-            is SocketTimeoutException -> "Kết nối bị timeout. Vui lòng thử lại."
-            is UnknownHostException, is ConnectException -> "Không thể kết nối đến máy chủ. Kiểm tra mạng hoặc địa chỉ server."
-            is IOException -> "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại."
+            is SocketTimeoutException -> "Connection timed out. Please try again."
+            is UnknownHostException, is ConnectException -> "Cannot connect to the server. Check your network or server address."
+            is IOException -> "Network error. Please check your connection and try again."
             else -> null
         }
     }
@@ -53,10 +53,10 @@ class AuthRepository(
 
     suspend fun login(email: String, password: String): Result<AuthLoginData> {
         if (!AuthValidator.isValidEmail(email)) {
-            return Result.failure(IllegalArgumentException("Email không hợp lệ"))
+            return Result.failure(IllegalArgumentException("Invalid email"))
         }
         if (!AuthValidator.isValidPassword(password)) {
-            return Result.failure(IllegalArgumentException("Mật khẩu tối thiểu 6 ký tự"))
+            return Result.failure(IllegalArgumentException("Password must be at least 6 characters"))
         }
 
         return withContext(Dispatchers.IO) {
@@ -75,15 +75,15 @@ class AuthRepository(
                         )
                         Result.success<AuthLoginData>(data)
                     } else {
-                        Result.failure<AuthLoginData>(IllegalStateException("Response rỗng"))
+                        Result.failure<AuthLoginData>(IllegalStateException("Empty response"))
                     }
                 } else {
                     val message = parseErrorMessage(response.errorBody())
-                        ?: "Đăng nhập thất bại: ${response.code()}"
+                        ?: "Login failed: ${response.code()}"
                     Result.failure<AuthLoginData>(IllegalStateException(message))
                 }
             } catch (e: Exception) {
-                val message = mapNetworkError(e) ?: (e.message ?: "Đăng nhập thất bại")
+                val message = mapNetworkError(e) ?: (e.message ?: "Login failed")
                 Result.failure<AuthLoginData>(IllegalStateException(message))
             }
         }
@@ -92,13 +92,13 @@ class AuthRepository(
     suspend fun register(name: String, email: String, password: String): Result<AuthLoginData> {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) {
-            return Result.failure(IllegalArgumentException("Vui lòng nhập tên"))
+            return Result.failure(IllegalArgumentException("Please enter your name"))
         }
         if (!AuthValidator.isValidEmail(email)) {
-            return Result.failure(IllegalArgumentException("Email không hợp lệ"))
+            return Result.failure(IllegalArgumentException("Invalid email"))
         }
         if (!AuthValidator.isValidPassword(password)) {
-            return Result.failure(IllegalArgumentException("Mật khẩu tối thiểu 6 ký tự"))
+            return Result.failure(IllegalArgumentException("Password must be at least 6 characters"))
         }
 
         return withContext(Dispatchers.IO) {
@@ -117,15 +117,15 @@ class AuthRepository(
                         )
                         Result.success<AuthLoginData>(data)
                     } else {
-                        Result.failure<AuthLoginData>(IllegalStateException("Response rỗng"))
+                        Result.failure<AuthLoginData>(IllegalStateException("Empty response"))
                     }
                 } else {
                     val message = parseErrorMessage(response.errorBody())
-                        ?: "Đăng ký thất bại: ${response.code()}"
+                        ?: "Sign up failed: ${response.code()}"
                     Result.failure<AuthLoginData>(IllegalStateException(message))
                 }
             } catch (e: Exception) {
-                val message = mapNetworkError(e) ?: (e.message ?: "Đăng ký thất bại")
+                val message = mapNetworkError(e) ?: (e.message ?: "Sign up failed")
                 Result.failure<AuthLoginData>(IllegalStateException(message))
             }
         }
@@ -145,10 +145,10 @@ class AuthRepository(
                         authStorage.updateAccessToken(token)
                         Result.success<String>(token)
                     } else {
-                        Result.failure<String>(IllegalStateException("Token mới không hợp lệ"))
+                        Result.failure<String>(IllegalStateException("New token is invalid"))
                     }
                 } else {
-                    Result.failure<String>(IllegalStateException("Refresh token thất bại: ${response.code()}"))
+                    Result.failure<String>(IllegalStateException("Refresh token failed: ${response.code()}"))
                 }
             } catch (e: Exception) {
                 Result.failure<String>(e)

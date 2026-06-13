@@ -69,9 +69,9 @@ class CalendarRepository(private val apiService: StylemateApiService) {
 
     private fun mapNetworkError(exception: Exception): String? {
         return when (exception) {
-            is java.net.SocketTimeoutException -> "Kết nối bị timeout. Vui lòng thử lại."
-            is java.net.UnknownHostException, is java.net.ConnectException -> "Không thể kết nối đến máy chủ. Kiểm tra mạng hoặc địa chỉ server."
-            is java.io.IOException -> "Lỗi mạng. Vui lòng kiểm tra kết nối và thử lại."
+            is java.net.SocketTimeoutException -> "Connection timed out. Please try again."
+            is java.net.UnknownHostException, is java.net.ConnectException -> "Cannot connect to the server. Check your network or server address."
+            is java.io.IOException -> "Network error. Please check your connection and try again."
             else -> null
         }
     }
@@ -237,11 +237,11 @@ class CalendarRepository(private val apiService: StylemateApiService) {
             val response = apiService.createCalendarEvent(dto)
             if (!response.isSuccessful) {
                 val message = parseErrorMessage(response.errorBody())
-                    ?: "Gán bộ đồ thất bại: ${response.code()}"
+                    ?: "Failed to assign outfit: ${response.code()}"
                 throw IllegalStateException(message)
             }
         } catch (e: Exception) {
-            val message = mapNetworkError(e) ?: (e.message ?: "Gán bộ đồ thất bại")
+            val message = mapNetworkError(e) ?: (e.message ?: "Failed to assign outfit")
             throw IllegalStateException(message)
         }
     }
@@ -260,11 +260,11 @@ class CalendarRepository(private val apiService: StylemateApiService) {
             val response = apiService.deleteCalendarEvent(event.id)
             if (!response.isSuccessful) {
                 val message = parseErrorMessage(response.errorBody())
-                    ?: "Xoá lịch thất bại: ${response.code()}"
+                    ?: "Failed to remove from calendar: ${response.code()}"
                 throw IllegalStateException(message)
             }
         } catch (e: Exception) {
-            val message = mapNetworkError(e) ?: (e.message ?: "Xoá lịch thất bại")
+            val message = mapNetworkError(e) ?: (e.message ?: "Failed to remove from calendar")
             throw IllegalStateException(message)
         }
     }
@@ -283,11 +283,11 @@ class CalendarRepository(private val apiService: StylemateApiService) {
             val response = apiService.deleteCalendarEventByDate(date)
             if (!response.isSuccessful) {
                 val message = parseErrorMessage(response.errorBody())
-                    ?: "Xoá lịch thất bại: ${response.code()}"
+                    ?: "Failed to remove from calendar: ${response.code()}"
                 throw IllegalStateException(message)
             }
         } catch (e: Exception) {
-            val message = mapNetworkError(e) ?: (e.message ?: "Xoá lịch thất bại")
+            val message = mapNetworkError(e) ?: (e.message ?: "Failed to remove from calendar")
             throw IllegalStateException(message)
         }
     }

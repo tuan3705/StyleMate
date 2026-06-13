@@ -56,7 +56,7 @@ class ImageProcessingRepository(
         try {
             val file = resolveInputFile(localPath, prefix = "remove_bg_input_")
             if (!file.exists()) {
-                return@withContext Result.failure(IllegalArgumentException("Ảnh không tồn tại"))
+                return@withContext Result.failure(IllegalArgumentException("Image does not exist"))
             }
 
             val extension = file.extension.lowercase(Locale.ROOT)
@@ -76,15 +76,15 @@ class ImageProcessingRepository(
                 val errorBody = response.errorBody()?.string().orEmpty()
                 val message = try {
                     val payload = JSONObject(errorBody)
-                    payload.optString("message").ifBlank { "Tách nền thất bại: ${response.code()}" }
+                    payload.optString("message").ifBlank { "Background removal failed: ${response.code()}" }
                 } catch (e: Exception) {
-                    if (errorBody.isNotBlank()) errorBody else "Tách nền thất bại: ${response.code()}"
+                    if (errorBody.isNotBlank()) errorBody else "Background removal failed: ${response.code()}"
                 }
                 return@withContext Result.failure(IllegalStateException(message))
             }
 
             val body = response.body() ?: return@withContext Result.failure(
-                IllegalStateException("Không nhận được dữ liệu ảnh")
+                IllegalStateException("No image data received")
             )
 
             val outputFile = ImageStorage.saveStreamToInternalStorage(
@@ -105,7 +105,7 @@ class ImageProcessingRepository(
             try {
                 val file = resolveInputFile(localPath, prefix = "ai_fill_input_")
                 if (!file.exists()) {
-                    return@withContext Result.failure(IllegalArgumentException("Ảnh không tồn tại"))
+                    return@withContext Result.failure(IllegalArgumentException("Image does not exist"))
                 }
 
                 val extension = file.extension.lowercase(Locale.ROOT)
@@ -123,12 +123,12 @@ class ImageProcessingRepository(
                 val response = apiService.aiFillFromImage(multipartPart)
                 if (!response.isSuccessful) {
                     return@withContext Result.failure(
-                        IllegalStateException("AI tagging thất bại: ${response.code()}")
+                        IllegalStateException("AI tagging failed: ${response.code()}")
                     )
                 }
 
                 val body = response.body()
-                    ?: return@withContext Result.failure(IllegalStateException("Không nhận được dữ liệu"))
+                    ?: return@withContext Result.failure(IllegalStateException("No data received"))
                 if (!body.success) {
                     return@withContext Result.failure(IllegalStateException(body.message ?: "AI tagging lỗi"))
                 }
@@ -146,7 +146,7 @@ class ImageProcessingRepository(
             try {
                 val file = resolveInputFile(localPath, prefix = "auto_tag_input_")
                 if (!file.exists()) {
-                    return@withContext Result.failure(IllegalArgumentException("Ảnh không tồn tại"))
+                    return@withContext Result.failure(IllegalArgumentException("Image does not exist"))
                 }
 
                 val extension = file.extension.lowercase(Locale.ROOT)
@@ -164,12 +164,12 @@ class ImageProcessingRepository(
                 val response = apiService.autoTaggingFromImage(multipartPart)
                 if (!response.isSuccessful) {
                     return@withContext Result.failure(
-                        IllegalStateException("Auto tagging thất bại: ${response.code()}")
+                        IllegalStateException("Auto tagging failed: ${response.code()}")
                     )
                 }
 
                 val body = response.body()
-                    ?: return@withContext Result.failure(IllegalStateException("Không nhận được dữ liệu"))
+                    ?: return@withContext Result.failure(IllegalStateException("No data received"))
                 if (!body.success) {
                     return@withContext Result.failure(IllegalStateException(body.message ?: "Auto tagging lỗi"))
                 }

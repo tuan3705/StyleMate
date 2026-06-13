@@ -85,7 +85,7 @@ class ItemEditViewModel(
                 if (item == null) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = "Không tìm thấy item để chỉnh sửa"
+                        errorMessage = "Item to edit not found"
                     )
                     return@launch
                 }
@@ -108,7 +108,7 @@ class ItemEditViewModel(
                 Log.e(TAG, "❌ Lỗi khi load item: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Không thể tải item: ${e.message}"
+                    errorMessage = "Cannot load item: ${e.message}"
                 )
             }
         }
@@ -181,7 +181,7 @@ class ItemEditViewModel(
                 Log.e(TAG, "❌ Lỗi khi lưu item: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    errorMessage = "Không thể cập nhật item: ${e.message}"
+                    errorMessage = "Cannot update item: ${e.message}"
                 )
             }
         }
@@ -213,7 +213,7 @@ class ItemEditViewModel(
                 Log.e(TAG, "❌ Lỗi khi lưu ảnh đã tách nền: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
-                    errorMessage = "Không thể lưu ảnh đã tách nền: ${e.message}"
+                    errorMessage = "Cannot save background-removed image: ${e.message}"
                 )
             }
         }

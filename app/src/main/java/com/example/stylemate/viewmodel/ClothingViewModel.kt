@@ -149,7 +149,7 @@ class ClothingViewModel(
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi thêm item: ${e.message}", e)
-                _errorMessage.value = "Không thể thêm item: ${e.message}"
+                _errorMessage.value = "Cannot add item: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -186,7 +186,7 @@ class ClothingViewModel(
                 _refreshTrigger.value = System.currentTimeMillis()
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi cập nhật item: ${e.message}", e)
-                _errorMessage.value = "Không thể cập nhật item: ${e.message}"
+                _errorMessage.value = "Cannot update item: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -202,7 +202,7 @@ class ClothingViewModel(
                 onComplete()
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi xoá item: ${e.message}", e)
-                _errorMessage.value = "Không thể xoá item: ${e.message}"
+                _errorMessage.value = "Cannot delete item: ${e.message}"
             }
         }
     }
@@ -242,7 +242,7 @@ class ClothingViewModel(
                 repository.updateItemCanvasPosition(itemId, posX, posY)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi cập nhật vị trí item: ${e.message}", e)
-                _errorMessage.value = "Không thể cập nhật vị trí item: ${e.message}"
+                _errorMessage.value = "Cannot update item position: ${e.message}"
             }
         }
     }

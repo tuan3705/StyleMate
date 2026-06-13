@@ -23,7 +23,7 @@ class StyleMateFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
         val data = message.data
-        val title = message.notification?.title ?: data["title"] ?: "Thời tiết hôm nay"
+        val title = message.notification?.title ?: data["title"] ?: "Today's weather"
         val body = message.notification?.body ?: data["body"] ?: ""
         val weatherCode = data["weatherCode"] ?: ""
         val temp = data["temp"] ?: ""

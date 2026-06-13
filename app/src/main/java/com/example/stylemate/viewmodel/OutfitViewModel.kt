@@ -234,12 +234,12 @@ class OutfitViewModel(
     fun saveOutfit(name: String) {
         // ── Validate ─────────────────────────────────────────────
         if (name.isBlank()) {
-            _errorMessage.value = "Vui lòng nhập tên cho bộ đồ"
+            _errorMessage.value = "Please enter a name for the outfit"
             return
         }
         val draftItems = _draftOutfitItems.value
         if (draftItems.isEmpty()) {
-            _errorMessage.value = "Vui lòng chọn ít nhất một món đồ"
+            _errorMessage.value = "Please select at least one item"
             return
         }
 
@@ -284,7 +284,7 @@ class OutfitViewModel(
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi lưu outfit: ${e.message}", e)
-                _errorMessage.value = "Không thể lưu outfit: ${e.message}"
+                _errorMessage.value = "Cannot save outfit: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -301,7 +301,7 @@ class OutfitViewModel(
                 _editingItems.value = mapWithDefaults(items)
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi load outfit editor: ${e.message}", e)
-                _errorMessage.value = "Không thể tải outfit: ${e.message}"
+                _errorMessage.value = "Cannot load outfit: ${e.message}"
             }
         }
     }
@@ -362,7 +362,7 @@ class OutfitViewModel(
         val outfitId = _editingOutfitId.value ?: return
         val items = _editingItems.value
         if (items.isEmpty()) {
-            _errorMessage.value = "Vui lòng chọn ít nhất một món đồ"
+            _errorMessage.value = "Please select at least one item"
             return
         }
         viewModelScope.launch {
@@ -385,7 +385,7 @@ class OutfitViewModel(
                 _refreshTrigger.value = System.currentTimeMillis()
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi lưu outfit edit: ${e.message}", e)
-                _errorMessage.value = "Không thể lưu outfit: ${e.message}"
+                _errorMessage.value = "Cannot save outfit: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -417,7 +417,7 @@ class OutfitViewModel(
                 Log.d(TAG, "🗑️ Đã xoá outfit: ${outfit.name}")
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Lỗi khi xoá outfit: ${e.message}", e)
-                _errorMessage.value = "Không thể xoá outfit: ${e.message}"
+                _errorMessage.value = "Cannot delete outfit: ${e.message}"
             }
         }
     }

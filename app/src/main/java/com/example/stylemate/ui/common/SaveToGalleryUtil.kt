@@ -38,7 +38,7 @@ fun saveImageToGallery(
 ): Result<String> {
     return try {
         if (!imageFile.exists()) {
-            return Result.failure(Exception("File ảnh không tồn tại: ${imageFile.path}"))
+            return Result.failure(Exception("Image file does not exist: ${imageFile.path}"))
         }
 
         val mimeType = when (imageFile.extension.lowercase()) {
@@ -57,7 +57,7 @@ fun saveImageToGallery(
 
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            ?: return Result.failure(Exception("Không thể tạo MediaStore entry"))
+            ?: return Result.failure(Exception("Cannot create MediaStore entry"))
 
         // Copy file vào MediaStore
         var outputStream: OutputStream? = null
@@ -76,9 +76,9 @@ fun saveImageToGallery(
         contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
         resolver.update(uri, contentValues, null, null)
 
-        Result.success("Đã lưu vào thư mục $folderName trong thư viện ảnh")
+        Result.success("Saved to $folderName in your photo gallery")
     } catch (e: Exception) {
-        Result.failure(Exception("Lỗi khi lưu ảnh: ${e.message}"))
+        Result.failure(Exception("Error saving image: ${e.message}"))
     }
 }
 

@@ -17,10 +17,10 @@ import java.util.*
 import com.example.stylemate.network.SuggestedOutfitDto
 
 data class AIStylistUiState(
-    val headline: String = "Phong cách thể thao năng động, thoải mái cho ngày mưa",
+    val headline: String = "Sporty, comfortable style for a rainy day",
     val recommendationText: String = "",
-    val dateText: String = "9 thg 6",
-    val locationText: String = "Thành phố Hà Nội",
+    val dateText: String = "Jun 9",
+    val locationText: String = "Hanoi",
     val tempText: String = "26 / 22°C",
     val suggestedOutfits: List<SuggestedOutfitDto> = emptyList(),
     val isLoading: Boolean = false,
@@ -39,7 +39,7 @@ class AIStylistViewModel(
         // Initial load with default coordinates if needed,
         // or wait for explicit refresh.
         // For now, let's just keep the default dummy state.
-        val sdf = SimpleDateFormat("dd 'thg' M", Locale("vi"))
+        val sdf = SimpleDateFormat("MMM d", Locale.ENGLISH)
         _uiState.value = _uiState.value.copy(dateText = sdf.format(Date()))
     }
 
@@ -47,7 +47,7 @@ class AIStylistViewModel(
         viewModelScope.launch {
             val userId = authStorage.userIdFlow.firstOrNull()
             if (userId == null) {
-                _uiState.value = _uiState.value.copy(error = "Vui lòng đăng nhập lại")
+                _uiState.value = _uiState.value.copy(error = "Please log in again")
                 return@launch
             }
 
@@ -65,7 +65,7 @@ class AIStylistViewModel(
                 val minTemp = weather.forecast.forecastDay.firstOrNull()?.day?.minTempC?.toInt() ?: (currentTemp - 5)
                 val maxTemp = weather.forecast.forecastDay.firstOrNull()?.day?.maxTempC?.toInt() ?: (currentTemp + 5)
 
-                val sdf = SimpleDateFormat("dd 'thg' M", Locale("vi"))
+                val sdf = SimpleDateFormat("MMM d", Locale.ENGLISH)
                 val dateStr = sdf.format(Date())
 
                 // 2. Fetch AI Recommendation from Home Suggestions API
@@ -78,7 +78,7 @@ class AIStylistViewModel(
                 if (response.isSuccessful) {
                     val data = response.body()
                     _uiState.value = _uiState.value.copy(
-                        headline = data?.headline ?: "Gợi ý hôm nay",
+                        headline = data?.headline ?: "Today's suggestion",
                         recommendationText = data?.message ?: _uiState.value.recommendationText,
                         suggestedOutfits = data?.suggested_outfits ?: emptyList(),
                         locationText = location,

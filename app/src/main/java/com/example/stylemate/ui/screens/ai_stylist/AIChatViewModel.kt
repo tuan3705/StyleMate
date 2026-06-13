@@ -100,7 +100,7 @@ class AIChatViewModel(
         viewModelScope.launch {
             val userId = authStorage.userIdFlow.firstOrNull()
             if (userId == null) {
-                _uiState.value = AIChatUiState.Error("Vui lòng đăng nhập lại")
+                _uiState.value = AIChatUiState.Error("Please log in again")
                 return@launch
             }
 
@@ -149,10 +149,10 @@ class AIChatViewModel(
                         _uiState.value = AIChatUiState.Idle
                     }
                 } else {
-                    _uiState.value = AIChatUiState.Error("Lỗi từ server: ${response.code()}")
+                    _uiState.value = AIChatUiState.Error("Server error: ${response.code()}")
                 }
             } catch (e: Exception) {
-                _uiState.value = AIChatUiState.Error(e.message ?: "Lỗi không xác định")
+                _uiState.value = AIChatUiState.Error(e.message ?: "Unknown error")
             }
         }
     }
