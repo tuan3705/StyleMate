@@ -45,6 +45,8 @@ import com.example.stylemate.R
 import com.example.stylemate.notification.NotificationBus
 import com.example.stylemate.ui.common.PermissionRationaleDialog
 import com.example.stylemate.ui.common.PermissionSettingsRedirectDialog
+import com.example.stylemate.ui.common.rememberPermissionGranted
+import com.example.stylemate.ui.common.AppPermissions
 import com.example.stylemate.ui.components.AccountMenu
 import com.example.stylemate.ui.navigation.BottomNavItem
 import com.example.stylemate.ui.navigation.StyleMateRoutes
@@ -69,6 +71,14 @@ fun MainScreen(onLogout: () -> Unit) {
     // ── Notification Permission ─────────────────────────────────────
     var showNotificationRationale by remember { mutableStateOf(false) }
     var showNotificationSettingsRedirect by remember { mutableStateOf(false) }
+    var hasCheckedPermission by remember { mutableStateOf(false) }
+
+    // 🆕 Theo dõi trạng thái notification permission REAL-TIME (re-check khi resume)
+    val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionGranted(AppPermissions.POST_NOTIFICATIONS)
+    } else {
+        true
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -84,10 +94,13 @@ fun MainScreen(onLogout: () -> Unit) {
         }
     }
 
-    LaunchedEffect(Unit) {
+    // ⚡ LaunchedEffect chạy lại mỗi khi hasNotificationPermission thay đổi
+    // (kể cả khi app resume - handle "Only this time" trên notification)
+    LaunchedEffect(hasNotificationPermission) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val enabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
-            if (!enabled) {
+            if (!enabled && !hasCheckedPermission) {
+                hasCheckedPermission = true
                 val activity = context as Activity
                 if (ActivityCompat.shouldShowRequestPermissionRationale(
                         activity, Manifest.permission.POST_NOTIFICATIONS
