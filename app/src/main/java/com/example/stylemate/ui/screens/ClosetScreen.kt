@@ -803,9 +803,17 @@ private fun mapOutfitPreviewPositions(
 private fun mapClothingItemsToPlacements(
     items: List<ClothingItemEntity>
 ): List<OutfitViewModel.OutfitItemPlacement> {
-    return items.mapIndexed { index, item ->
-        val (x, y) = defaultOutfitGridPosition(index)
-        OutfitViewModel.OutfitItemPlacement(item, x, y, 1f)
+    if (items.isEmpty()) return emptyList()
+    // Ưu tiên vị trí đã lưu (canvasPosX/canvasPosY); chỉ fallback grid mặc định
+    // khi toàn bộ item chưa có vị trí (outfit cũ lưu vị trí 0).
+    val hasCustomPos = items.any { it.canvasPosX != 0f || it.canvasPosY != 0f }
+    return if (hasCustomPos) {
+        items.map { OutfitViewModel.OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, 1f) }
+    } else {
+        items.mapIndexed { index, item ->
+            val (x, y) = defaultOutfitGridPosition(index)
+            OutfitViewModel.OutfitItemPlacement(item, x, y, 1f)
+        }
     }
 }
 
@@ -817,66 +825,88 @@ private fun defaultOutfitGridPosition(index: Int): Pair<Float, Float> {
     return x to y
 }
 
+// ─────────────────────────────────────────────────────────────────
+// 📐 Hình học canvas dùng chung cho editor & preview.
+// Cả hai phải ĐỒNG DẠNG (cùng aspect ratio + item theo cùng tỉ lệ bề rộng)
+// thì bố cục chuẩn hoá 0..1 mới tái hiện y hệt nhau (tránh đè item ở preview).
+// ─────────────────────────────────────────────────────────────────
+private const val OUTFIT_CANVAS_ASPECT_RATIO = 0.82f   // width / height
+private const val OUTFIT_ITEM_SIZE_FRACTION = 0.30f    // item width = 30% bề rộng canvas
+
 @Composable
 private fun OutfitCanvasPreview(
     items: List<OutfitViewModel.OutfitItemPlacement>
 ) {
-    val itemSize = 72.dp
     val density = LocalDensity.current
-    val itemSizePx = with(density) { itemSize.toPx() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F2EA))
     ) {
-        BoxWithConstraints(
+        if (items.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.no_items_in_outfit),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            return@Card
+        }
+
+        // Bọc trong Box cao tối đa 220dp; canvas con giữ đúng aspect ratio của editor
+        // (tự co bề rộng → canh giữa) để bố cục đồng dạng, item không bị đè.
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
+                .height(220.dp),
+            contentAlignment = Alignment.Center
         ) {
-            if (items.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(R.string.no_items_in_outfit),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                return@BoxWithConstraints
-            }
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(OUTFIT_CANVAS_ASPECT_RATIO)
+            ) {
+                val canvasWidth = constraints.maxWidth.toFloat()
+                val canvasHeight = constraints.maxHeight.toFloat()
+                val itemSizePx = canvasWidth * OUTFIT_ITEM_SIZE_FRACTION
+                val itemSize = with(density) { itemSizePx.toDp() }
+                val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
+                val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
-            val canvasWidth = constraints.maxWidth.toFloat()
-            val canvasHeight = constraints.maxHeight.toFloat()
-            val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
-            val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
+                items.forEach { placement ->
+                    val item = placement.item
+                    val imageModel = rememberItemImageModel(item)
+                    val offsetX = (placement.posX * maxX).roundToInt()
+                    val offsetY = (placement.posY * maxY).roundToInt()
 
-            items.forEach { placement ->
-                val item = placement.item
-                val imageModel = rememberItemImageModel(item)
-                val offsetX = (placement.posX * maxX).roundToInt()
-                val offsetY = (placement.posY * maxY).roundToInt()
-
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(offsetX, offsetY) }
-                        .size(itemSize)
-                ) {
-                    if (imageModel != null) {
-                        AsyncImage(
-                            model = imageModel,
-                            contentDescription = item.name.ifBlank { item.category },
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CategoryIconImage(category = item.category, fontSize = 24.sp)
+                    Box(
+                        modifier = Modifier
+                            .offset { IntOffset(offsetX, offsetY) }
+                            .size(itemSize)
+                    ) {
+                        if (imageModel != null) {
+                            AsyncImage(
+                                model = imageModel,
+                                contentDescription = item.name.ifBlank { item.category },
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(getCategoryColor(item.category).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CategoryIconImage(category = item.category, fontSize = 24.sp)
+                            }
                         }
                     }
                 }
@@ -981,9 +1011,7 @@ private fun OutfitCanvas(
     onDeleteItem: (String) -> Unit,
     onPositionChange: (String, Float, Float) -> Unit
 ) {
-    val itemSize = 96.dp
     val density = LocalDensity.current
-    val itemSizePx = with(density) { itemSize.toPx() }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -993,7 +1021,7 @@ private fun OutfitCanvas(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(360.dp)
+                .aspectRatio(OUTFIT_CANVAS_ASPECT_RATIO)
         ) {
             if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1008,6 +1036,8 @@ private fun OutfitCanvas(
 
             val canvasWidth = constraints.maxWidth.toFloat()
             val canvasHeight = constraints.maxHeight.toFloat()
+            val itemSizePx = canvasWidth * OUTFIT_ITEM_SIZE_FRACTION
+            val itemSize = with(density) { itemSizePx.toDp() }
             val maxX = (canvasWidth - itemSizePx).coerceAtLeast(1f)
             val maxY = (canvasHeight - itemSizePx).coerceAtLeast(1f)
 
