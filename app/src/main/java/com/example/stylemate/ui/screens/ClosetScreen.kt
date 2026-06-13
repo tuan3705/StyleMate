@@ -1,10 +1,5 @@
 package com.example.stylemate.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,7 +26,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.consumePositionChange
@@ -158,7 +152,7 @@ fun ClosetScreen(
     var showCreateOutfitSheet by remember { mutableStateOf(false) } // Tạo outfit
     var showOutfitEditor by remember { mutableStateOf(false) }
     var showAddItemsSheet by remember { mutableStateOf(false) }
-    var showSearchBar by rememberSaveable { mutableStateOf(false) }
+    var outfitSearchQuery by rememberSaveable { mutableStateOf("") }
     var itemPendingDelete by remember { mutableStateOf<ClothingItemEntity?>(null) }
     var outfitPendingDelete by remember { mutableStateOf<OutfitEntity?>(null) }
     val itemsGridState = rememberLazyGridState()
@@ -170,25 +164,18 @@ fun ClosetScreen(
 
     val allCategories = listOf(Categories.ALL) + Categories.list
     val tabs = listOf(context.getString(R.string.tab_items), context.getString(R.string.tab_outfits))
-    val isItemsAtTop by remember {
-        derivedStateOf {
-            itemsGridState.firstVisibleItemIndex == 0 &&
-                    itemsGridState.firstVisibleItemScrollOffset == 0
-        }
+    val itemsScrollConnection = remember {
+        object : NestedScrollConnection {}
     }
-    val itemsScrollConnection = remember(itemsGridState, selectedTab) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (selectedTab != 0) return Offset.Zero
-                if (!isItemsAtTop) {
-                    showSearchBar = false
-                    return Offset.Zero
+    val filteredOutfits by remember(outfits, outfitSearchQuery) {
+        derivedStateOf {
+            val query = outfitSearchQuery.trim()
+            if (query.isBlank()) {
+                outfits
+            } else {
+                outfits.filter { outfitWithItems ->
+                    outfitWithItems.outfit.name.contains(query, ignoreCase = true)
                 }
-                when {
-                    available.y > 0 -> showSearchBar = true
-                    available.y < 0 -> showSearchBar = false
-                }
-                return Offset.Zero
             }
         }
     }
@@ -206,12 +193,6 @@ fun ClosetScreen(
             outfitVM.clearError()
         }
     }
-    LaunchedEffect(isItemsAtTop, selectedTab) {
-        if (selectedTab != 0 || !isItemsAtTop) {
-            showSearchBar = false
-        }
-    }
-
     val refreshRequested by refreshSignal.collectAsStateWithLifecycle()
 
     LaunchedEffect(editSaveSuccess) {
@@ -273,7 +254,8 @@ fun ClosetScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 12.dp)
+                    .offset(y = (-4).dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -287,20 +269,24 @@ fun ClosetScreen(
                 }
             }
 
-            AnimatedVisibility(
-                visible = selectedTab == 0 && showSearchBar,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Spacer(Modifier.height(8.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Spacer(Modifier.height(4.dp))
+                if (selectedTab == 0) {
                     ClosetSearchBar(
                         query = searchQuery,
+                        placeholder = stringResource(R.string.search_hint),
                         onQueryChange = clothingVM::updateSearchQuery,
                         onClearQuery = clothingVM::clearSearchQuery
                     )
-                    Spacer(Modifier.height(8.dp))
+                } else {
+                    ClosetSearchBar(
+                        query = outfitSearchQuery,
+                        placeholder = stringResource(R.string.search_outfit_hint),
+                        onQueryChange = { outfitSearchQuery = it },
+                        onClearQuery = { outfitSearchQuery = "" }
+                    )
                 }
+                Spacer(Modifier.height(8.dp))
             }
 
             // ── TabRow ──────────────────────────────────────────
@@ -349,7 +335,8 @@ fun ClosetScreen(
             // ═══════════════════════════════════════════════════════
             else {
                 OutfitsTabContent(
-                    outfits = outfits,
+                    outfits = filteredOutfits,
+                    isSearching = outfitSearchQuery.isNotBlank(),
                     isLoading = isOutfitLoading,
                     outfitRepo = outfitRepo,
                     onDeleteOutfit = { outfitPendingDelete = it },
@@ -507,6 +494,7 @@ private fun DeleteConfirmDialog(
 @Composable
 private fun ClosetSearchBar(
     query: String,
+    placeholder: String,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit
 ) {
@@ -517,7 +505,7 @@ private fun ClosetSearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp),
-        placeholder = { Text(stringResource(R.string.search_hint)) },
+        placeholder = { Text(placeholder) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
         leadingIcon = {
@@ -650,6 +638,7 @@ private fun ItemsTabContent(
 @Composable
 private fun OutfitsTabContent(
     outfits: List<OutfitWithClothingItems>,
+    isSearching: Boolean,
     isLoading: Boolean,
     outfitRepo: OutfitRepository,
     onDeleteOutfit: (com.example.stylemate.model.OutfitEntity) -> Unit,
@@ -669,21 +658,30 @@ private fun OutfitsTabContent(
                         .fillMaxWidth()
                         .padding(top = 32.dp)
                 ) {
-                    Text(text = "🧥", fontSize = 48.sp)
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = stringResource(R.string.empty_outfits_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Gray
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.empty_outfits_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center
-                    )
+                    if (isSearching) {
+                        Text(
+                            text = stringResource(R.string.no_outfits_found),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Text(text = "🧥", fontSize = 48.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = stringResource(R.string.empty_outfits_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.empty_outfits_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
             else -> {
