@@ -61,9 +61,6 @@ class ImagePickerState internal constructor(
     val setImagePath: (String?) -> Unit
 )
 
-/**
- * Lấy permission cần để đọc thư viện ảnh theo Android version
- */
 private fun getGalleryPermission(): String {
     return if (Build.VERSION.SDK_INT >= 33) {
         Manifest.permission.READ_MEDIA_IMAGES
@@ -82,18 +79,14 @@ fun rememberImagePickerState(
     val imagePathState = remember { mutableStateOf<String?>(null) }
     var pendingCameraFile by remember { mutableStateOf<File?>(null) }
 
-    // Pre-resolve string resources for non-composable usage
     val cameraDeniedMessage = remember { context.getString(R.string.camera_permission_denied) }
     val galleryPermName = getGalleryPermission()
     val galleryDeniedMessage = remember { context.getString(R.string.gallery_permission_denied) }
 
-    // ── Permission States ──────────────────────────────────────────
     var showCameraRationale by remember { mutableStateOf(false) }
     var showCameraSettingsRedirect by remember { mutableStateOf(false) }
     var showGalleryRationale by remember { mutableStateOf(false) }
     var showGallerySettingsRedirect by remember { mutableStateOf(false) }
-
-    // ⚠️ TẤT CẢ LAUNCHERS phải khai báo TRƯỚC khi được reference
 
     // ── Take Picture ──────────────────────────────────────────────
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -117,7 +110,7 @@ fun rememberImagePickerState(
         }
     }
 
-    // 📸 Photo Picker Launchers — khai báo TRƯỚC Gallery Permission
+    // 📸 Photo Picker Launchers (không cần permission trên Android 13+)
     val pickMediaLauncher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let { handlePickedUri(it) }
     }
@@ -126,7 +119,7 @@ fun rememberImagePickerState(
         uri?.let { handlePickedUri(it) }
     }
 
-    // ── Camera Permission ─────────────────────────────────────────
+    // ── Camera Permission Launcher ────────────────────────────────
     val requestCameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -136,74 +129,66 @@ fun rememberImagePickerState(
             pendingCameraFile = file
             takePictureLauncher.launch(uri)
         } else {
-            val activity = context as? Activity
-            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity, Manifest.permission.CAMERA
-                )
-            ) {
-                showCameraSettingsRedirect = true
-            } else {
-                onError(cameraDeniedMessage)
-            }
+            // ⚡ Không được cấp → chuyển đến settings (vì đã bị từ chối vĩnh viễn)
+            showCameraSettingsRedirect = true
         }
     }
 
-    // ── Gallery Permission ─────────────────────────────────────────
+    // ── Gallery Permission Launcher ───────────────────────────────
     val requestGalleryPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            // Có quyền → mở picker
             openPhotoPicker(context, pickMediaLauncher, getContentLauncher)
         } else {
-            val activity = context as? Activity
-            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(
-                    activity, galleryPermName
-                )
-            ) {
-                showGallerySettingsRedirect = true
-            } else {
-                onError(galleryDeniedMessage)
-            }
+            showGallerySettingsRedirect = true
         }
     }
 
     // ── Camera Click ──────────────────────────────────────────────
     val onCameraClick = {
         val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-
         if (hasPermission) {
             val file = ImageStorage.createImageFile(context, prefix = "camera_")
             val uri = ImageStorage.createImageUri(context, file)
             pendingCameraFile = file
             takePictureLauncher.launch(uri)
         } else {
+            // ⚡ FIX: Trong ModalBottomSheet, context có thể là Application → as? Activity = null
+            // Dùng shouldShowRequestPermissionRationale với fallback context
             val activity = context as? Activity
             if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)) {
+                // Đã từ chối vĩnh viễn → không thể show rationale → redirect settings
                 showCameraRationale = true
+            } else if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)) {
+                // Đã từ chối vĩnh viễn → redirect settings ngay
+                showCameraSettingsRedirect = true
             } else {
-                requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                // Trong bottom sheet, context không phải Activity → fallback: redirect trực tiếp
+                showCameraSettingsRedirect = true
             }
         }
     }
 
-    // ── Gallery Click — PHẢI request permission TRƯỚC khi mở ──────
+    // ── Gallery Click ─────────────────────────────────────────────
     val onGalleryClick = {
         val hasPermission = ContextCompat.checkSelfPermission(context, galleryPermName) == PackageManager.PERMISSION_GRANTED
-
         if (hasPermission) {
             openPhotoPicker(context, pickMediaLauncher, getContentLauncher)
         } else {
             val activity = context as? Activity
             if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, galleryPermName)) {
                 showGalleryRationale = true
+            } else if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, galleryPermName)) {
+                showGallerySettingsRedirect = true
             } else {
-                requestGalleryPermissionLauncher.launch(galleryPermName)
+                // Trong bottom sheet, context không phải Activity → fallback: redirect trực tiếp
+                showGallerySettingsRedirect = true
             }
         }
     }
 
-    // ── Camera Dialogs ────────────────────────────────────────────
+    // ── Dialogs ───────────────────────────────────────────────────
     if (showCameraRationale) {
         PermissionRationaleDialog(
             title = stringResource(R.string.camera_permission_rationale_title),
@@ -227,15 +212,18 @@ fun rememberImagePickerState(
             icon = Icons.Default.PhotoCamera,
             onGoToSettings = {
                 showCameraSettingsRedirect = false
-                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", context.packageName, null)
-                })
+                // ⚡ FIX: Dùng Intent.FLAG_ACTIVITY_NEW_TASK để hoạt động trong bottom sheet context
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                )
             },
             onDismiss = { showCameraSettingsRedirect = false }
         )
     }
 
-    // ── Gallery Dialogs ───────────────────────────────────────────
     if (showGalleryRationale) {
         PermissionRationaleDialog(
             title = stringResource(R.string.gallery_permission_rationale_title),
@@ -259,9 +247,13 @@ fun rememberImagePickerState(
             icon = Icons.Default.PhotoLibrary,
             onGoToSettings = {
                 showGallerySettingsRedirect = false
-                context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.fromParts("package", context.packageName, null)
-                })
+                // ⚡ FIX: Dùng Intent.FLAG_ACTIVITY_NEW_TASK để hoạt động trong bottom sheet context
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                )
             },
             onDismiss = { showGallerySettingsRedirect = false }
         )
@@ -276,9 +268,6 @@ fun rememberImagePickerState(
     )
 }
 
-/**
- * Hàm mở photo picker — chỉ gọi khi đã có quyền
- */
 private fun openPhotoPicker(
     context: Context,
     pickMediaLauncher: androidx.activity.result.ActivityResultLauncher<PickVisualMediaRequest>,

@@ -2,6 +2,10 @@ package com.example.stylemate
 
 import android.app.Application
 import android.util.Log
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import com.example.stylemate.data.auth.AuthStorage
 import com.example.stylemate.data.auth.AuthTokenProvider
 import com.example.stylemate.data.notification.FcmTokenStore
@@ -18,7 +22,7 @@ import kotlinx.coroutines.flow.collectLatest
 import com.google.firebase.FirebaseApp
 import androidx.lifecycle.ProcessLifecycleOwner
 
-class StyleMateApp : Application() {
+class StyleMateApp : Application(), ImageLoaderFactory {
 
     lateinit var authStorage: AuthStorage
         private set
@@ -76,5 +80,30 @@ class StyleMateApp : Application() {
                 }
             }
         }
+    }
+
+    /**
+     * ⚡ PERFORMANCE: Cấu hình Coil ImageLoader toàn cục với memory cache
+     * và disk cache để tránh tải lại ảnh từ network mỗi lần scroll/recompose.
+     *
+     * - Memory cache: 128MB (chia sẻ giữa tất cả ảnh trong app)
+     * - Disk cache: 250MB (giữ ảnh sau khi app restart)
+     */
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.25) // 25% of available heap
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("coil_cache"))
+                    .maxSizePercent(0.02) // 2% of total storage
+                    .build()
+            }
+            .crossfade(false)
+            .respectCacheHeaders(false)
+            .build()
     }
 }

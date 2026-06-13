@@ -41,6 +41,24 @@ async function urlToBase64DataUri(url) {
   }
 }
 
+// ⚡ Hàm xoá các file tạm trong uploads/tryon/, chỉ giữ file kết quả
+function cleanTryonTempFiles(keepFile) {
+  try {
+    const files = fs.readdirSync(UPLOAD_DIR);
+    files.forEach(file => {
+      if (file === keepFile) return;
+      // Xoá file tạm: replicate_cloth_*, tryon_ (của body upload), placeholder
+      if (file.startsWith('replicate_cloth_') || 
+          file.startsWith('tryon_') ||
+          file === 'placeholder.png') {
+        const filePath = path.join(UPLOAD_DIR, file);
+        try { fs.unlinkSync(filePath); } catch (_) {}
+      }
+    });
+    console.log(`[tryOnImageService] Cleaned temp files in uploads/tryon/ (kept: ${keepFile})`);
+  } catch (_) {}
+}
+
 async function createKlingATask(humanBase64, clothBase64) {
   if (!KLAI_ACCESS_KEY || !KLAI_SECRET_KEY) throw new Error('KlingAI creds not configured');
   const now = Math.floor(Date.now() / 1000);
@@ -71,7 +89,6 @@ async function queryKlingATask(taskId) {
 }
 
 function createJob({ userId, bodyImagePath, bodyImageUrl, selectedItemIds = [], itemImagePaths = [], options = {} }) {
-  // Persist job into MongoDB ProcessingJob collection so it survives restarts
   const jobId = `tryon_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
   const doc = new ProcessingJob({
     jobId,
@@ -81,15 +98,11 @@ function createJob({ userId, bodyImagePath, bodyImageUrl, selectedItemIds = [], 
     progress: 0,
     params: { bodyImagePath: bodyImagePath || null, bodyImageUrl: bodyImageUrl || null, selectedItemIds, itemImagePaths, options },
     result: null,
-    // Default expiry for try-on artifacts
     expiresAt: new Date(Date.now() + Number(process.env.TEMP_ASSET_TTL_MS || 24 * 3600 * 1000))
   });
 
-  // Save and schedule processing
   return doc.save().then(saved => {
-    // Kick off processing asynchronously
     process.nextTick(() => processJob(saved.jobId));
-    // Keep a short-lived in-memory reference for fast reads during this process
     const job = {
       jobId: saved.jobId,
       userId: saved.userId,
@@ -105,20 +118,15 @@ function createJob({ userId, bodyImagePath, bodyImageUrl, selectedItemIds = [], 
 }
 
 async function processJob(jobId) {
-  // Load from DB (canonical source)
   let doc = await ProcessingJob.findOne({ jobId });
   if (!doc) return;
-  // Check if cancelled
   if (doc.status === 'cancelled') return;
 
   doc.status = 'processing';
   doc.progress = 0;
   await doc.save();
-
-  // Keep in-memory mirror for quick reads
   jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress, params: doc.params });
 
-  // Decide provider: explicit option > env TRYON_PROVIDER > auto-detect
   const providedProvider = (doc.params.options && doc.params.options.provider) || process.env.TRYON_PROVIDER || 'AUTO';
   let provider = providedProvider;
   if (provider === 'AUTO') {
@@ -128,10 +136,8 @@ async function processJob(jobId) {
     else provider = 'SIMULATED';
   }
 
-  // If KlingAI configured, call it; otherwise simulate
   if (provider === 'KLAI' && KLAI_ACCESS_KEY && KLAI_SECRET_KEY) {
     try {
-      // Build base64s
       const params = doc.params || {};
       const humanB64 = params.bodyImageBase64 || (params.bodyImagePath ? await fileToBase64DataUri(params.bodyImagePath) : (params.bodyImageUrl ? await urlToBase64DataUri(params.bodyImageUrl) : null));
       const clothB64 = (params.itemImageBase64 && params.itemImageBase64[0]) || (params.itemImagePaths && params.itemImagePaths[0]) ? (params.itemImageBase64 && params.itemImageBase64[0]) || await fileToBase64DataUri(params.itemImagePaths[0]) : (params.itemImageUrls && params.itemImageUrls[0] ? await urlToBase64DataUri(params.itemImageUrls[0]) : null);
@@ -145,7 +151,6 @@ async function processJob(jobId) {
       const taskId = await createKlingATask(humanB64, clothB64);
       doc.progress = 20; await doc.save(); jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress, params: doc.params });
 
-      // Poll
       let attempts = 0;
       while (attempts < KLAI_MAX_POLL) {
         const data = await queryKlingATask(taskId);
@@ -153,7 +158,6 @@ async function processJob(jobId) {
         if (status === 'succeed') {
           const imageUrl = data.data?.task_result?.images?.[0]?.url;
           if (imageUrl) {
-            // download image
             const resultFileName = `tryon_result_${jobId}.png`;
             const destPath = path.join(UPLOAD_DIR, resultFileName);
             const downloadResp = await axios.get(imageUrl, { responseType: 'stream', timeout: 20000 });
@@ -176,6 +180,8 @@ async function processJob(jobId) {
             };
             await doc.save();
             jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress, result: doc.result });
+            // ⚡ Dọn dẹp file tạm, giữ lại file kết quả
+            cleanTryonTempFiles(resultFileName);
             return;
           }
         } else if (status === 'failed') {
@@ -194,7 +200,6 @@ async function processJob(jobId) {
         await sleep(KLAI_POLL_INTERVAL);
       }
 
-      // timeout
       doc.status = 'failed';
       doc.result = { message: 'Timeout waiting for try-on result' };
       await doc.save();
@@ -210,7 +215,7 @@ async function processJob(jobId) {
       return;
     }
   }
-  // If provider is REPLICATE, call IDM-VTON via Replicate
+
   if (provider === 'REPLICATE' && process.env.REPLICATE_API_TOKEN) {
     try {
       const params = doc.params || {};
@@ -219,7 +224,6 @@ async function processJob(jobId) {
       let category = 'Upper body';
       let garmentDes = '';
 
-      // Get cloth image: try selectedItemIds first (fetch from DB), download to local
       if (params.selectedItemIds && params.selectedItemIds.length > 0) {
         console.log(`[Replicate] Fetching ${params.selectedItemIds.length} items from DB by IDs...`);
         const ClothingItem = require('../models/ClothingItem');
@@ -245,13 +249,11 @@ async function processJob(jobId) {
             console.warn(`[Replicate] Cannot download item ${item._id}: ${downloadErr.message}`);
           }
         }
-        // Set category from first item
         if (items.length > 0) {
           category = items[0].category || category;
         }
       }
 
-      // Fallback to uploaded itemImagePaths
       if (!clothPath && params.itemImagePaths && params.itemImagePaths[0]) {
         clothPath = params.itemImagePaths[0];
       }
@@ -262,12 +264,10 @@ async function processJob(jobId) {
       doc.progress = 20; await doc.save();
 
       console.log(`[Replicate] Processing job ${jobId}...`);
-      // Pass local file paths - replicate service will read as Buffer
       const result = await replicateTryOn.generateTryOn(bodyPath, clothPath, category, garmentDes);
 
       doc.progress = 80; await doc.save();
 
-      // Download result to our server
       const resultFileName = `tryon_result_${jobId}.png`;
       const destPath = path.join(UPLOAD_DIR, resultFileName);
       await replicateTryOn.downloadResult(result.resultUrl, destPath);
@@ -284,6 +284,8 @@ async function processJob(jobId) {
       };
       await doc.save();
       jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress, result: doc.result });
+      // ⚡ Dọn dẹp file tạm (body image, cloth image), giữ file kết quả
+      cleanTryonTempFiles(resultFileName);
       console.log(`[Replicate] ✅ Job ${jobId} completed`);
       return;
     } catch (err) {
@@ -292,7 +294,6 @@ async function processJob(jobId) {
     }
   }
 
-  // If provider is STABLE and a stable endpoint is configured, call it
   if (provider === 'STABLE' && process.env.STABLE_API_URL) {
     try {
       const params = doc.params || {};
@@ -305,7 +306,6 @@ async function processJob(jobId) {
 
       doc.progress = 10; await doc.save(); jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress });
 
-      // Call Stable provider (provider X) - generic scaffold
       const stableUrl = process.env.STABLE_API_URL.replace(/\/$/, '') + (process.env.STABLE_TRYON_PATH || '/v1/tryon');
       const stableBody = { model: process.env.STABLE_MODEL || 'sd-tryon-v1', human_image: humanB64, cloth_image: clothB64, options: doc.params.options || {} };
       const stableHeaders = { 'Content-Type': 'application/json' };
@@ -313,7 +313,6 @@ async function processJob(jobId) {
 
       const resp = await axios.post(stableUrl, stableBody, { headers: stableHeaders, timeout: 60000 });
 
-      // Accept either image_base64 or URL in response
       const imageB64 = resp.data?.image_base64 || resp.data?.data?.image_base64 || null;
       const imageUrl = resp.data?.url || resp.data?.data?.url || null;
 
@@ -321,7 +320,6 @@ async function processJob(jobId) {
       const destPath = path.join(UPLOAD_DIR, resultFileName);
 
       if (imageB64) {
-        // remove data URI prefix if present
         const cleaned = imageB64.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
         fs.writeFileSync(destPath, Buffer.from(cleaned, 'base64'));
       } else if (imageUrl) {
@@ -349,6 +347,7 @@ async function processJob(jobId) {
       };
       await doc.save();
       jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress, result: doc.result });
+      cleanTryonTempFiles(resultFileName);
       return;
     } catch (err) {
       console.warn('tryOnImageService Stable provider error:', err.message);
@@ -360,45 +359,37 @@ async function processJob(jobId) {
     }
   }
 
-
-  // Fallback simulation when no provider configured (e.g. REPLICATE_API_TOKEN commented out in .env)
-  // Dùng body image làm kết quả để test chức năng mà không tốn token
+  // — Fallback simulation —
   for (let p = 5; p <= 95; p += 10) {
     doc.progress = p; await doc.save(); jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress });
     await sleep(400);
   }
 
-  // Simulate generating a result image by copying the bodyImage if available
   const resultFileName = `tryon_result_${jobId}.png`;
   const destPath = path.join(UPLOAD_DIR, resultFileName);
   let fallbackSuccess = false;
   try {
     const params = doc.params || {};
     
-    // Ưu tiên 1: bodyImagePath (file local upload lên)
     if (params.bodyImagePath && fs.existsSync(params.bodyImagePath)) {
       fs.copyFileSync(params.bodyImagePath, destPath);
       fallbackSuccess = true;
       console.log(`[Simulated] Copied bodyImagePath to result: ${params.bodyImagePath}`);
     }
-    // Ưu tiên 2: Nếu có bodyImageBase64, decode và ghi thành file
     else if (params.bodyImageBase64) {
       let base64Data = params.bodyImageBase64;
-      // Xoá prefix data URI nếu có
       if (base64Data.startsWith('data:')) {
         base64Data = base64Data.replace(/^data:image\/\w+;base64,/, '');
       }
       const imgBuffer = Buffer.from(base64Data, 'base64');
-      if (imgBuffer.length > 100) { // đảm bảo file hợp lệ
+      if (imgBuffer.length > 100) {
         fs.writeFileSync(destPath, imgBuffer);
         fallbackSuccess = true;
         console.log('[Simulated] Decoded bodyImageBase64 to result image');
       }
     }
-    // Ưu tiên 3: Nếu có bodyImageUrl, tải ảnh từ URL về
     else if (params.bodyImageUrl) {
       try {
-        const axios = require('axios');
         const imgResp = await axios.get(params.bodyImageUrl, { responseType: 'arraybuffer', timeout: 10000 });
         fs.writeFileSync(destPath, Buffer.from(imgResp.data));
         fallbackSuccess = true;
@@ -409,13 +400,11 @@ async function processJob(jobId) {
     }
 
     if (!fallbackSuccess) {
-      // Fallback cuối: placeholder
       const placeholder = path.join(__dirname, '..', 'uploads', 'placeholder.png');
       if (fs.existsSync(placeholder)) {
         fs.copyFileSync(placeholder, destPath);
         console.log('[Simulated] Copied placeholder to result');
       } else {
-        // Tạo 1 file PNG tối thiểu (1x1 pixel transparent)
         const minimalPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
         fs.writeFileSync(destPath, minimalPng);
         console.log('[Simulated] Created minimal placeholder PNG');
@@ -433,15 +422,15 @@ async function processJob(jobId) {
     generatedImageUrl: `/uploads/tryon/${resultFileName}`,
     message: 'Simulated try-on image generated (no AI provider configured). Body image used as result.',
     suggestions: [],
-    llmSummary: { score: 0, comment: 'Simulated fallback — no AI provider configured. Không tốn token.' }
+    llmSummary: { score: 0, comment: 'Simulated fallback — no AI provider configured.' }
   };
 
   await doc.save();
   jobs.set(jobId, { jobId: doc.jobId, status: doc.status, progress: doc.progress, result: doc.result });
+  cleanTryonTempFiles(resultFileName);
 }
 
 async function getJobStatus(jobId) {
-  // Prefer DB canonical record
   const doc = await ProcessingJob.findOne({ jobId });
   if (!doc) {
     const job = jobs.get(jobId);

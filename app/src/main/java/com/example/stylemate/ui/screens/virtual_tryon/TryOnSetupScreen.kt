@@ -5,16 +5,18 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Checkroom
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
@@ -27,6 +29,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,6 +37,7 @@ import coil.compose.AsyncImage
 import com.example.stylemate.R
 import com.example.stylemate.data.models.JobStatus
 import com.example.stylemate.data.models.ProcessingJob
+import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.model.OutfitWithClothingItems
 import com.example.stylemate.ui.common.PermissionRationaleDialog
 import com.example.stylemate.ui.common.PermissionSettingsRedirectDialog
@@ -41,9 +45,7 @@ import com.example.stylemate.ui.common.getStoragePermission
 import com.example.stylemate.ui.common.hasStoragePermission
 import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.ui.common.saveImageToGallery
-import com.example.stylemate.ui.components.OutfitCanvasPreview
 import com.example.stylemate.ui.components.StylistButton
-import com.example.stylemate.viewmodel.OutfitViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,7 +63,7 @@ fun TryOnSetupScreen(
     onNavigateToLogin: () -> Unit = {}
 ) {
     val jobState by viewModel.jobState.collectAsState()
-    val selectedOutfit by viewModel.selectedOutfit.collectAsState()
+    val selectedItem by viewModel.selectedItem.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,12 +109,12 @@ fun TryOnSetupScreen(
         onError = { bodyError = it }
     )
 
-    // Load outfits
-    val outfits by viewModel.outfitRepository.getAllOutfitsWithItems()
+    // Load all clothing items (không dùng outfit)
+    val clothes by viewModel.clothingRepository.getAllItems()
         .collectAsState(initial = emptyList())
 
     val canStart = bodyPickerState.imagePath.value != null &&
-            selectedOutfit != null &&
+            selectedItem != null &&
             (jobState == null || jobState?.status != JobStatus.IN_PROGRESS)
 
     fun onSaveToGalleryClicked() {
@@ -175,7 +177,13 @@ fun TryOnSetupScreen(
                 .padding(16.dp)
                 .verticalScroll(scrollState)
         ) {
-            if (jobState == null || jobState?.status == JobStatus.FAILED || jobState?.status == JobStatus.CANCELLED) {
+            // Hiển thị form setup khi: chưa có job, job thất bại/hủy, hoặc đang QUEUED (chờ xử lý)
+            if (jobState == null ||
+                jobState?.status == JobStatus.FAILED ||
+                jobState?.status == JobStatus.CANCELLED ||
+                jobState?.status == JobStatus.QUEUED ||
+                (jobState?.status == JobStatus.IN_PROGRESS && jobState?.progress ?: 0 < 5)) {
+
                 Text(
                     text = stringResource(R.string.tryon_setup_hint),
                     style = MaterialTheme.typography.bodyLarge,
@@ -185,6 +193,7 @@ fun TryOnSetupScreen(
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
 
+                // ── Body Image Card ────────────────────────────────
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -232,6 +241,7 @@ fun TryOnSetupScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // ── Chọn Item để thử (dạng grid, không phải outfit) ──
                 Text(
                     text = stringResource(R.string.tryon_select_outfit),
                     style = MaterialTheme.typography.titleMedium,
@@ -239,7 +249,7 @@ fun TryOnSetupScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (outfits.isEmpty()) {
+                if (clothes.isEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -249,60 +259,64 @@ fun TryOnSetupScreen(
                             modifier = Modifier.fillMaxWidth().padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Default.Checkroom, contentDescription = null, modifier = Modifier.size(48.dp), tint = Color.LightGray)
-                            Spacer(modifier = Modifier.height(8.dp))
                             Text(stringResource(R.string.no_outfits_yet), style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                         }
                     }
                 } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(outfits) { outfit ->
-                            val isSelected = selectedOutfit?.outfit?.id == outfit.outfit.id
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        contentPadding = PaddingValues(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.heightIn(max = 360.dp)
+                    ) {
+                        items(clothes, key = { it.id }) { item ->
+                            val isSelected = selectedItem?.id == item.id
+                            val imageUrl = if (item.imageNoBg.isNotBlank()) item.imageNoBg else item.imageOriginal
+                            val fullUrl = if (imageUrl.startsWith("http")) imageUrl
+                                else "${com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL.trimEnd('/')}$imageUrl"
+
                             Card(
-                                onClick = { viewModel.selectOutfit(if (isSelected) null else outfit) },
-                                modifier = Modifier.width(140.dp).height(180.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .then(if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)) else Modifier)
+                                    .clickable { viewModel.selectItem(if (isSelected) null else item) },
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
-                                    val firstItem = outfit.clothingItems.firstOrNull()
-                                    val imageUrl = if (firstItem != null) {
-                                        val url = if (firstItem.imageNoBg.isNotBlank()) firstItem.imageNoBg else firstItem.imageOriginal
-                                        if (url.startsWith("http")) url else "${com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL.trimEnd('/')}$url"
-                                    } else null
-                                    if (imageUrl != null) {
-                                        AsyncImage(model = imageUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                                    } else {
-                                        Icon(Icons.Default.Checkroom, contentDescription = null, modifier = Modifier.fillMaxSize().padding(24.dp), tint = Color.LightGray)
-                                    }
+                                    AsyncImage(
+                                        model = fullUrl,
+                                        contentDescription = item.name,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
                                     Column(
-                                        modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).background(Color.Black.copy(alpha = 0.5f)).padding(8.dp)
+                                        modifier = Modifier.fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .background(Color.Black.copy(alpha = 0.5f))
+                                            .padding(4.dp)
                                     ) {
-                                        Text(text = outfit.outfit.name, color = Color.White, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                                        Text(text = "${outfit.clothingItems.size} items", color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            text = item.name.ifBlank { item.category },
+                                            color = Color.White,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
                                     if (isSelected) {
-                                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(20.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
                                     }
                                 }
                             }
                         }
                     }
-                }
-
-                // 🆕 Hiển thị outfit canvas preview đầy đủ khi chọn outfit
-                selectedOutfit?.let { outfitWithItems ->
-                    Spacer(modifier = Modifier.height(12.dp))
-                    val placements = remember(outfitWithItems.clothingItems) {
-                        outfitWithItems.clothingItems.mapIndexed { index, item ->
-                            val (x, y) = com.example.stylemate.ui.components.defaultGridPosition(index)
-                            OutfitViewModel.OutfitItemPlacement(item, x, y, 1.0f)
-                        }
-                    }
-                    OutfitCanvasPreview(
-                        items = placements,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -317,51 +331,46 @@ fun TryOnSetupScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-            } else {
-                val job = jobState!!
-                when (job.status) {
-                    JobStatus.QUEUED, JobStatus.IN_PROGRESS -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            CircularProgressIndicator(progress = { job.progress / 100f }, modifier = Modifier.size(120.dp))
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(text = stringResource(R.string.tryon_processing_label, job.progress), style = MaterialTheme.typography.titleMedium)
-                            Text(text = stringResource(R.string.tryon_status_label, job.status.toString()), style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                    JobStatus.COMPLETED -> {
-                        Text(text = stringResource(R.string.tryon_result_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 12.dp))
-                        AsyncImage(
-                            model = job.resultUrls.firstOrNull(),
-                            contentDescription = stringResource(R.string.tryon_result_content_desc),
-                            modifier = Modifier.fillMaxWidth().height(450.dp).clip(RoundedCornerShape(16.dp)),
-                            contentScale = ContentScale.Fit
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        StylistButton(
-                            text = stringResource(R.string.tryon_save_to_gallery),
-                            onClick = { onSaveToGalleryClicked() },
-                            enabled = !isSavingToGallery,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (isSavingToGallery) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { viewModel.reset() },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.try_another_button))
-                        }
-                    }
-                    JobStatus.FAILED -> {
-                        Text(text = stringResource(R.string.tryon_failed_label, job.error ?: ""), color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        StylistButton(text = stringResource(R.string.retry_button), onClick = { viewModel.reset() })
-                    }
-                    else -> {}
+            } else if (jobState?.status == JobStatus.IN_PROGRESS) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    CircularProgressIndicator(progress = { (jobState?.progress ?: 0) / 100f }, modifier = Modifier.size(120.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = stringResource(R.string.tryon_processing_label, jobState?.progress ?: 0), style = MaterialTheme.typography.titleMedium)
+                    Text(text = stringResource(R.string.tryon_status_label, jobState?.status.toString() ?: ""), style = MaterialTheme.typography.labelSmall)
                 }
+
+            } else if (jobState?.status == JobStatus.COMPLETED) {
+                Text(text = stringResource(R.string.tryon_result_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 12.dp))
+                AsyncImage(
+                    model = jobState?.resultUrls?.firstOrNull(),
+                    contentDescription = stringResource(R.string.tryon_result_content_desc),
+                    modifier = Modifier.fillMaxWidth().height(450.dp).clip(RoundedCornerShape(16.dp)),
+                    contentScale = ContentScale.Fit
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                StylistButton(
+                    text = stringResource(R.string.tryon_save_to_gallery),
+                    onClick = { onSaveToGalleryClicked() },
+                    enabled = !isSavingToGallery,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (isSavingToGallery) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { viewModel.reset() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.try_another_button))
+                }
+
+            } else if (jobState?.status == JobStatus.FAILED) {
+                Text(text = stringResource(R.string.tryon_failed_label, jobState?.error ?: ""), color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(16.dp))
+                StylistButton(text = stringResource(R.string.retry_button), onClick = { viewModel.reset() })
             }
         }
     }

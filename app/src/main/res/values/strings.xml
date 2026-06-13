@@ -113,11 +113,6 @@
     <string name="add_outfit_button">Add</string>
     <string name="delete_outfit_content_desc">Delete outfit</string>
     <string name="delete_item_content_desc">Delete item</string>
-    <string name="delete_confirm_button">Delete</string>
-    <string name="confirm_delete_item_title">Delete item?</string>
-    <string name="confirm_delete_item_message">Are you sure you want to delete this item?</string>
-    <string name="confirm_delete_outfit_title">Delete outfit?</string>
-    <string name="confirm_delete_outfit_message">Are you sure you want to delete this outfit?</string>
     <string name="close_content_desc">Close</string>
     <string name="remove_item_content_desc">Remove item</string>
     <string name="selected_content_desc">Selected</string>
@@ -280,10 +275,10 @@
 
     <!-- ===================== VIRTUAL TRY-ON ===================== -->
     <string name="virtual_tryon_title">Virtual Try-On</string>
-    <string name="tryon_setup_hint">Take a photo of a person and choose an outfit to try on</string>
+    <string name="tryon_setup_hint">Take a photo of a person and choose an item to try on</string>
     <string name="tryon_body_label">Your body photo</string>
     <string name="tryon_cloth_label">Clothing</string>
-    <string name="tryon_select_outfit">Choose an outfit to try on</string>
+    <string name="tryon_select_outfit">Choose an item to try on</string>
     <string name="tryon_result_title">Try-On Result</string>
     <string name="tryon_body_placeholder">Body Image Placeholder</string>
     <string name="tryon_item_placeholder">Item</string>
@@ -421,6 +416,11 @@
     <string name="new_password_same_as_current">New password must be different from current password</string>
     <string name="change_password_success">Password changed</string>
     <string name="change_password_failed">Failed to change password</string>
+    <string name="delete_confirm_button">Delete</string>
+    <string name="confirm_delete_item_title">Delete item?</string>
+    <string name="confirm_delete_item_message">Are you sure you want to delete this item?</string>
+    <string name="confirm_delete_outfit_title">Delete outfit?</string>
+    <string name="confirm_delete_outfit_message">Are you sure you want to delete this outfit?</string>
 
     <!-- ===================== AI CHAT SCREEN ===================== -->
     <string name="prompts_list">[\"Daily\",\"School\",\"Work\",\"Travel\",\"Party\",\"Date\",\"Wedding\"]</string>

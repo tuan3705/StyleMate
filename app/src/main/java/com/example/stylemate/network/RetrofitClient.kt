@@ -64,11 +64,26 @@ object RetrofitClient {
         }
     }
 
+    /**
+     * ⚡ FIX: Dùng `header()` thay vì `addHeader()` để tránh trùng lặp Authorization headers
+     * khi AuthRefreshInterceptor retry request.
+     *
+     * Thứ tự interceptor:
+     * 1. refreshInterceptor (chạy đầu tiên để bao bọc cả authInterceptor)
+     * 2. authInterceptor (thêm token)
+     * 3. loggingInterceptor
+     *
+     * Lý do: refreshInterceptor cần bắt response ở ngoài cùng. Khi retry,
+     * nó tạo request mới với token mới → authInterceptor sẽ không ghi đè
+     * vì dùng `header()` thay vì `addHeader()`.
+     */
+    private val refreshInterceptor = AuthRefreshInterceptor(STYLEMATE_BASE_URL)
+
     private val authInterceptor = Interceptor { chain ->
         val token = AuthTokenProvider.accessTokenBlocking()
         val request = if (!token.isNullOrBlank()) {
             chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
+                .header("Authorization", "Bearer $token")
                 .build()
         } else {
             chain.request()
@@ -76,14 +91,13 @@ object RetrofitClient {
         chain.proceed(request)
     }
 
-    private val refreshInterceptor = AuthRefreshInterceptor(STYLEMATE_BASE_URL)
-
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .addInterceptor(authInterceptor)
+            // ⚡ refreshInterceptor phải ở TRƯỚC authInterceptor để bắt response
             .addInterceptor(refreshInterceptor)
+            .addInterceptor(authInterceptor)
             .addInterceptor(loggingInterceptor)
             .build()
     }
