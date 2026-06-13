@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Flip
+import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.*
@@ -1168,23 +1170,30 @@ private fun OutfitCanvas(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
-                                .offset(y = (-6).dp)
-                                .size(18.dp)
+                                .offset(y = (-14).dp)
+                                .size(28.dp)
                                 .zIndex(1f)
                                 .background(Color(0xFF42A5F5), CircleShape)
+                                .border(1.5.dp, Color.White, CircleShape)
                                 .clickable { onFlipChange(item.id) },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "⇆", fontSize = 11.sp, color = Color.White)
+                            Icon(
+                                imageVector = Icons.Default.Flip,
+                                contentDescription = stringResource(R.string.flip_item_content_desc),
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                         // Handle (góc dưới-phải): kéo để vừa resize (khoảng cách) vừa xoay (góc).
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .offset(x = 6.dp, y = 6.dp)
-                                .size(18.dp)
+                                .offset(x = 14.dp, y = 14.dp)
+                                .size(28.dp)
                                 .zIndex(1f)
-                                .background(Color(0xFFFFD54F), CircleShape)
+                                .background(Color(0xFFFFC107), CircleShape)
+                                .border(1.5.dp, Color.White, CircleShape)
                                 .pointerInput(item.id, canvasWidth, canvasHeight) {
                                     detectDragGestures(
                                         onDragStart = {
@@ -1230,15 +1239,21 @@ private fun OutfitCanvas(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "⤢", fontSize = 10.sp, color = Color.Black)
+                            Icon(
+                                imageVector = Icons.Default.RotateRight,
+                                contentDescription = stringResource(R.string.transform_item_content_desc),
+                                tint = Color.Black,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 5.dp, y = (-5).dp)
-                                .size(16.dp)
+                                .offset(x = 14.dp, y = (-14).dp)
+                                .size(28.dp)
                                 .zIndex(1f)
-                                .background(Color.Red.copy(alpha = 0.85f), CircleShape)
+                                .background(Color(0xFFE53935), CircleShape)
+                                .border(1.5.dp, Color.White, CircleShape)
                                 .clickable { onDeleteItem(item.id) },
                             contentAlignment = Alignment.Center
                         ) {
@@ -1246,7 +1261,7 @@ private fun OutfitCanvas(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = stringResource(R.string.remove_item_content_desc),
                                 tint = Color.White,
-                                modifier = Modifier.size(10.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
