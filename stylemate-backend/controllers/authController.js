@@ -133,6 +133,43 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/auth/change-password
+ */
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || currentPassword.length < 6) {
+    throw new AppError('Mat khau hien tai toi thieu 6 ky tu', 400);
+  }
+
+  if (!newPassword || newPassword.length < 6) {
+    throw new AppError('Mat khau moi toi thieu 6 ky tu', 400);
+  }
+
+  if (currentPassword === newPassword) {
+    throw new AppError('Mat khau moi phai khac mat khau hien tai', 400);
+  }
+
+  const user = await User.findById(req.user._id).select('+passwordHash +refreshTokenHash');
+  if (!user) {
+    throw new AppError('User khong ton tai', 401);
+  }
+
+  const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!isValid) {
+    throw new AppError('Mat khau hien tai khong dung', 401);
+  }
+
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Doi mat khau thanh cong'
+  });
+});
+
+/**
  * POST /api/auth/register
  */
 const register = asyncHandler(async (req, res) => {
@@ -171,5 +208,6 @@ module.exports = {
   register,
   login,
   refresh,
-  logout
+  logout,
+  changePassword
 };

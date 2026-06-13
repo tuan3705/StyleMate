@@ -49,3 +49,8 @@ data class RegisterRequest(
     val email: String,
     val password: String
 )
+
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
+)
