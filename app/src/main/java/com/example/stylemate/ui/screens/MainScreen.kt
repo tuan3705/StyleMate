@@ -208,6 +208,13 @@ fun MainScreen(onLogout: () -> Unit) {
                         navController.getBackStackEntry(BottomNavItem.Closet.route)
                             .savedStateHandle["closet_pending_action"] = "create_outfit"
                     },
+                    onNavigateToCalendar = {
+                        navController.navigate(BottomNavItem.Calendar.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     accountMenu = { AccountMenu(onLogout = onLogout) }
                 )
             }

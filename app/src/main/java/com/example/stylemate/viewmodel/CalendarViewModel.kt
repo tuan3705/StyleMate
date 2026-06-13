@@ -57,26 +57,29 @@ class CalendarViewModel(
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
+    private val _selectedDateTrigger = MutableStateFlow(todayEpochMidnight())
+    private val _calendarRefreshTrigger = MutableStateFlow(0L)
+    private val _outfitsRefreshTrigger = MutableStateFlow(0L)
     private val _monthTrigger = MutableStateFlow(todayEpochMidnight())
 
     init {
-        _uiState.value = _uiState.value.copy(selectedDate = todayEpochMidnight())
-
-        val dateFlow = MutableStateFlow(_uiState.value.selectedDate)
-        viewModelScope.launch {
-            _uiState.collect { dateFlow.value = it.selectedDate }
-        }
+        val today = todayEpochMidnight()
+        _selectedDateTrigger.value = today
+        _monthTrigger.value = today
+        _uiState.value = _uiState.value.copy(selectedDate = today)
 
         @OptIn(ExperimentalCoroutinesApi::class)
-        val eventFlow = dateFlow
+        val eventFlow = combine(_selectedDateTrigger, _calendarRefreshTrigger) { date, _ -> date }
             .flatMapLatest { date -> calendarRepository.observeEventByDate(date) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-        val outfitsFlow = outfitRepository.getAllOutfitsWithItems()
+        @OptIn(ExperimentalCoroutinesApi::class)
+        val outfitsFlow = _outfitsRefreshTrigger
+            .flatMapLatest { outfitRepository.getAllOutfitsWithItems() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
         @OptIn(ExperimentalCoroutinesApi::class)
-        val monthFlow = _monthTrigger
+        val monthFlow = combine(_monthTrigger, _calendarRefreshTrigger) { epoch, _ -> epoch }
             .flatMapLatest { epoch ->
                 val (start, end) = monthRange(epoch)
                 calendarRepository.getEventsBetween(start, end)
@@ -97,11 +100,21 @@ class CalendarViewModel(
 
     fun selectDate(date: Long) {
         _uiState.value = _uiState.value.copy(selectedDate = date, error = null)
+        _selectedDateTrigger.value = date
         Log.d(TAG, "Chon ngay: $date")
     }
 
     fun loadEventsInMonth(currentMonthEpoch: Long) {
         _monthTrigger.value = currentMonthEpoch
+    }
+
+    fun refreshOutfits() {
+        _outfitsRefreshTrigger.value += 1
+    }
+
+    fun refreshCalendarData() {
+        _calendarRefreshTrigger.value += 1
+        _outfitsRefreshTrigger.value += 1
     }
 
     fun assignOutfitToSelectedDate(outfitId: String) {
@@ -114,6 +127,7 @@ class CalendarViewModel(
                     outfitId = outfitId
                 )
                 calendarRepository.assignOutfitToDate(event)
+                refreshCalendarData()
             } catch (e: Exception) {
                 Log.e(TAG, "Loi gan outfit: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(error = CalendarError.AssignFailed(mapError(e)))
@@ -129,6 +143,7 @@ class CalendarViewModel(
             try {
                 val event = _uiState.value.eventForSelectedDate ?: return@launch
                 calendarRepository.removeEvent(event)
+                refreshCalendarData()
             } catch (e: Exception) {
                 Log.e(TAG, "Loi xoa outfit: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(error = CalendarError.RemoveFailed(mapError(e)))

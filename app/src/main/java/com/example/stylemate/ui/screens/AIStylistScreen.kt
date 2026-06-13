@@ -50,12 +50,29 @@ import com.example.stylemate.network.RetrofitClient.STYLEMATE_BASE_URL
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.SubcomposeAsyncImage
+import com.example.stylemate.model.CalendarEventEntity
+import com.example.stylemate.model.ClothingItemEntity
+import com.example.stylemate.model.OutfitWithClothingItems
+import com.example.stylemate.network.RetrofitClient
 import com.example.stylemate.viewmodel.AIStylistViewModel
 import com.example.stylemate.viewmodel.AIStylistUiState
 import com.example.stylemate.viewmodel.WeatherViewModel
+import com.example.stylemate.repository.CalendarRepository
+import com.example.stylemate.repository.OutfitRepository
+import com.example.stylemate.ui.components.CategoryIconImage
+import com.example.stylemate.ui.components.rememberItemImageModel
+import com.example.stylemate.viewmodel.OutfitViewModel
+import kotlinx.coroutines.flow.combine
+import java.util.Calendar
+import java.util.TimeZone
+import kotlin.math.roundToInt
 
 @Composable
 fun AIStylistScreen(
@@ -64,6 +81,7 @@ fun AIStylistScreen(
     onNavigateToVirtualTryOn: () -> Unit = {},
     onNavigateToAddItem: () -> Unit = {},
     onNavigateToCreateOutfit: () -> Unit = {},
+    onNavigateToCalendar: () -> Unit = {},
     accountMenu: @Composable () -> Unit = {}
 ) {
     val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
@@ -132,7 +150,12 @@ fun AIStylistScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            AIStylistHeader(userName = userName, userEmail = userEmail, accountMenu = accountMenu)
+            AIStylistHeader(
+                userName = userName,
+                userEmail = userEmail,
+                onNavigateToCalendar = onNavigateToCalendar,
+                accountMenu = accountMenu
+            )
         }
     ) { innerPadding ->
         LazyColumn(
@@ -154,7 +177,8 @@ fun AIStylistScreen(
             item {
                 PopularFeaturesSection(
                     onAddItem = onNavigateToAddItem,
-                    onCreateOutfit = onNavigateToCreateOutfit
+                    onCreateOutfit = onNavigateToCreateOutfit,
+                    onCalendar = onNavigateToCalendar
                 )
             }
 
@@ -175,7 +199,7 @@ fun AIStylistScreen(
             }
 
             item {
-                OutfitCalendarSection()
+                BackendOutfitCalendarSection(onNavigateToCalendar = onNavigateToCalendar)
             }
 
             item {
@@ -213,6 +237,7 @@ fun AIStylistScreen(
 fun AIStylistHeader(
     userName: String?,
     userEmail: String?,
+    onNavigateToCalendar: () -> Unit = {},
     accountMenu: @Composable () -> Unit = {}
 ) {
     val displayName = userName?.takeIf { it.isNotBlank() }
@@ -231,7 +256,7 @@ fun AIStylistHeader(
             fontWeight = FontWeight.Bold
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { /* TODO */ }) {
+            IconButton(onClick = onNavigateToCalendar) {
                 Icon(Icons.Outlined.CalendarMonth, contentDescription = stringResource(R.string.ai_stylist_calendar_desc))
             }
             IconButton(onClick = { /* TODO */ }) {
@@ -449,7 +474,8 @@ private fun getLastKnownLocation(
 @Composable
 fun PopularFeaturesSection(
     onAddItem: () -> Unit = {},
-    onCreateOutfit: () -> Unit = {}
+    onCreateOutfit: () -> Unit = {},
+    onCalendar: () -> Unit = {}
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
@@ -488,7 +514,12 @@ fun PopularFeaturesSection(
         }
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureCardSmall(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_calendar), icon = Icons.Default.CalendarMonth)
+            FeatureCardSmall(
+                modifier = Modifier.weight(1f),
+                title = stringResource(R.string.ai_stylist_calendar),
+                icon = Icons.Default.CalendarMonth,
+                onClick = onCalendar
+            )
             FeatureCardSmall(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_refresh_closet), icon = Icons.Default.AutoAwesome)
             FeatureCardSmall(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_style_stats), icon = Icons.Default.BarChart)
         }
@@ -520,9 +551,9 @@ fun FeatureCard(modifier: Modifier = Modifier, title: String, icon: ImageVector,
 }
 
 @Composable
-fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVector) {
+fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVector, onClick: () -> Unit = {}) {
     Card(
-        modifier = modifier.height(100.dp),
+        modifier = modifier.height(100.dp).clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -784,6 +815,229 @@ fun RecentlyAddedSection() {
             }
         }
     }
+}
+
+private data class AIStylistCalendarDay(
+    val date: Long,
+    val event: CalendarEventEntity?,
+    val outfit: OutfitWithClothingItems?
+)
+
+@Composable
+fun BackendOutfitCalendarSection(onNavigateToCalendar: () -> Unit = {}) {
+    val apiService = RetrofitClient.stylemateApiService
+    val calendarRepository = remember(apiService) { CalendarRepository(apiService) }
+    val outfitRepository = remember(apiService) { OutfitRepository(apiService) }
+    val todayEpoch = remember { aiStylistTodayEpochMidnight() }
+    val dates = remember(todayEpoch) { (0 until 4).map { addAiStylistDays(todayEpoch, it) } }
+    val previewDays by produceState(
+        initialValue = dates.map { AIStylistCalendarDay(it, null, null) },
+        calendarRepository,
+        outfitRepository,
+        todayEpoch
+    ) {
+        combine(
+            calendarRepository.getEventsBetween(dates.first(), dates.last()),
+            outfitRepository.getAllOutfitsWithItems()
+        ) { events, outfits ->
+            val eventByDate = events.associateBy { it.date }
+            val outfitById = outfits.associateBy { it.outfit.id }
+            dates.map { date ->
+                val event = eventByDate[date]
+                AIStylistCalendarDay(
+                    date = date,
+                    event = event,
+                    outfit = event?.let { outfitById[it.outfitId] }
+                )
+            }
+        }.collect { value = it }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.ai_stylist_outfit_calendar),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            TextButton(onClick = onNavigateToCalendar) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.ai_stylist_view_calendar), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(previewDays.size) { index ->
+                val previewDay = previewDays[index]
+                val isToday = isSameAiStylistDay(previewDay.date, todayEpoch)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (isToday) {
+                        Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                    } else {
+                        Spacer(modifier = Modifier.size(4.dp))
+                    }
+                    Text(
+                        text = aiStylistDayLabel(previewDay.date, todayEpoch),
+                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = 14.sp
+                    )
+                    Text(aiStylistDateLabel(previewDay.date), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    OutfitCalendarPreviewCard(previewDay = previewDay)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutfitCalendarPreviewCard(previewDay: AIStylistCalendarDay) {
+    Card(
+        modifier = Modifier.size(100.dp, 130.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        val outfit = previewDay.outfit
+        if (outfit == null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxSize().padding(6.dp)) {
+                BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    val placements = remember(outfit) { outfit.clothingItems.toAiStylistPlacements() }
+                    if (placements.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Checkroom, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        val itemSize = 36.dp
+                        val itemSizePx = with(androidx.compose.ui.platform.LocalDensity.current) { itemSize.toPx() }
+                        placements.take(4).forEach { placement ->
+                            val item = placement.item
+                            val maxX = (constraints.maxWidth - itemSizePx).coerceAtLeast(1f)
+                            val maxY = (constraints.maxHeight - itemSizePx).coerceAtLeast(1f)
+                            val offsetX = (placement.posX * maxX).roundToInt()
+                            val offsetY = (placement.posY * maxY).roundToInt()
+                            Box(
+                                modifier = Modifier
+                                    .offset { IntOffset(offsetX, offsetY) }
+                                    .size(itemSize)
+                            ) {
+                                OutfitCalendarItemImage(item)
+                            }
+                        }
+                    }
+                }
+                Text(
+                    text = outfit.outfit.name,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutfitCalendarItemImage(item: ClothingItemEntity) {
+    val imageModel = rememberItemImageModel(item)
+    if (imageModel != null) {
+        SubcomposeAsyncImage(
+            model = imageModel,
+            contentDescription = item.name.ifBlank { item.category },
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+            error = { OutfitCalendarItemFallback(item) }
+        )
+    } else {
+        OutfitCalendarItemFallback(item)
+    }
+}
+
+@Composable
+private fun OutfitCalendarItemFallback(item: ClothingItemEntity) {
+    Box(
+        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surface),
+        contentAlignment = Alignment.Center
+    ) {
+        CategoryIconImage(category = item.category, fontSize = 18.sp)
+    }
+}
+
+private fun List<ClothingItemEntity>.toAiStylistPlacements(): List<OutfitViewModel.OutfitItemPlacement> {
+    return mapIndexed { index, item ->
+        val (defaultX, defaultY) = aiStylistDefaultGridPosition(index)
+        OutfitViewModel.OutfitItemPlacement(
+            item = item,
+            posX = item.canvasPosX.takeIf { it != 0f } ?: defaultX,
+            posY = item.canvasPosY.takeIf { it != 0f } ?: defaultY,
+            scale = 1f
+        )
+    }
+}
+
+private fun aiStylistDefaultGridPosition(index: Int): Pair<Float, Float> {
+    val col = index % 2
+    val row = index / 2
+    val x = if (col == 0) 0.08f else 0.58f
+    val y = minOf(0.08f + row * 0.42f, 0.72f)
+    return x to y
+}
+
+private fun aiStylistTodayEpochMidnight(): Long {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    cal.set(Calendar.HOUR_OF_DAY, 0)
+    cal.set(Calendar.MINUTE, 0)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    return cal.timeInMillis
+}
+
+private fun addAiStylistDays(epochMillis: Long, days: Int): Long {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = epochMillis }
+    cal.add(Calendar.DAY_OF_MONTH, days)
+    return cal.timeInMillis
+}
+
+private fun isSameAiStylistDay(first: Long, second: Long): Boolean {
+    val cal1 = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = first }
+    val cal2 = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = second }
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+        cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+}
+
+@Composable
+private fun aiStylistDayLabel(epochMillis: Long, todayEpoch: Long): String {
+    if (isSameAiStylistDay(epochMillis, todayEpoch)) return stringResource(R.string.ai_stylist_today)
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = epochMillis }
+    val dayNames = stringArrayResource(R.array.day_of_week_names)
+    return when (cal.get(Calendar.DAY_OF_WEEK)) {
+        Calendar.MONDAY -> dayNames[0]
+        Calendar.TUESDAY -> dayNames[1]
+        Calendar.WEDNESDAY -> dayNames[2]
+        Calendar.THURSDAY -> dayNames[3]
+        Calendar.FRIDAY -> dayNames[4]
+        Calendar.SATURDAY -> dayNames[5]
+        Calendar.SUNDAY -> dayNames[6]
+        else -> ""
+    }
+}
+
+@Composable
+private fun aiStylistDateLabel(epochMillis: Long): String {
+    val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = epochMillis }
+    val monthNames = stringArrayResource(R.array.month_names)
+    return "${cal.get(Calendar.DAY_OF_MONTH)} ${monthNames[cal.get(Calendar.MONTH)]}"
 }
 
 @Composable
