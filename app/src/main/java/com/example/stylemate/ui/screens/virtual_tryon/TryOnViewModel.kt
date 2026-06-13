@@ -44,27 +44,13 @@ class TryOnViewModel(application: Application) : AndroidViewModel(application) {
                 progress = 0
             )
 
-            val result = tryOnRepository.performTryOnWithItemIds(
+            tryOnRepository.performTryOnWithItemIds(
                 bodyImageUri = bodyImageUri,
                 selectedItemIds = selectedItemIds,
                 onProgress = { job ->
+                    // ⚡ onProgress đã gửi đầy đủ state (kể cả COMPLETED với resultUrls)
+                    // Không copy lại → tránh race condition làm mất resultUrls
                     _jobState.value = job
-                }
-            )
-
-            result.fold(
-                onSuccess = { imageUrl ->
-                    _jobState.value = _jobState.value?.copy(
-                        status = JobStatus.COMPLETED,
-                        progress = 100,
-                        resultUrls = listOf(imageUrl)
-                    )
-                },
-                onFailure = { error ->
-                    _jobState.value = _jobState.value?.copy(
-                        status = JobStatus.FAILED,
-                        error = error.message ?: "Try-on failed"
-                    )
                 }
             )
         }

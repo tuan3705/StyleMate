@@ -41,7 +41,9 @@ import com.example.stylemate.ui.common.getStoragePermission
 import com.example.stylemate.ui.common.hasStoragePermission
 import com.example.stylemate.ui.common.rememberImagePickerState
 import com.example.stylemate.ui.common.saveImageToGallery
+import com.example.stylemate.ui.components.OutfitCanvasPreview
 import com.example.stylemate.ui.components.StylistButton
+import com.example.stylemate.viewmodel.OutfitViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -286,6 +288,21 @@ fun TryOnSetupScreen(
                             }
                         }
                     }
+                }
+
+                // 🆕 Hiển thị outfit canvas preview đầy đủ khi chọn outfit
+                selectedOutfit?.let { outfitWithItems ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val placements = remember(outfitWithItems.clothingItems) {
+                        outfitWithItems.clothingItems.mapIndexed { index, item ->
+                            val (x, y) = com.example.stylemate.ui.components.defaultGridPosition(index)
+                            OutfitViewModel.OutfitItemPlacement(item, x, y, 1.0f)
+                        }
+                    }
+                    OutfitCanvasPreview(
+                        items = placements,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

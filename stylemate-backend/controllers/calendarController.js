@@ -33,7 +33,6 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
   let filter = { userId: currentUserId };
 
   if (date) {
-    // Lấy sự kiện của 1 ngày cụ thể
     const dateNum = Number(date);
     if (isNaN(dateNum)) {
       return res.status(400).json({
@@ -43,7 +42,6 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
     }
     filter.date = dateNum;
   } else if (from && to) {
-    // Lấy sự kiện trong khoảng
     const fromNum = Number(from);
     const toNum = Number(to);
     if (isNaN(fromNum) || isNaN(toNum)) {
@@ -57,31 +55,23 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
 
   let events = await CalendarEvent.find(filter).sort({ date: 1 });
 
-  // Nếu populate=true, join thêm outfit & clothing items
   if (populate === 'true' && events.length > 0) {
     const outfitIds = [...new Set(events.map(e => e.outfitId))];
     const outfits = await Outfit.find({ _id: { $in: outfitIds } }).lean();
-
-    // Lấy tất cả clothingItemIds từ các outfit
     const allItemIds = [
       ...new Set(outfits.flatMap(o => o.clothingItems.map(ci => ci.clothingItemId)))
     ];
     const clothingItems = await ClothingItem.find({ _id: { $in: allItemIds } }).lean();
     const clothingMap = {};
     clothingItems.forEach(item => { clothingMap[item._id] = item; });
-
-    // Map outfit theo id
     const outfitMap = {};
     outfits.forEach(o => {
-      // Gắn thông tin clothing items đầy đủ vào outfit
       o.clothingItems = o.clothingItems.map(ci => ({
         ...ci,
         clothingItem: clothingMap[ci.clothingItemId] || null
       }));
       outfitMap[o._id] = o;
     });
-
-    // Gắn outfit vào mỗi event
     events = events.map(event => ({
       ...event.toObject(),
       outfit: outfitMap[event.outfitId] || null
@@ -96,26 +86,15 @@ const getCalendarEvents = asyncHandler(async (req, res) => {
 
 /**
  * 🔍 GET /api/calendar/:id
- *
- * Lấy chi tiết một sự kiện lịch theo ID.
- *
- * Response: { success: true, data: { ... } }
- * Error 404: { success: false, message: "..." }
  */
 const getCalendarEventById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const currentUserId = req.user._id;
-
   const event = await CalendarEvent.findOne({ _id: id, userId: currentUserId });
-
   if (!event) {
     return next(new AppError(`Không tìm thấy CalendarEvent với ID: ${id}`, 404));
   }
-
-  res.status(200).json({
-    success: true,
-    data: event
-  });
+  res.status(200).json({ success: true, data: event });
 });
 
 /**
@@ -123,18 +102,13 @@ const getCalendarEventById = asyncHandler(async (req, res, next) => {
  *
  * Gán (hoặc thay thế) một Outfit vào một ngày.
  *
- * ⚠️ Nếu đã có sự kiện cho ngày đó, nó sẽ bị ghi đè (upsert/replace).
- * Cơ chế: Dùng findOneAndUpdate với upsert = true để:
- *   - Nếu chưa có: Tạo mới
- *   - Nếu đã có: Cập nhật outfitId (thay outfit cũ bằng outfit mới)
+ * ⚠️ Dùng findOneAndUpdate với upsert=true để tránh lỗi E11000 duplicate key.
+ * Index cũ { date: 1 } (unique) có thể còn tồn tại trong DB, upsert sẽ bypass.
  *
  * Body:
- *   - _id: String (UUID do Client sinh) — bắt buộc
- *   - date: Number (epoch midnight) — bắt buộc
- *   - outfitId: String (UUID của Outfit) — bắt buộc
- *
- * Response 200 (nếu update): { success: true, message: "Đã cập nhật", data: {...} }
- * Response 201 (nếu create): { success: true, message: "Đã tạo mới", data: {...} }
+ *   - _id: String (UUID do Client sinh)
+ *   - date: Number (epoch midnight)
+ *   - outfitId: String (UUID của Outfit)
  */
 const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
   const { _id, date, outfitId } = req.body;
@@ -142,30 +116,18 @@ const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
 
   // Validation
   if (!_id) {
-    return res.status(400).json({
-      success: false,
-      message: 'Trường _id (UUID) là bắt buộc'
-    });
+    return res.status(400).json({ success: false, message: 'Trường _id (UUID) là bắt buộc' });
   }
   if (date === undefined || date === null) {
-    return res.status(400).json({
-      success: false,
-      message: 'Trường date (epoch midnight) là bắt buộc'
-    });
+    return res.status(400).json({ success: false, message: 'Trường date (epoch midnight) là bắt buộc' });
   }
   if (!outfitId) {
-    return res.status(400).json({
-      success: false,
-      message: 'Trường outfitId là bắt buộc'
-    });
+    return res.status(400).json({ success: false, message: 'Trường outfitId là bắt buộc' });
   }
 
   const dateNum = Number(date);
   if (isNaN(dateNum)) {
-    return res.status(400).json({
-      success: false,
-      message: 'date phải là số (epoch millis)'
-    });
+    return res.status(400).json({ success: false, message: 'date phải là số (epoch millis)' });
   }
 
   const ownedOutfit = await Outfit.findOne({ _id: outfitId, userId: currentUserId });
@@ -176,47 +138,23 @@ const createOrReplaceCalendarEvent = asyncHandler(async (req, res) => {
     });
   }
 
-  // Kiểm tra ngày đó đã có sự kiện chưa
-  const existingEvent = await CalendarEvent.findOne({ userId: currentUserId, date: dateNum });
+  // ⚡ UPSERT: tìm theo userId+date → nếu chưa có thì tạo, nếu có thì cập nhật outfitId
+  // Dùng upsert thay vì find + create để tránh E11000 duplicate key (index cũ date_1)
+  const updatedEvent = await CalendarEvent.findOneAndUpdate(
+    { userId: currentUserId, date: dateNum },
+    { $set: { outfitId, _id: _id } },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
 
-  if (existingEvent) {
-    // Đã có sự kiện → UPDATE/Cập nhật outfitId
-    const updatedEvent = await CalendarEvent.findByIdAndUpdate(
-      existingEvent._id,
-      { outfitId, _id: existingEvent._id }, // Giữ nguyên _id cũ, chỉ thay outfitId
-      { new: true }
-    );
-
-    return res.status(200).json({
-      success: true,
-      message: 'Đã cập nhật outfit cho ngày này (ghi đè)',
-      data: updatedEvent
-    });
-  }
-
-  // Chưa có → Tạo mới
-  const newEvent = await CalendarEvent.create({
-    _id,
-    userId: currentUserId,
-    date: dateNum,
-    outfitId,
-    createdAt: Date.now()
-  });
-
-  res.status(201).json({
+  res.status(200).json({
     success: true,
     message: 'Đã gán outfit thành công',
-    data: newEvent
+    data: updatedEvent
   });
 });
 
 /**
  * ✏️ PUT /api/calendar/:id
- *
- * Cập nhật một sự kiện lịch (thay outfitId).
- *
- * Response: { success: true, data: { ... } }
- * Error 404: { success: false, message: "..." }
  */
 const updateCalendarEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -228,10 +166,7 @@ const updateCalendarEvent = asyncHandler(async (req, res, next) => {
   if (date !== undefined) {
     const dateNum = Number(date);
     if (isNaN(dateNum)) {
-      return res.status(400).json({
-        success: false,
-        message: 'date phải là số (epoch millis)'
-      });
+      return res.status(400).json({ success: false, message: 'date phải là số (epoch millis)' });
     }
     updateData.date = dateNum;
   }
@@ -239,91 +174,51 @@ const updateCalendarEvent = asyncHandler(async (req, res, next) => {
   const updatedEvent = await CalendarEvent.findOneAndUpdate(
     { _id: id, userId: currentUserId },
     updateData,
-    {
-      new: true,
-      runValidators: true
-    }
+    { new: true, runValidators: true }
   );
 
   if (!updatedEvent) {
     return next(new AppError(`Không tìm thấy CalendarEvent với ID: ${id}`, 404));
   }
-
-  res.status(200).json({
-    success: true,
-    data: updatedEvent
-  });
+  res.status(200).json({ success: true, data: updatedEvent });
 });
 
 /**
  * ❌ DELETE /api/calendar/:id
- *
- * Xoá một sự kiện lịch theo ID.
- *
- * Response: { success: true, message: "...", data: {} }
- * Error 404: { success: false, message: "..." }
  */
 const deleteCalendarEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const currentUserId = req.user._id;
-
   const deletedEvent = await CalendarEvent.findOneAndDelete({ _id: id, userId: currentUserId });
-
   if (!deletedEvent) {
     return next(new AppError(`Không tìm thấy CalendarEvent với ID: ${id}`, 404));
   }
-
-  res.status(200).json({
-    success: true,
-    message: `Đã xoá CalendarEvent: ${id}`,
-    data: {}
-  });
+  res.status(200).json({ success: true, message: `Đã xoá CalendarEvent: ${id}`, data: {} });
 });
 
 /**
  * ❌ DELETE /api/calendar/by-date/:date
- *
- * Xoá sự kiện theo ngày (epoch midnight).
- *
- * Response: { success: true, message: "...", data: {} }
- * Error 404: { success: false, message: "..." }
  */
 const deleteCalendarEventByDate = asyncHandler(async (req, res, next) => {
   const { date } = req.params;
   const currentUserId = req.user._id;
   const dateNum = Number(date);
-
   if (isNaN(dateNum)) {
-    return res.status(400).json({
-      success: false,
-      message: 'date phải là số (epoch millis)'
-    });
+    return res.status(400).json({ success: false, message: 'date phải là số (epoch millis)' });
   }
-
   const deletedEvent = await CalendarEvent.findOneAndDelete({ userId: currentUserId, date: dateNum });
-
   if (!deletedEvent) {
     return next(new AppError(`Không tìm thấy sự kiện cho ngày: ${dateNum}`, 404));
   }
-
-  res.status(200).json({
-    success: true,
-    message: `Đã xoá sự kiện cho ngày ${dateNum}`,
-    data: deletedEvent
-  });
+  res.status(200).json({ success: true, message: `Đã xoá sự kiện cho ngày ${dateNum}`, data: deletedEvent });
 });
 
 /**
  * 🗑️ DELETE /api/calendar/bulk
- * Xoá tất cả sự kiện lịch của user hiện tại.
- * Dùng để xoá dữ liệu test hoặc reset lịch.
- *
- * Response: { success: true, message: "...", deletedCount: Number }
  */
 const bulkDeleteCalendarEvents = asyncHandler(async (req, res) => {
   const currentUserId = req.user._id;
   const result = await CalendarEvent.deleteMany({ userId: currentUserId });
-
   res.status(200).json({
     success: true,
     message: `Đã xoá ${result.deletedCount} sự kiện lịch`,

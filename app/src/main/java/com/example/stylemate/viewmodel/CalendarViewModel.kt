@@ -10,12 +10,10 @@ import com.example.stylemate.repository.CalendarRepository
 import com.example.stylemate.repository.OutfitRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.TimeZone
@@ -42,8 +40,10 @@ data class CalendarUiState(
 /**
  * CalendarViewModel (minSdk 25 compatible)
  *
- * Uses java.util.Calendar instead of java.time to avoid desugaring complexity.
- * UI only collects uiState: StateFlow<CalendarUiState>
+ * ⚡ Fix hiệu năng:
+ * - Cache events trong tháng để tránh gọi API lại khi chọn ngày khác
+ * - Chỉ fetch API thực sự khi: load tháng mới, gán/xoá outfit
+ * - selectDate() dùng cache, không gọi API
  */
 class CalendarViewModel(
     private val calendarRepository: CalendarRepository,
@@ -57,64 +57,52 @@ class CalendarViewModel(
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
-    private val _selectedDateTrigger = MutableStateFlow(todayEpochMidnight())
-    private val _calendarRefreshTrigger = MutableStateFlow(0L)
-    private val _outfitsRefreshTrigger = MutableStateFlow(0L)
-    private val _monthTrigger = MutableStateFlow(todayEpochMidnight())
+    // Cache events trong tháng theo epoch
+    private var monthCache: Map<Long, CalendarEventEntity> = emptyMap()
+    private var cachedMonthEpoch: Long = 0L
+    private var cachedOutfits: List<OutfitWithClothingItems> = emptyList()
 
     init {
         val today = todayEpochMidnight()
-        _selectedDateTrigger.value = today
-        _monthTrigger.value = today
         _uiState.value = _uiState.value.copy(selectedDate = today)
 
-        @OptIn(ExperimentalCoroutinesApi::class)
-        val eventFlow = combine(_selectedDateTrigger, _calendarRefreshTrigger) { date, _ -> date }
-            .flatMapLatest { date -> calendarRepository.observeEventByDate(date) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-        @OptIn(ExperimentalCoroutinesApi::class)
-        val outfitsFlow = _outfitsRefreshTrigger
-            .flatMapLatest { outfitRepository.getAllOutfitsWithItems() }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-        @OptIn(ExperimentalCoroutinesApi::class)
-        val monthFlow = combine(_monthTrigger, _calendarRefreshTrigger) { epoch, _ -> epoch }
-            .flatMapLatest { epoch ->
-                val (start, end) = monthRange(epoch)
-                calendarRepository.getEventsBetween(start, end)
-            }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-        viewModelScope.launch {
-            combine(eventFlow, outfitsFlow, monthFlow) { event, outfits, monthEvents ->
-                _uiState.value.copy(
-                    eventForSelectedDate = event,
-                    allOutfits = outfits,
-                    assignedOutfit = event?.let { ev -> outfits.find { it.outfit.id == ev.outfitId } },
-                    eventsInMonth = monthEvents.map { it.date }.toSet()
-                )
-            }.collect { newState -> _uiState.value = newState }
-        }
+        // Load outfits ngay khi khởi tạo
+        loadOutfits()
+        // Load tháng hiện tại
+        loadMonthEvents(today)
     }
 
     fun selectDate(date: Long) {
         _uiState.value = _uiState.value.copy(selectedDate = date, error = null)
-        _selectedDateTrigger.value = date
-        Log.d(TAG, "Chon ngay: $date")
+
+        // ⚡ Dùng cache: tìm event trong monthCache
+        val event = monthCache[date]
+        val outfit = event?.let { ev ->
+            cachedOutfits.find { it.outfit.id == ev.outfitId }
+        }
+
+        _uiState.value = _uiState.value.copy(
+            eventForSelectedDate = event,
+            assignedOutfit = outfit
+        )
+        Log.d(TAG, "Chon ngay: $date (from cache: ${event != null})")
     }
 
     fun loadEventsInMonth(currentMonthEpoch: Long) {
-        _monthTrigger.value = currentMonthEpoch
+        if (cachedMonthEpoch != currentMonthEpoch) {
+            cachedMonthEpoch = currentMonthEpoch
+            loadMonthEvents(currentMonthEpoch)
+        }
     }
 
     fun refreshOutfits() {
-        _outfitsRefreshTrigger.value += 1
+        loadOutfits()
     }
 
     fun refreshCalendarData() {
-        _calendarRefreshTrigger.value += 1
-        _outfitsRefreshTrigger.value += 1
+        // Refresh cả month cache và outfits
+        loadOutfits()
+        loadMonthEvents(_uiState.value.selectedDate)
     }
 
     fun assignOutfitToSelectedDate(outfitId: String) {
@@ -127,6 +115,14 @@ class CalendarViewModel(
                     outfitId = outfitId
                 )
                 calendarRepository.assignOutfitToDate(event)
+                // ⚡ Update cache ngay lập tức, không cần đợi API
+                monthCache = monthCache + (event.date to event)
+                _uiState.value = _uiState.value.copy(
+                    eventForSelectedDate = event,
+                    assignedOutfit = cachedOutfits.find { it.outfit.id == outfitId },
+                    eventsInMonth = monthCache.keys
+                )
+                // Refresh đồng bộ background (UI đã có data ngay)
                 refreshCalendarData()
             } catch (e: Exception) {
                 Log.e(TAG, "Loi gan outfit: ${e.message}", e)
@@ -143,6 +139,14 @@ class CalendarViewModel(
             try {
                 val event = _uiState.value.eventForSelectedDate ?: return@launch
                 calendarRepository.removeEvent(event)
+                // ⚡ Update cache ngay lập tức
+                monthCache = monthCache - event.date
+                _uiState.value = _uiState.value.copy(
+                    eventForSelectedDate = null,
+                    assignedOutfit = null,
+                    eventsInMonth = monthCache.keys
+                )
+                // Refresh đồng bộ background
                 refreshCalendarData()
             } catch (e: Exception) {
                 Log.e(TAG, "Loi xoa outfit: ${e.message}", e)
@@ -157,7 +161,50 @@ class CalendarViewModel(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
-    // -- Helpers (minSdk 25 compatible, no java.time) --
+    // ── Private helpers ──────────────────────────────────────────
+
+    private fun loadOutfits() {
+        viewModelScope.launch {
+            try {
+                val response = outfitRepository.getAllOutfitsWithItems()
+                response.first().let { outfits ->
+                    cachedOutfits = outfits
+                    // Re-calculate assignedOutfit với selectedDate hiện tại
+                    val currentEvent = monthCache[_uiState.value.selectedDate]
+                    _uiState.value = _uiState.value.copy(
+                        allOutfits = outfits,
+                        assignedOutfit = currentEvent?.let { ev ->
+                            outfits.find { it.outfit.id == ev.outfitId }
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "loadOutfits loi: ${e.message}")
+            }
+        }
+    }
+
+    private fun loadMonthEvents(currentMonthEpoch: Long) {
+        viewModelScope.launch {
+            try {
+                val (start, end) = monthRange(currentMonthEpoch)
+                val response = calendarRepository.getEventsBetween(start, end)
+                response.first().let { events ->
+                    monthCache = events.associateBy { it.date }
+                    val currentEvent = monthCache[_uiState.value.selectedDate]
+                    _uiState.value = _uiState.value.copy(
+                        eventForSelectedDate = currentEvent,
+                        eventsInMonth = monthCache.keys,
+                        assignedOutfit = currentEvent?.let { ev ->
+                            cachedOutfits.find { it.outfit.id == ev.outfitId }
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "loadMonthEvents loi: ${e.message}")
+            }
+        }
+    }
 
     private fun mapError(e: Exception): ErrorReason = when (e) {
         is java.net.SocketTimeoutException,
@@ -175,7 +222,6 @@ class CalendarViewModel(
         return cal.timeInMillis
     }
 
-    /** Returns (startOfMonth, endOfMonth) epoch millis */
     private fun monthRange(epochMillis: Long): Pair<Long, Long> {
         val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
             timeInMillis = epochMillis

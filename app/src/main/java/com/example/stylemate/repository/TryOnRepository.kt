@@ -68,13 +68,17 @@ class TryOnRepository(private val context: Context) {
                 val currentStatus = parseStatus(statusBody.status)
                 val currentProgress = statusBody.progress ?: 0
 
-                onProgress(ProcessingJob(
-                    jobId = jobId,
-                    userId = "",
-                    type = "virtual-tryon",
-                    status = currentStatus,
-                    progress = currentProgress
-                ))
+                // ⚡ Chỉ gửi onProgress cho các status không phải COMPLETED
+                // Khi COMPLETED, sẽ fetch result rồi gửi onProgress với resultUrls
+                if (currentStatus != JobStatus.COMPLETED) {
+                    onProgress(ProcessingJob(
+                        jobId = jobId,
+                        userId = "",
+                        type = "virtual-tryon",
+                        status = currentStatus,
+                        progress = currentProgress
+                    ))
+                }
 
                 when (currentStatus) {
                     JobStatus.COMPLETED -> {
@@ -84,9 +88,26 @@ class TryOnRepository(private val context: Context) {
                             val imageUrl = resultBody?.generatedImageUrl
                             if (imageUrl != null) {
                                 val fullUrl = RetrofitClient.STYLEMATE_BASE_URL.trimEnd('/') + imageUrl
+                                // Gửi kết quả qua callback thay vì return
+                                onProgress(ProcessingJob(
+                                    jobId = jobId,
+                                    userId = "",
+                                    type = "virtual-tryon",
+                                    status = JobStatus.COMPLETED,
+                                    progress = 100,
+                                    resultUrls = listOf(fullUrl)
+                                ))
                                 return Result.success(fullUrl)
                             }
                         }
+                        onProgress(ProcessingJob(
+                            jobId = jobId,
+                            userId = "",
+                            type = "virtual-tryon",
+                            status = JobStatus.FAILED,
+                            progress = 0,
+                            error = "Completed but no image URL"
+                        ))
                         return Result.failure(Exception("Completed but no image URL"))
                     }
                     JobStatus.FAILED -> {
