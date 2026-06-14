@@ -3,6 +3,5 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/stylemate-backend" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/stylemate-backend/opentryon" vcs="Git" />
   </component>
 </project>

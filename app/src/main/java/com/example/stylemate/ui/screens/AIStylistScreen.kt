@@ -79,6 +79,7 @@ fun AIStylistScreen(
     onNavigateToCreateOutfit: () -> Unit = {},
     onNavigateToCalendar: () -> Unit = {},
     onNavigateToEditOutfit: ((String) -> Unit)? = null,
+    onNavigateToCalendarDay: ((Long) -> Unit)? = null,
     accountMenu: @Composable () -> Unit = {}
 ) {
     val app = LocalContext.current.applicationContext as com.example.stylemate.StyleMateApp
@@ -162,13 +163,14 @@ fun AIStylistScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // ═══ SECTION 1: Weather + Recommendation ═══
+    // ═══ SECTION 1: Weather + Recommendation ═══
             item(key = "weather_recommendation") {
                 WeatherRecommendationSection(
                     uiState = uiState,
                     onRefresh = { refreshWithLocation() },
                     onNavigateToChat = onNavigateToChat,
-                    onNavigateToPersonalStylist = onNavigateToPersonalStylist
+                    onNavigateToPersonalStylist = onNavigateToPersonalStylist,
+                    onNavigateToEditOutfit = onNavigateToEditOutfit
                 )
             }
 
@@ -193,7 +195,8 @@ fun AIStylistScreen(
             item(key = "outfit_calendar") {
                 BackendOutfitCalendarSection(
                     onNavigateToCalendar = onNavigateToCalendar,
-                    onNavigateToOutfit = onNavigateToEditOutfit
+                    onNavigateToOutfit = onNavigateToEditOutfit,
+                    onNavigateToCalendarDay = onNavigateToCalendarDay
                 )
             }
 
@@ -244,7 +247,8 @@ fun WeatherRecommendationSection(
     uiState: com.example.stylemate.viewmodel.AIStylistUiState,
     onRefresh: () -> Unit,
     onNavigateToChat: () -> Unit,
-    onNavigateToPersonalStylist: () -> Unit
+    onNavigateToPersonalStylist: () -> Unit,
+    onNavigateToEditOutfit: ((String) -> Unit)? = null
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -304,7 +308,7 @@ fun WeatherRecommendationSection(
                 StylistActionCard(onNavigate = onNavigateToChat)
             }
 
-            // Outfits from AI (right side)
+            // Outfits from AI (right side) - Chỉ hiển thị hình ảnh, không click
             if (uiState.suggestedOutfits.isNotEmpty()) {
                 items(uiState.suggestedOutfits, key = { it.hashCode() }) { outfit ->
                     Card(
@@ -313,7 +317,11 @@ fun WeatherRecommendationSection(
                             .height(200.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                        )
                     ) {
                         // Images in HORIZONTAL row (left to right)
                         val sortedImageUrls = outfit.image_urls?.entries
@@ -666,7 +674,8 @@ private const val CALENDAR_CACHE_TTL_MS = 2 * 60 * 1000L
 @Composable
 fun BackendOutfitCalendarSection(
     onNavigateToCalendar: () -> Unit = {},
-    onNavigateToOutfit: ((String) -> Unit)? = null
+    onNavigateToOutfit: ((String) -> Unit)? = null,
+    onNavigateToCalendarDay: ((Long) -> Unit)? = null
 ) {
     val apiService = RetrofitClient.stylemateApiService
     val calendarRepository = remember(apiService) { CalendarRepository(apiService) }
@@ -744,7 +753,8 @@ fun BackendOutfitCalendarSection(
                     Text(aiStylistDateLabel(previewDay.date), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     OutfitCalendarPreviewCard(
                         previewDay = previewDay,
-                        onNavigateToOutfit = onNavigateToOutfit
+                        onNavigateToOutfit = onNavigateToOutfit,
+                        onNavigateToCalendarDay = onNavigateToCalendarDay
                     )
                 }
             }
@@ -752,18 +762,21 @@ fun BackendOutfitCalendarSection(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun OutfitCalendarPreviewCard(
     previewDay: AIStylistCalendarDay,
-    onNavigateToOutfit: ((String) -> Unit)? = null
+    onNavigateToOutfit: ((String) -> Unit)? = null,
+    onNavigateToCalendarDay: ((Long) -> Unit)? = null
 ) {
+    val canNavigateToCalendar = onNavigateToCalendarDay != null
     val hasOutfit = previewDay.outfit != null
     Card(
-        onClick = if (hasOutfit && onNavigateToOutfit != null) {
-            { onNavigateToOutfit(previewDay.outfit!!.outfit.id) }
-        } else null,
-        modifier = Modifier.size(100.dp, 130.dp),
+        modifier = Modifier
+            .size(100.dp, 130.dp)
+            .clickable {
+                // Click -> mở Calendar ở ngày đó
+                onNavigateToCalendarDay?.invoke(previewDay.date)
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {

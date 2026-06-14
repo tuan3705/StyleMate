@@ -86,8 +86,12 @@ class StyleMateApp : Application(), ImageLoaderFactory {
      * ⚡ PERFORMANCE: Cấu hình Coil ImageLoader toàn cục với memory cache
      * và disk cache để tránh tải lại ảnh từ network mỗi lần scroll/recompose.
      *
-     * - Memory cache: 128MB (chia sẻ giữa tất cả ảnh trong app)
-     * - Disk cache: 250MB (giữ ảnh sau khi app restart)
+     * ⚡ CẢI TIẾN 06/2026:
+     *   - crossfade(true) global: hiệu ứng mượt mà khi ảnh load
+     *   - bitmapPool: Pool bitmap tái sử dụng để giảm GC
+     *   - Memory cache: 25% heap (tối đa 256MB)
+     *   - Disk cache: 2% storage (tối đa 250MB)
+     *   - respectCacheHeaders(false): ưu tiên cache local hơn header HTTP
      */
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
@@ -102,7 +106,7 @@ class StyleMateApp : Application(), ImageLoaderFactory {
                     .maxSizePercent(0.02) // 2% of total storage
                     .build()
             }
-            .crossfade(false)
+            .crossfade(true)
             .respectCacheHeaders(false)
             .build()
     }

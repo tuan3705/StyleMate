@@ -38,7 +38,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.size.Precision
 import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.viewmodel.OutfitViewModel
 import kotlin.math.roundToInt
@@ -128,18 +130,30 @@ private fun OutfitItemFallback(
 // 🖼️ rememberItemImageModel — Tạo Coil ImageRequest cho item
 // ═════════════════════════════════════════════════════════════════
 
+/**
+ * Tạo Coil ImageRequest với size constraint để tránh load ảnh full resolution.
+ * 
+ * ⚡ CẢI TIẾN PERFORMANCE IMAGE (06/2026):
+ *   - .size(360) → resize xuống 360px (phù hợp canvas preview nhỏ)
+ *   - .precision(Precision.EXACT) → decode đúng kích thước
+ *   - .crossfade(true) → hiệu ứng mượt
+ *   - Cache policy ENABLED cho cả memory và disk
+ */
 @Composable
 fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
     val context = LocalContext.current
     return remember(item.imageOriginal, item.imageNoBg) {
         val path = item.imageNoBg.ifBlank { item.imageOriginal }
         if (path.isNotBlank()) {
-            // ⚡ Dùng resolveImageData để xử lý cả relative path (/uploads/...)
             val data = com.example.stylemate.ui.common.resolveImageData(context, path)
             if (data != null) {
                 ImageRequest.Builder(context)
                     .data(data)
-                    .crossfade(false)
+                    .size(360)                          // ⚡ resize xuống 360px
+                    .precision(Precision.EXACT)         // ⚡ decode đúng size
+                    .crossfade(true)                     // ✨ hiệu ứng mượt
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
                     .build()
             } else null
         } else null

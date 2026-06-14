@@ -10,6 +10,7 @@ import com.example.stylemate.model.OutfitEntity
 import com.example.stylemate.model.OutfitWithClothingItems
 import kotlin.math.min
 import com.example.stylemate.repository.OutfitRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.flatMapLatest
@@ -78,6 +80,14 @@ class OutfitViewModel(
         .distinctUntilChanged()
         .onStart { emit("") }
 
+    /**
+     * Danh sách tất cả Outfit (kèm ClothingItem) dưới dạng [StateFlow].
+     * 
+     * ⚡ CẢI TIẾN DATA PIPELINE (06/2026):
+     *   - flowOn(Dispatchers.Default) đảm bảo combine + flatMapLatest không block Main Thread
+     *   - Repository.getAllOutfitsWithItems() đã có .flowOn(Dispatchers.IO)
+     *   - stateIn với WhileSubscribed(5_000) — tự động stop khi không có UI observer
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val outfits: StateFlow<List<OutfitWithClothingItems>> = combine(
         _refreshTrigger,
@@ -88,6 +98,7 @@ class OutfitViewModel(
         .flatMapLatest { query ->
             repository.getAllOutfitsWithItems(query)
         }
+        .flowOn(Dispatchers.Default)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),

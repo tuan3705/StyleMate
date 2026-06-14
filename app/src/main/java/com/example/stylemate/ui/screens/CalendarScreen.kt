@@ -90,7 +90,10 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
+fun CalendarScreen(
+    backStackEntry: androidx.navigation.NavBackStackEntry? = null,
+    accountMenu: @Composable () -> Unit = {}
+) {
     val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
     val calendarRepo = CalendarRepository(apiService)
     val outfitRepo = OutfitRepository(apiService)
@@ -110,6 +113,16 @@ fun CalendarScreen(accountMenu: @Composable () -> Unit = {}) {
     val scope = rememberCoroutineScope()
 
     val currentCal = remember(selectedDateMillis) { epochToCalendar(selectedDateMillis) }
+
+    // Lắng nghe signal calendar_selected_date từ AI Stylist -> chọn ngày tương ứng
+    val dateSignal = backStackEntry?.savedStateHandle?.getStateFlow<Long?>("calendar_selected_date", null)
+    val pendingCalendarDate by dateSignal?.collectAsState() ?: remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(pendingCalendarDate) {
+        pendingCalendarDate?.let { date ->
+            viewModel.selectDate(date)
+            backStackEntry?.savedStateHandle?.set("calendar_selected_date", null)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.refreshCalendarData()
@@ -701,6 +714,7 @@ private fun OutfitSelectionItem(
 
     val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     val borderWidth = if (isSelected) 2.dp else 0.dp
+    val placements = remember(items) { itemsToPlacements(items) }
 
     Card(
         modifier = Modifier
@@ -710,46 +724,60 @@ private fun OutfitSelectionItem(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 2.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            // Avatar
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(44.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    CategoryIconImage(category = items.firstOrNull()?.category ?: "Other", fontSize = 20.sp)
+                // Avatar
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CategoryIconImage(category = items.firstOrNull()?.category ?: "Other", fontSize = 20.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = outfit.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = stringResource(R.string.outfit_items_count, items.size),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Icon check nếu đang selected
+                if (isSelected) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = stringResource(R.string.selected_outfit_content_desc),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = outfit.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                        text = stringResource(R.string.outfit_items_count, items.size),
-                        style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Icon check nếu đang selected
-            if (isSelected) {
-                Icon(
-                    Icons.Filled.CheckCircle,
-                    contentDescription = stringResource(R.string.selected_outfit_content_desc),
-                    tint = MaterialTheme.colorScheme.primary
+            // 🎨 Canvas preview của outfit ngay trong item chọn
+            if (items.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                // Sử dụng OutfitCanvasPreview từ components (import ở đầu file)
+                OutfitCanvasPreview(
+                    items = placements,
+                    modifier = Modifier.fillMaxWidth().height(200.dp)
                 )
             }
         }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -148,6 +149,9 @@ fun ClosetScreen(
 
     // ── Local states ────────────────────────────────────────────
     var selectedTab by remember { mutableIntStateOf(0) }  // 0 = Items, 1 = Outfits
+    // ⚡ SWIPE: Tracking cho vuốt ngang để chuyển tab
+    var swipeAccumulator by remember { mutableFloatStateOf(0f) }
+    val swipeThresholdPx = with(LocalDensity.current) { 50.dp.toPx() }
     var showBottomSheet by remember { mutableStateOf(false) }    // Quick Add item
     var showCreateOutfitSheet by remember { mutableStateOf(false) } // Tạo outfit
     var showOutfitEditor by remember { mutableStateOf(false) }
@@ -212,15 +216,40 @@ fun ClosetScreen(
     // 🔗 Pending action tu AI Stylist: mo sheet tuong ung sau khi chuyen sang Closet
     val pendingAction by pendingActionSignal.collectAsStateWithLifecycle()
     LaunchedEffect(pendingAction) {
-        when (pendingAction) {
-            "add_item" -> {
+        when {
+            pendingAction == "add_item" -> {
                 selectedTab = 0
                 showBottomSheet = true
                 onPendingActionConsumed()
             }
-            "create_outfit" -> {
+            pendingAction == "create_outfit" -> {
                 selectedTab = 1
                 showCreateOutfitSheet = true
+                onPendingActionConsumed()
+            }
+            pendingAction?.startsWith("edit_outfit:") == true -> {
+                val param = pendingAction!!.removePrefix("edit_outfit:")
+                selectedTab = 1
+                // Nếu param là outfitId (UUID, không chứa dấu phẩy) -> tìm outfit trong danh sách
+                // Nếu param chứa dấu phẩy -> là danh sách clothingItemIds từ AI Stylist
+                if (param.contains(",")) {
+                    val itemIds = param.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                    val matchedItems = allClosetItems.filter { it.id in itemIds }
+                    if (matchedItems.isNotEmpty()) {
+                        outfitVM.startEditingOutfit(
+                            outfitId = "ai_suggested",
+                            outfitName = "AI Suggested Outfit",
+                            items = matchedItems
+                        )
+                        showOutfitEditor = true
+                    }
+                } else {
+                    val targetOutfit = outfits.find { it.outfit.id == param }
+                    if (targetOutfit != null) {
+                        outfitVM.startEditingOutfit(targetOutfit.outfit.id, targetOutfit.outfit.name, targetOutfit.clothingItems)
+                        showOutfitEditor = true
+                    }
+                }
                 onPendingActionConsumed()
             }
         }
@@ -245,10 +274,28 @@ fun ClosetScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
+        // ⚡ SWIPE: Dùng pointerInput + detectHorizontalDragGestures để vuốt ngang chuyển tab
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .pointerInput(selectedTab) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (kotlin.math.abs(swipeAccumulator) > swipeThresholdPx) {
+                                if (swipeAccumulator < 0 && selectedTab == 0) {
+                                    selectedTab = 1
+                                } else if (swipeAccumulator > 0 && selectedTab == 1) {
+                                    selectedTab = 0
+                                }
+                            }
+                            swipeAccumulator = 0f
+                        },
+                        onHorizontalDrag = { _, dragAmount ->
+                            swipeAccumulator += dragAmount
+                        }
+                    )
+                }
         ) {
             // ── Header ──────────────────────────────────────────
             Row(
@@ -1768,7 +1815,11 @@ private fun rememberItemImageModel(item: ClothingItemEntity): ImageRequest? {
         data?.let {
             ImageRequest.Builder(context)
                 .data(it)
-                .crossfade(false)
+                .size(360)
+                .precision(coil.size.Precision.EXACT)
+                .crossfade(true)
+                .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                 .build()
         }
     }

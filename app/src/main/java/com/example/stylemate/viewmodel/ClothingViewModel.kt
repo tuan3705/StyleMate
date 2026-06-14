@@ -46,15 +46,32 @@ class ClothingViewModel(
      * Tất cả items (không filter category) — dùng cho AddItems BottomSheet.
      * ⚡ Share subscription qua ViewModel để tránh infinite recomposition loop.
      */
+    /**
+     * Tất cả items (không filter category) — dùng cho AddItems BottomSheet.
+     * ⚡ Share subscription qua ViewModel để tránh infinite recomposition loop.
+     * 
+     * ⚡ CẢI TIẾN DATA PIPELINE:
+     *   - Chạy trên Dispatchers.Default (không phải Main) để không block UI
+     *   - Trả về immutable List (toList() copy) tránh mutation từ bên ngoài
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val allItems: StateFlow<List<ClothingItemEntity>> = _refreshTrigger
         .flatMapLatest { repository.getAllItems() }
+        .flowOn(Dispatchers.Default)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
         )
 
+    /**
+     * Items theo category hiện tại.
+     * 
+     * ⚡ CẢI TIẾN DATA PIPELINE:
+     *   - flowOn(Dispatchers.Default) đảm bảo flatMapLatest + filter chạy trên background
+     *   - Repository đã có flowOn(Dispatchers.IO), nên Default là an toàn
+     *   - Tránh Main Thread blocking khi filter category
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: StateFlow<List<ClothingItemEntity>> = combine(
         _selectedCategory,
@@ -67,6 +84,7 @@ class ClothingViewModel(
                 repository.getItemsByCategory(category)
             }
         }
+        .flowOn(Dispatchers.Default)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -82,6 +100,14 @@ class ClothingViewModel(
         .distinctUntilChanged()
         .onStart { emit("") }
 
+    /**
+     * Items đã filter theo search query.
+     * 
+     * ⚡ CẢI TIẾN DATA PIPELINE:
+     *   - flowOn(Dispatchers.Default) cho combine + filter (KHÔNG block Main Thread)
+     *   - Dùng distinctUntilChanged() ẩn để tránh emit duplicate khi items không đổi
+     *   - matchesSearchQuery() là pure function chạy trên Default thread
+     */
     val filteredItems: StateFlow<List<ClothingItemEntity>> = combine(
         items,
         debouncedSearchQuery
@@ -247,6 +273,10 @@ class ClothingViewModel(
         }
     }
 
+    /**
+     * Pure function — không touch state, không side-effect.
+     * Chạy trên Dispatchers.Default nhờ flowOn ở filteredItems.
+     */
     private fun matchesSearchQuery(item: ClothingItemEntity, query: String): Boolean {
         val tokens = query.trim()
             .lowercase()

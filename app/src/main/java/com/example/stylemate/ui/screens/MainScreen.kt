@@ -228,6 +228,26 @@ fun MainScreen(onLogout: () -> Unit) {
                             restoreState = true
                         }
                     },
+                    onNavigateToEditOutfit = { outfitId ->
+                        // Navigate to Closet and signal to open outfit canvas editor
+                        navController.navigate(BottomNavItem.Closet.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                        navController.getBackStackEntry(BottomNavItem.Closet.route)
+                            .savedStateHandle["closet_pending_action"] = "edit_outfit:$outfitId"
+                    },
+                    onNavigateToCalendarDay = { epochMillis ->
+                        // Navigate to Calendar tab with selected date
+                        navController.navigate(BottomNavItem.Calendar.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                        navController.getBackStackEntry(BottomNavItem.Calendar.route)
+                            .savedStateHandle["calendar_selected_date"] = epochMillis
+                    },
                     accountMenu = { AccountMenu(onLogout = onLogout) }
                 )
             }
@@ -298,8 +318,11 @@ fun MainScreen(onLogout: () -> Unit) {
                 WeatherScreen(accountMenu = { AccountMenu(onLogout = onLogout, iconTint = Color.White) })
             }
 
-            composable(BottomNavItem.Calendar.route) {
-                CalendarScreen(accountMenu = { AccountMenu(onLogout = onLogout) })
+            composable(BottomNavItem.Calendar.route) { backStackEntry ->
+                CalendarScreen(
+                    backStackEntry = backStackEntry,
+                    accountMenu = { AccountMenu(onLogout = onLogout) }
+                )
             }
 
             composable(
