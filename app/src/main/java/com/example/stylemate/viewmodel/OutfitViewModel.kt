@@ -172,7 +172,9 @@ class OutfitViewModel(
         val item: ClothingItemEntity,
         val posX: Float,
         val posY: Float,
-        val scale: Float
+        val scale: Float,
+        val rotation: Float = 0f,
+        val flipX: Boolean = false
     )
 
     private val _editingItems = MutableStateFlow<List<OutfitItemPlacement>>(emptyList())
@@ -314,11 +316,11 @@ class OutfitViewModel(
         if (items.isEmpty()) return emptyList()
         val hasCustomPos = items.any { it.canvasPosX != 0f || it.canvasPosY != 0f }
         if (hasCustomPos) {
-            return items.map { OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, it.canvasScale) }
+            return items.map { OutfitItemPlacement(it, it.canvasPosX, it.canvasPosY, it.canvasScale, it.canvasRotation, it.canvasFlipX) }
         }
         return items.mapIndexed { index, item ->
             val (x, y) = defaultGridPosition(index)
-            OutfitItemPlacement(item, x, y, item.canvasScale)
+            OutfitItemPlacement(item, x, y, item.canvasScale, item.canvasRotation, item.canvasFlipX)
         }
     }
 
@@ -342,6 +344,23 @@ class OutfitViewModel(
         _editingItems.value = _editingItems.value.map { placement ->
             if (placement.item.id == itemId) {
                 placement.copy(scale = scale)
+            } else placement
+        }
+    }
+
+    fun updateEditingItemRotation(itemId: String, rotation: Float) {
+        _editingItems.value = _editingItems.value.map { placement ->
+            if (placement.item.id == itemId) {
+                placement.copy(rotation = rotation)
+            } else placement
+        }
+    }
+
+    /** Toggle lật ngang ảnh của item. */
+    fun toggleEditingItemFlip(itemId: String) {
+        _editingItems.value = _editingItems.value.map { placement ->
+            if (placement.item.id == itemId) {
+                placement.copy(flipX = !placement.flipX)
             } else placement
         }
     }
@@ -380,7 +399,9 @@ class OutfitViewModel(
                         clothingItemId = placement.item.id,
                         posX = placement.posX,
                         posY = placement.posY,
-                        scale = placement.scale
+                        scale = placement.scale,
+                        rotation = placement.rotation,
+                        flipX = placement.flipX
                     )
                 }
                 repository.insertOutfitClothingCrossRefs(crossRefs)

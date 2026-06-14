@@ -52,7 +52,9 @@ data class OutfitClothingItemRefDto(
     val clothingItemId: String,
     val posX: Float,
     val posY: Float,
-    val scale: Float = 1f
+    val scale: Float = 1f,
+    val rotation: Float = 0f,
+    val flipX: Boolean = false
 )
 
 /**

@@ -33,5 +33,7 @@ data class ClothingItemEntity(
     val canvasPosX: Float = 0.5f,
     val canvasPosY: Float = 0.5f,
     val canvasScale: Float = 1f,
+    val canvasRotation: Float = 0f,
+    val canvasFlipX: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )

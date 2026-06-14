@@ -30,6 +30,14 @@ const outfitClothingItemSchema = new mongoose.Schema({
   scale: {
     type: Number,
     default: 1.0
+  },
+  rotation: {
+    type: Number,
+    default: 0
+  },
+  flipX: {
+    type: Boolean,
+    default: false
   }
 }, {
   _id: false // Không cần _id riêng cho sub-document

@@ -95,23 +95,19 @@ fun AIStylistScreen(
     val userEmail by app.authStorage.userEmailFlow.collectAsState(initial = null)
     val context = LocalContext.current
 
-    // ── State: has GPS location been attempted? ──────────────
     var hasAttemptedLocation by remember { mutableStateOf(false) }
 
-    // ── Utility function to refresh with GPS coordinates ─────
     val refreshWithLocation = {
         getLastKnownLocation(context) { lat, lon ->
             viewModel.refreshWeatherAndRecommendation(lat, lon)
         }
     }
 
-    // ── Request location permission ──────────────────────────
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-
         if (fineGranted || coarseGranted) {
             refreshWithLocation()
         } else {
@@ -121,26 +117,15 @@ fun AIStylistScreen(
         hasAttemptedLocation = true
     }
 
-    // ── First load ──────────────────────────────────────────
     LaunchedEffect(Unit) {
         if (!hasAttemptedLocation) {
-            val hasFinePermission = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-            val hasCoarsePermission = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-
+            val hasFinePermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val hasCoarsePermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
             if (hasFinePermission || hasCoarsePermission) {
                 refreshWithLocation()
                 hasAttemptedLocation = true
             } else {
-                locationPermissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                )
+                locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             }
         }
     }
@@ -149,49 +134,31 @@ fun AIStylistScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AIStylistHeader(
-                userName = userName,
-                userEmail = userEmail,
-                onNavigateToCalendar = onNavigateToCalendar,
-                accountMenu = accountMenu
+                userName = userName, userEmail = userEmail,
+                onNavigateToCalendar = onNavigateToCalendar, accountMenu = accountMenu
             )
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-    // ═══ SECTION 1: Weather + Recommendation ═══
             item(key = "weather_recommendation") {
                 WeatherRecommendationSection(
-                    uiState = uiState,
-                    onRefresh = { refreshWithLocation() },
-                    onNavigateToChat = onNavigateToChat,
-                    onNavigateToPersonalStylist = onNavigateToPersonalStylist,
+                    uiState = uiState, onRefresh = { refreshWithLocation() },
+                    onNavigateToChat = onNavigateToChat, onNavigateToPersonalStylist = onNavigateToPersonalStylist,
                     onNavigateToEditOutfit = onNavigateToEditOutfit
                 )
             }
-
-            // ═══ SECTION 2: Popular Features ═══
             item(key = "popular_features") {
                 PopularFeaturesSection(
-                    onAddItem = onNavigateToAddItem,
-                    onCreateOutfit = onNavigateToCreateOutfit,
+                    onAddItem = onNavigateToAddItem, onCreateOutfit = onNavigateToCreateOutfit,
                     onCalendar = onNavigateToCalendar
                 )
             }
-
-            // ═══ SECTION 3: AI Stylist Tools ═══
             item(key = "ai_tools") {
-                AIToolsSection(
-                    onNavigateToChat = onNavigateToChat,
-                    onNavigateToVirtualTryOn = onNavigateToVirtualTryOn
-                )
+                AIToolsSection(onNavigateToChat = onNavigateToChat, onNavigateToVirtualTryOn = onNavigateToVirtualTryOn)
             }
-
-            // ═══ SECTION 5: Outfit Calendar ═══
             item(key = "outfit_calendar") {
                 BackendOutfitCalendarSection(
                     onNavigateToCalendar = onNavigateToCalendar,
@@ -199,147 +166,59 @@ fun AIStylistScreen(
                     onNavigateToCalendarDay = onNavigateToCalendarDay
                 )
             }
-
-            // Bottom spacer
-            item(key = "bottom_spacer") {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            item(key = "bottom_spacer") { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
 
+// --- Header, WeatherRecommendationSection, StylistActionCard, etc. (unchanged) ---
 @Composable
-fun AIStylistHeader(
-    userName: String?,
-    userEmail: String?,
-    onNavigateToCalendar: () -> Unit = {},
-    accountMenu: @Composable () -> Unit = {}
-) {
-    val displayName = userName?.takeIf { it.isNotBlank() }
-        ?: userEmail?.substringBefore('@')?.takeIf { it.isNotBlank() }
-        ?: stringResource(R.string.default_user_name)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = stringResource(R.string.ai_stylist_greeting, displayName),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
+fun AIStylistHeader(userName: String?, userEmail: String?, onNavigateToCalendar: () -> Unit = {}, accountMenu: @Composable () -> Unit = {}) {
+    val displayName = userName?.takeIf { it.isNotBlank() } ?: userEmail?.substringBefore('@')?.takeIf { it.isNotBlank() } ?: stringResource(R.string.default_user_name)
+    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(text = stringResource(R.string.ai_stylist_greeting, displayName), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onNavigateToCalendar) {
-                Icon(Icons.Outlined.CalendarMonth, contentDescription = stringResource(R.string.ai_stylist_calendar_desc))
-            }
-            IconButton(onClick = { /* TODO */ }) {
-                Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.ai_stylist_notification_desc))
-            }
+            IconButton(onClick = onNavigateToCalendar) { Icon(Icons.Outlined.CalendarMonth, contentDescription = stringResource(R.string.ai_stylist_calendar_desc)) }
+            IconButton(onClick = { }) { Icon(Icons.Outlined.Notifications, contentDescription = stringResource(R.string.ai_stylist_notification_desc)) }
             accountMenu()
         }
     }
 }
 
 @Composable
-fun WeatherRecommendationSection(
-    uiState: com.example.stylemate.viewmodel.AIStylistUiState,
-    onRefresh: () -> Unit,
-    onNavigateToChat: () -> Unit,
-    onNavigateToPersonalStylist: () -> Unit,
-    onNavigateToEditOutfit: ((String) -> Unit)? = null
-) {
+fun WeatherRecommendationSection(uiState: com.example.stylemate.viewmodel.AIStylistUiState, onRefresh: () -> Unit, onNavigateToChat: () -> Unit, onNavigateToPersonalStylist: () -> Unit, onNavigateToEditOutfit: ((String) -> Unit)? = null) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Text(
-                text = uiState.headline,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(
-                onClick = onRefresh,
-                modifier = Modifier.padding(start = 8.dp)
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                } else {
-                    Icon(
-                        Icons.Outlined.Refresh,
-                        contentDescription = stringResource(R.string.ai_stylist_refresh_desc),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+            Text(text = uiState.headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            IconButton(onClick = onRefresh, modifier = Modifier.padding(start = 8.dp)) {
+                if (uiState.isLoading) { CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary) }
+                else { Icon(Icons.Outlined.Refresh, contentDescription = stringResource(R.string.ai_stylist_refresh_desc), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             WeatherInfoItem(Icons.Default.CalendarToday, uiState.dateText)
             WeatherInfoItem(Icons.Default.LocationOn, uiState.locationText)
             WeatherInfoItem(Icons.Default.Cloud, uiState.tempText)
         }
-
-        // ═══ AI Recommendation Message (from AI response) ═══
         if (uiState.recommendationText.isNotBlank()) {
-            Text(
-                text = uiState.recommendationText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Text(text = uiState.recommendationText, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth())
         }
-
         Spacer(modifier = Modifier.height(4.dp))
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 8.dp)
-        ) {
-            // Ask Personal Stylist Card (left side)
-            item(key = "ask_stylist") {
-                StylistActionCard(onNavigate = onNavigateToChat)
-            }
-
-            // Outfits from AI (right side) - Chỉ hiển thị hình ảnh, không click
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
+            item(key = "ask_stylist") { StylistActionCard(onNavigate = onNavigateToChat) }
             if (uiState.suggestedOutfits.isNotEmpty()) {
                 items(uiState.suggestedOutfits, key = { it.hashCode() }) { outfit ->
-                    Card(
-                        modifier = Modifier
-                            .width(160.dp)
-                            .height(200.dp),
-                        shape = RoundedCornerShape(16.dp),
+                    Card(modifier = Modifier.width(160.dp).height(200.dp), shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                        )
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     ) {
-                        // Images in HORIZONTAL row (left to right)
-                        val sortedImageUrls = outfit.image_urls?.entries
-                            ?.sortedBy { it.key }
-                            ?.map { it.value } ?: emptyList()
+                        val sortedImageUrls = outfit.image_urls?.entries?.sortedBy { it.key }?.map { it.value } ?: emptyList()
                         if (sortedImageUrls.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier.fillMaxSize().padding(4.dp),
-                                horizontalArrangement = Arrangement.Start
-                            ) {
+                            Row(modifier = Modifier.fillMaxSize().padding(4.dp), horizontalArrangement = Arrangement.Start) {
                                 sortedImageUrls.forEach { url ->
                                     val fullUrl = if (url.startsWith("http")) url else "${STYLEMATE_BASE_URL.removeSuffix("/")}${url}"
-                                    AsyncImage(
-                                        model = fullUrl,
-                                        contentDescription = null,
-                                        modifier = Modifier.weight(1f).fillMaxHeight().padding(2.dp),
-                                        contentScale = ContentScale.Fit
-                                    )
+                                    AsyncImage(model = fullUrl, contentDescription = null, modifier = Modifier.weight(1f).fillMaxHeight().padding(2.dp), contentScale = ContentScale.Fit)
                                 }
                             }
                         } else {
@@ -357,65 +236,23 @@ fun WeatherRecommendationSection(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StylistActionCard(onNavigate: () -> Unit) {
-    Card(
-        onClick = onNavigate,
-        modifier = Modifier
-            .width(180.dp)
-            .height(200.dp),
-        shape = RoundedCornerShape(16.dp),
+    Card(onClick = onNavigate, modifier = Modifier.width(180.dp).height(200.dp), shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                Icons.Default.Face,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.onSurface
-            )
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(Icons.Default.Face, contentDescription = null, modifier = Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.ai_stylist_ask_stylist),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
+            Text(text = stringResource(R.string.ai_stylist_ask_stylist), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = onNavigate,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(stringResource(R.string.ai_stylist_try_now), fontSize = 12.sp)
-            }
+            Button(onClick = onNavigate, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.ai_stylist_try_now), fontSize = 12.sp) }
         }
     }
 }
 
 @Composable
 fun SeeMoreCard(onNavigate: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .width(100.dp)
-            .height(200.dp)
-            .clickable { onNavigate() },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
+    Column(modifier = Modifier.width(100.dp).height(200.dp).clickable { onNavigate() }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape), contentAlignment = Alignment.Center) {
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.ai_stylist_see_more_desc), modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -431,159 +268,61 @@ fun WeatherInfoItem(icon: ImageVector, text: String) {
     }
 }
 
-// 📡 Helper: Get last known GPS location
 @SuppressLint("MissingPermission")
-private fun getLastKnownLocation(
-    context: Context,
-    onResult: (lat: Double, lon: Double) -> Unit
-) {
+private fun getLastKnownLocation(context: Context, onResult: (lat: Double, lon: Double) -> Unit) {
     try {
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         var bestLocation: Location? = null
-        val providers = locationManager.getProviders(true)
-
-        for (provider in providers) {
-            try {
-                val location = locationManager.getLastKnownLocation(provider)
-                if (location != null && (bestLocation == null || location.accuracy < bestLocation.accuracy)) {
-                    bestLocation = location
-                }
-            } catch (_: Exception) {}
+        for (provider in locationManager.getProviders(true)) {
+            try { val location = locationManager.getLastKnownLocation(provider); if (location != null && (bestLocation == null || location.accuracy < bestLocation.accuracy)) bestLocation = location } catch (_: Exception) {}
         }
-
-        if (bestLocation != null) {
-            onResult(bestLocation.latitude, bestLocation.longitude)
-        } else {
-            onResult(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
-        }
-    } catch (_: Exception) {
-        onResult(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
-    }
+        if (bestLocation != null) onResult(bestLocation.latitude, bestLocation.longitude) else onResult(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON)
+    } catch (_: Exception) { onResult(WeatherViewModel.DEFAULT_LAT, WeatherViewModel.DEFAULT_LON) }
 }
 
-// ─── POPULAR FEATURES ───
 @Composable
-fun PopularFeaturesSection(
-    onAddItem: () -> Unit = {},
-    onCreateOutfit: () -> Unit = {},
-    onCalendar: () -> Unit = {}
-) {
+fun PopularFeaturesSection(onAddItem: () -> Unit = {}, onCreateOutfit: () -> Unit = {}, onCalendar: () -> Unit = {}) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.ai_stylist_popular_features),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(text = stringResource(R.string.ai_stylist_popular_features), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
-
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureCard(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.ai_stylist_add_item),
-                icon = Icons.Default.AddCircle,
-                iconColor = Color(0xFF4A90E2),
-                onClick = onAddItem
-            )
-            FeatureCard(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.ai_stylist_create_outfit),
-                icon = Icons.Default.AccessibilityNew,
-                iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                onClick = onCreateOutfit
-            )
+            FeatureCard(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_add_item), icon = Icons.Default.AddCircle, iconColor = Color(0xFF4A90E2), onClick = onAddItem)
+            FeatureCard(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_create_outfit), icon = Icons.Default.AccessibilityNew, iconColor = MaterialTheme.colorScheme.onSurfaceVariant, onClick = onCreateOutfit)
         }
-
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FeatureCardSmall(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.ai_stylist_calendar),
-                icon = Icons.Default.CalendarMonth,
-                onClick = onCalendar
-            )
+            FeatureCardSmall(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_calendar), icon = Icons.Default.CalendarMonth, onClick = onCalendar)
         }
     }
 }
 
 @Composable
 fun FeatureCard(modifier: Modifier = Modifier, title: String, icon: ImageVector, iconColor: Color, onClick: () -> Unit = {}) {
-    Card(
-        modifier = modifier.height(100.dp).clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
+    Card(modifier = modifier.height(100.dp).clickable { onClick() }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-            Text(
-                text = title,
-                modifier = Modifier.align(Alignment.BottomStart),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp).align(Alignment.TopEnd),
-                tint = iconColor
-            )
+            Text(text = title, modifier = Modifier.align(Alignment.BottomStart), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(40.dp).align(Alignment.TopEnd), tint = iconColor)
         }
     }
 }
 
 @Composable
 fun FeatureCardSmall(modifier: Modifier = Modifier, title: String, icon: ImageVector, onClick: () -> Unit = {}) {
-    Card(
-        modifier = modifier.height(100.dp).clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
+    Card(modifier = modifier.height(100.dp).clickable { onClick() }, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-            Text(
-                text = title,
-                modifier = Modifier.align(Alignment.BottomStart),
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Medium,
-                lineHeight = 14.sp
-            )
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp).align(Alignment.TopEnd),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-            )
+            Text(text = title, modifier = Modifier.align(Alignment.BottomStart), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, lineHeight = 14.sp)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp).align(Alignment.TopEnd), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
         }
     }
 }
 
-// ─── AI TOOLS ───
 @Composable
-fun AIToolsSection(
-    onNavigateToChat: () -> Unit,
-    onNavigateToVirtualTryOn: () -> Unit = {}
-) {
+fun AIToolsSection(onNavigateToChat: () -> Unit, onNavigateToVirtualTryOn: () -> Unit = {}) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = stringResource(R.string.ai_stylist_ai_designer),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-
+        Text(text = stringResource(R.string.ai_stylist_ai_designer), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            AIToolsLargeCard(
-                modifier = Modifier.weight(1.2f),
-                title = stringResource(R.string.ai_stylist_style_chat),
-                icon = Icons.Default.ChatBubble,
-                onClick = onNavigateToChat
-            )
-            AIToolsLargeCard(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.ai_stylist_virtual_tryon),
-                icon = Icons.Default.ViewInAr,
-                onClick = onNavigateToVirtualTryOn
-            )
+            AIToolsLargeCard(modifier = Modifier.weight(1.2f), title = stringResource(R.string.ai_stylist_style_chat), icon = Icons.Default.ChatBubble, onClick = onNavigateToChat)
+            AIToolsLargeCard(modifier = Modifier.weight(1f), title = stringResource(R.string.ai_stylist_virtual_tryon), icon = Icons.Default.ViewInAr, onClick = onNavigateToVirtualTryOn)
         }
     }
 }
@@ -591,83 +330,16 @@ fun AIToolsSection(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIToolsLargeCard(modifier: Modifier, title: String, icon: ImageVector, onClick: () -> Unit = {}) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.height(120.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
+    Card(onClick = onClick, modifier = modifier.height(120.dp), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-            Text(
-                title,
-                modifier = Modifier.align(Alignment.BottomStart),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp).align(Alignment.TopEnd),
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-            )
+            Text(title, modifier = Modifier.align(Alignment.BottomStart), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(48.dp).align(Alignment.TopEnd), tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
         }
     }
 }
 
-@Composable
-fun RecentlyAddedSection() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.ai_stylist_recently_added),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            item(key = "add_new_item") {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            items(5, key = { "recent_placeholder_$it" }) {
-                Card(
-                    modifier = Modifier.size(80.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Checkroom, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        }
-    }
-}
-
-private data class AIStylistCalendarDay(
-    val date: Long,
-    val event: CalendarEventEntity?,
-    val outfit: OutfitWithClothingItems?
-)
-
-/**
- * ⚡ Bộ nhớ đệm cho Calendar section trong AI Stylist
- * Lưu trong RAM, key = "todayEpoch", TTL = 2 phút
- */
+// ─── Calendar Section ───
+private data class AIStylistCalendarDay(val date: Long, val event: CalendarEventEntity?, val outfit: OutfitWithClothingItems?)
 private val calendarPreviewCache = mutableMapOf<Long, Pair<Long, List<AIStylistCalendarDay>>>()
 private const val CALENDAR_CACHE_TTL_MS = 2 * 60 * 1000L
 
@@ -684,49 +356,24 @@ fun BackendOutfitCalendarSection(
     val dates = remember(todayEpoch) { (0 until 4).map { addAiStylistDays(todayEpoch, it) } }
     val previewDays by produceState(
         initialValue = dates.map { AIStylistCalendarDay(it, null, null) },
-        key1 = calendarRepository,
-        key2 = outfitRepository,
-        key3 = todayEpoch
+        key1 = calendarRepository, key2 = outfitRepository, key3 = todayEpoch
     ) {
-        // ⚡ Kiểm tra cache trước
         val now = System.currentTimeMillis()
         val cached = calendarPreviewCache[todayEpoch]
-        if (cached != null && now - cached.first < CALENDAR_CACHE_TTL_MS) {
-            value = cached.second
-            return@produceState
-        }
-
+        if (cached != null && now - cached.first < CALENDAR_CACHE_TTL_MS) { value = cached.second; return@produceState }
         combine(
             calendarRepository.getEventsBetween(dates.first(), dates.last()),
             outfitRepository.getAllOutfitsWithItems()
         ) { events, outfits ->
             val eventByDate = events.associateBy { it.date }
             val outfitById = outfits.associateBy { it.outfit.id }
-            val result = dates.map { date ->
-                val event = eventByDate[date]
-                AIStylistCalendarDay(
-                    date = date,
-                    event = event,
-                    outfit = event?.let { outfitById[it.outfitId] }
-                )
-            }
-            // ⚡ Lưu cache
-            calendarPreviewCache[todayEpoch] = now to result
-            result
-        }.collect { value = it }
+            dates.map { date -> AIStylistCalendarDay(date, eventByDate[date], eventByDate[date]?.let { outfitById[it.outfitId] }) }
+        }.collect { result -> calendarPreviewCache[todayEpoch] = System.currentTimeMillis() to result; value = result }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.ai_stylist_outfit_calendar),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(text = stringResource(R.string.ai_stylist_outfit_calendar), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             TextButton(onClick = onNavigateToCalendar) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.ai_stylist_view_calendar), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -734,28 +381,16 @@ fun BackendOutfitCalendarSection(
                 }
             }
         }
-
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(previewDays.size, key = { "cal_day_${previewDays[it].date}" }) { index ->
                 val previewDay = previewDays[index]
                 val isToday = isSameAiStylistDay(previewDay.date, todayEpoch)
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (isToday) {
-                        Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
-                    } else {
-                        Spacer(modifier = Modifier.size(4.dp))
-                    }
-                    Text(
-                        text = aiStylistDayLabel(previewDay.date, todayEpoch),
-                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 14.sp
-                    )
+                    if (isToday) Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                    else Spacer(modifier = Modifier.size(4.dp))
+                    Text(text = aiStylistDayLabel(previewDay.date, todayEpoch), fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal, fontSize = 14.sp)
                     Text(aiStylistDateLabel(previewDay.date), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                    OutfitCalendarPreviewCard(
-                        previewDay = previewDay,
-                        onNavigateToOutfit = onNavigateToOutfit,
-                        onNavigateToCalendarDay = onNavigateToCalendarDay
-                    )
+                    OutfitCalendarPreviewCard(previewDay = previewDay, onNavigateToOutfit = onNavigateToOutfit, onNavigateToCalendarDay = onNavigateToCalendarDay)
                 }
             }
         }
@@ -768,15 +403,8 @@ private fun OutfitCalendarPreviewCard(
     onNavigateToOutfit: ((String) -> Unit)? = null,
     onNavigateToCalendarDay: ((Long) -> Unit)? = null
 ) {
-    val canNavigateToCalendar = onNavigateToCalendarDay != null
-    val hasOutfit = previewDay.outfit != null
     Card(
-        modifier = Modifier
-            .size(100.dp, 130.dp)
-            .clickable {
-                // Click -> mở Calendar ở ngày đó
-                onNavigateToCalendarDay?.invoke(previewDay.date)
-            },
+        modifier = Modifier.size(100.dp, 130.dp).clickable { onNavigateToCalendarDay?.invoke(previewDay.date) },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
@@ -802,25 +430,11 @@ private fun OutfitCalendarPreviewCard(
                             val maxY = (constraints.maxHeight - itemSizePx).coerceAtLeast(1f)
                             val offsetX = (placement.posX * maxX).roundToInt()
                             val offsetY = (placement.posY * maxY).roundToInt()
-                            Box(
-                                modifier = Modifier
-                                    .offset { IntOffset(offsetX, offsetY) }
-                                    .size(itemSize)
-                            ) {
-                                OutfitCalendarItemImage(item)
-                            }
+                            Box(modifier = Modifier.offset { IntOffset(offsetX, offsetY) }.size(itemSize)) { OutfitCalendarItemImage(item) }
                         }
                     }
                 }
-                Text(
-                    text = outfit.outfit.name,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
+                Text(text = outfit.outfit.name, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
             }
         }
     }
@@ -829,25 +443,13 @@ private fun OutfitCalendarPreviewCard(
 @Composable
 private fun OutfitCalendarItemImage(item: ClothingItemEntity) {
     val imageModel = rememberItemImageModel(item)
-    if (imageModel != null) {
-        SubcomposeAsyncImage(
-            model = imageModel,
-            contentDescription = item.name.ifBlank { item.category },
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit,
-            error = { OutfitCalendarItemFallback(item) }
-        )
-    } else {
-        OutfitCalendarItemFallback(item)
-    }
+    if (imageModel != null) { SubcomposeAsyncImage(model = imageModel, contentDescription = item.name.ifBlank { item.category }, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit, error = { OutfitCalendarItemFallback(item) }) }
+    else { OutfitCalendarItemFallback(item) }
 }
 
 @Composable
 private fun OutfitCalendarItemFallback(item: ClothingItemEntity) {
-    Box(
-        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surface),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
         CategoryIconImage(category = item.category, fontSize = 18.sp)
     }
 }
@@ -855,43 +457,31 @@ private fun OutfitCalendarItemFallback(item: ClothingItemEntity) {
 private fun List<ClothingItemEntity>.toAiStylistPlacements(): List<OutfitViewModel.OutfitItemPlacement> {
     return mapIndexed { index, item ->
         val (defaultX, defaultY) = aiStylistDefaultGridPosition(index)
-        OutfitViewModel.OutfitItemPlacement(
-            item = item,
-            posX = item.canvasPosX.takeIf { it != 0f } ?: defaultX,
-            posY = item.canvasPosY.takeIf { it != 0f } ?: defaultY,
-            scale = 1f
-        )
+        OutfitViewModel.OutfitItemPlacement(item, posX = item.canvasPosX.takeIf { it != 0f } ?: defaultX, posY = item.canvasPosY.takeIf { it != 0f } ?: defaultY, scale = 1f)
     }
 }
 
 private fun aiStylistDefaultGridPosition(index: Int): Pair<Float, Float> {
-    val col = index % 2
-    val row = index / 2
-    val x = if (col == 0) 0.08f else 0.58f
-    val y = minOf(0.08f + row * 0.42f, 0.72f)
+    val col = index % 2; val row = index / 2
+    val x = if (col == 0) 0.08f else 0.58f; val y = minOf(0.08f + row * 0.42f, 0.72f)
     return x to y
 }
 
 private fun aiStylistTodayEpochMidnight(): Long {
     val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
-    cal.set(Calendar.HOUR_OF_DAY, 0)
-    cal.set(Calendar.MINUTE, 0)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
+    cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
     return cal.timeInMillis
 }
 
 private fun addAiStylistDays(epochMillis: Long, days: Int): Long {
     val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = epochMillis }
-    cal.add(Calendar.DAY_OF_MONTH, days)
-    return cal.timeInMillis
+    cal.add(Calendar.DAY_OF_MONTH, days); return cal.timeInMillis
 }
 
 private fun isSameAiStylistDay(first: Long, second: Long): Boolean {
     val cal1 = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = first }
     val cal2 = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = second }
-    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-        cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) && cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
 }
 
 @Composable
@@ -899,16 +489,7 @@ private fun aiStylistDayLabel(epochMillis: Long, todayEpoch: Long): String {
     if (isSameAiStylistDay(epochMillis, todayEpoch)) return stringResource(R.string.ai_stylist_today)
     val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = epochMillis }
     val dayNames = stringArrayResource(R.array.day_of_week_names)
-    return when (cal.get(Calendar.DAY_OF_WEEK)) {
-        Calendar.MONDAY -> dayNames[0]
-        Calendar.TUESDAY -> dayNames[1]
-        Calendar.WEDNESDAY -> dayNames[2]
-        Calendar.THURSDAY -> dayNames[3]
-        Calendar.FRIDAY -> dayNames[4]
-        Calendar.SATURDAY -> dayNames[5]
-        Calendar.SUNDAY -> dayNames[6]
-        else -> ""
-    }
+    return when (cal.get(Calendar.DAY_OF_WEEK)) { Calendar.MONDAY -> dayNames[0]; Calendar.TUESDAY -> dayNames[1]; Calendar.WEDNESDAY -> dayNames[2]; Calendar.THURSDAY -> dayNames[3]; Calendar.FRIDAY -> dayNames[4]; Calendar.SATURDAY -> dayNames[5]; Calendar.SUNDAY -> dayNames[6]; else -> "" }
 }
 
 @Composable

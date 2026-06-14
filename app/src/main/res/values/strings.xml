@@ -115,6 +115,8 @@
     <string name="delete_item_content_desc">Delete item</string>
     <string name="close_content_desc">Close</string>
     <string name="remove_item_content_desc">Remove item</string>
+    <string name="flip_item_content_desc">Flip item horizontally</string>
+    <string name="transform_item_content_desc">Drag to resize and rotate item</string>
     <string name="selected_content_desc">Selected</string>
     <string name="selected_vn_content_desc">Selected</string>
     <string name="no_items_to_select">No items yet</string>
