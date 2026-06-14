@@ -9,6 +9,8 @@ import com.example.stylemate.model.ClothingItemEntity
 import com.example.stylemate.repository.ClothingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -39,21 +41,11 @@ class ClothingViewModel(
 
     private val _selectedCategory = MutableStateFlow(Categories.ALL)
     private val _refreshTrigger = MutableStateFlow(0L)
+    private val _isRefreshing = MutableStateFlow(false)
 
     val selectedCategory: StateFlow<String> = _selectedCategory
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing
 
-    /**
-     * Tất cả items (không filter category) — dùng cho AddItems BottomSheet.
-     * ⚡ Share subscription qua ViewModel để tránh infinite recomposition loop.
-     */
-    /**
-     * Tất cả items (không filter category) — dùng cho AddItems BottomSheet.
-     * ⚡ Share subscription qua ViewModel để tránh infinite recomposition loop.
-     * 
-     * ⚡ CẢI TIẾN DATA PIPELINE:
-     *   - Chạy trên Dispatchers.Default (không phải Main) để không block UI
-     *   - Trả về immutable List (toList() copy) tránh mutation từ bên ngoài
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val allItems: StateFlow<List<ClothingItemEntity>> = _refreshTrigger
         .flatMapLatest { repository.getAllItems() }
@@ -64,14 +56,6 @@ class ClothingViewModel(
             initialValue = emptyList()
         )
 
-    /**
-     * Items theo category hiện tại.
-     * 
-     * ⚡ CẢI TIẾN DATA PIPELINE:
-     *   - flowOn(Dispatchers.Default) đảm bảo flatMapLatest + filter chạy trên background
-     *   - Repository đã có flowOn(Dispatchers.IO), nên Default là an toàn
-     *   - Tránh Main Thread blocking khi filter category
-     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val items: StateFlow<List<ClothingItemEntity>> = combine(
         _selectedCategory,
@@ -100,14 +84,7 @@ class ClothingViewModel(
         .distinctUntilChanged()
         .onStart { emit("") }
 
-    /**
-     * Items đã filter theo search query.
-     * 
-     * ⚡ CẢI TIẾN DATA PIPELINE:
-     *   - flowOn(Dispatchers.Default) cho combine + filter (KHÔNG block Main Thread)
-     *   - Dùng distinctUntilChanged() ẩn để tránh emit duplicate khi items không đổi
-     *   - matchesSearchQuery() là pure function chạy trên Default thread
-     */
+    @OptIn(FlowPreview::class)
     val filteredItems: StateFlow<List<ClothingItemEntity>> = combine(
         items,
         debouncedSearchQuery
@@ -131,9 +108,6 @@ class ClothingViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
 
-    /**
-     * Thêm một clothing item mới vào tủ đồ.
-     */
     fun addClothingItem(
         imageFile: File?,
         category: String,
@@ -182,9 +156,6 @@ class ClothingViewModel(
         }
     }
 
-    /**
-     * ✏️ Cập nhật một item.
-     */
     fun updateClothingItem(
         originalItem: ClothingItemEntity,
         updatedItem: ClothingItemEntity,
@@ -257,9 +228,22 @@ class ClothingViewModel(
         _errorMessage.value = null
     }
 
+    /**
+     * Pull-to-Refresh: vuốt từ trên xuống dưới để reload list.
+     * Đặt isRefreshing = true → tự động tắt sau khi hoàn tất.
+     */
     fun refreshItems() {
-        repository.invalidateCache()
-        _refreshTrigger.value = System.currentTimeMillis()
+        if (_isRefreshing.value) return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                repository.invalidateCache()
+                _refreshTrigger.value = System.currentTimeMillis()
+                delay(300)
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
     }
 
     fun updateItemCanvasPosition(itemId: String, posX: Float, posY: Float) {
@@ -273,10 +257,6 @@ class ClothingViewModel(
         }
     }
 
-    /**
-     * Pure function — không touch state, không side-effect.
-     * Chạy trên Dispatchers.Default nhờ flowOn ở filteredItems.
-     */
     private fun matchesSearchQuery(item: ClothingItemEntity, query: String): Boolean {
         val tokens = query.trim()
             .lowercase()

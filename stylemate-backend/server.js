@@ -149,7 +149,7 @@ const startServer = async () => {
       console.log('╠═══════════════════════════════════════════════╣');
       console.log(`║  Port:       ${PORT}`);
       console.log(`║  Env:        ${process.env.NODE_ENV || 'development'}`);
-      console.log(`║  Network:    http://0.0.0.0:${PORT}`);
+      console.log(`║  Network:    http://localhost:${PORT}`);
       console.log(`║  Health:     http://localhost:${PORT}/api/health`);
       console.log(`║  Clothes:    http://localhost:${PORT}/api/clothes`);
       console.log(`║  Outfits:    http://localhost:${PORT}/api/outfits`);
