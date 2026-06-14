@@ -62,7 +62,7 @@ class AIStylistViewModel(
         _uiState.value = _uiState.value.copy(dateText = sdf.format(Date()))
     }
 
-    fun refreshWeatherAndRecommendation(lat: Double? = null, lon: Double? = null) {
+    fun refreshWeatherAndRecommendation(lat: Double? = null, lon: Double? = null, forceRefresh: Boolean = false, refreshWeather: Boolean = false) {
         viewModelScope.launch {
             val userId = authStorage.userIdFlow.firstOrNull()
             if (userId == null) {
@@ -80,7 +80,11 @@ class AIStylistViewModel(
             val cached = homeSuggestionCache[cacheKey]
             val now = System.currentTimeMillis()
 
-            if (cached != null && now - cached.timestamp < CACHE_TTL_MS) {
+            // Nếu forceRefresh -> xóa cache HomeSuggestion + xóa cache weather
+            if (forceRefresh) {
+                homeSuggestionCache.remove(cacheKey)
+                cachedWeatherResponse = null
+            } else if (cached != null && now - cached.timestamp < CACHE_TTL_MS) {
                 // Dùng cache cho HomeSuggestion, nhưng vẫn cập nhật weather + date
                 val weather = getCachedOrFetchWeather(finalLat, finalLon)
                 val location = if (weather != null) {
