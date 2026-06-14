@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.stylemate.R
 import com.example.stylemate.viewmodel.AuthViewModel
@@ -355,4 +356,12 @@ private fun LoginForm(
             }
         }
     }
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun LoginScreenPreview() {
+    LoginScreen(viewModel = androidx.lifecycle.viewmodel.compose.viewModel(), onLoggedIn = {})
 }

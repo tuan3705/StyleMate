@@ -2,9 +2,9 @@ package com.example.stylemate.ui.screens.style_assess
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.stylemate.data.MockDataProvider
 import com.example.stylemate.data.models.ClosetItem
 import com.example.stylemate.data.models.StyleAssessmentResult
-import com.example.stylemate.data.models.Recommendation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,22 +38,14 @@ class StyleAssessViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = StyleAssessUiState.Loading
             try {
-                // TODO: POST /api/ai-stylist/style-assess
+                // Mock data moved to MockDataProvider - no hardcoded strings in ViewModel
                 kotlinx.coroutines.delay(2000)
-                
-                val mockResult = StyleAssessmentResult(
-                    score = 8.5,
-                    message = "Great combination! The colors are well-balanced for a formal occasion.",
-                    recommendations = listOf(
-                        Recommendation("Add a light blue tie to match the shirt", listOf("item_7"))
-                    ),
-                    relatedItemIds = listOf("item_7"),
-                    followups = listOf("Suggested accessories", "Different shoes?")
-                )
-                
+                val mockResult = MockDataProvider.StyleAssessment.DEFAULT_MOCK
                 _uiState.value = StyleAssessUiState.Success(mockResult)
             } catch (e: Exception) {
-                _uiState.value = StyleAssessUiState.Error(e.message ?: "Assessment failed")
+                _uiState.value = StyleAssessUiState.Error(
+                    e.message ?: "style_assess_error_generic"
+                )
             }
         }
     }

@@ -694,5 +694,22 @@
     <string name="outfit_canvas_add_items">Add items</string>
     <string name="outfit_canvas_add_count">Add (%1$d)</string>
     <string name="outfit_save_outfit">Save Outfit</string>
+    <!-- ===================== COLOR ANALYSIS ===================== -->
+    <string name="color_analysis_description_spring_warm">You have warm undertones. These bright, clear colors will make your skin glow.</string>
+    <string name="color_analysis_description_summer_cool">You have cool undertones. These soft, muted colors complement your natural complexion.</string>
+    <string name="color_analysis_description_autumn_warm">You have warm earthy undertones. These rich, deep colors enhance your skin tone.</string>
+    <string name="color_analysis_description_winter_cool">You have cool deep undertones. These vibrant, icy colors create a striking contrast.</string>
+
+    <!-- ===================== STYLE ASSESSMENT ===================== -->
+    <string name="style_assess_message_formal_success">Great combination! The colors are well-balanced for a formal occasion.</string>
+    <string name="style_assess_message_casual_success">Nice casual look! The colors work well together for a relaxed vibe.</string>
+    <string name="style_assess_recommend_tie">Add a light blue tie to match the shirt</string>
+    <string name="style_assess_recommend_belt">Consider a brown leather belt to complete the outfit</string>
+    <string name="style_assess_recommend_sneakers">White sneakers would complement this look perfectly</string>
+    <string name="style_assess_followup_accessories">Suggested accessories</string>
+    <string name="style_assess_followup_shoes">Different shoes?</string>
+    <string name="style_assess_followup_layers">Consider layering options</string>
+    <string name="style_assess_followup_colors">Alternative color schemes</string>
+    <string name="style_assess_error_generic">Assessment failed. Please try again.</string>
 
 </resources>

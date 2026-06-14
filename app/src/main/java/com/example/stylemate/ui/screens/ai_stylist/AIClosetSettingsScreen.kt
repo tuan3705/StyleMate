@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.stylemate.R
@@ -43,7 +44,6 @@ fun AIClosetSettingsScreen(
     val clothingVM: ClothingViewModel = viewModel(factory = ClothingViewModelFactory(repository))
     
     val items by clothingVM.filteredItems.collectAsStateWithLifecycle()
-    val selectedItems = remember { mutableStateListOf<String>() }
 
     Scaffold(
         topBar = {
@@ -75,7 +75,6 @@ fun AIClosetSettingsScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // Virtual "Selection" Card matching Screenshot 4
             Card(
                 modifier = Modifier.size(160.dp),
                 shape = RoundedCornerShape(24.dp),
@@ -97,7 +96,6 @@ fun AIClosetSettingsScreen(
                             )
                         }
                     }
-                    // Overlay check and "5+" like Screenshot
                     Box(
                         modifier = Modifier
                             .size(24.dp)
@@ -116,4 +114,12 @@ fun AIClosetSettingsScreen(
             Text(text = "${items.size}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
         }
     }
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AIClosetSettingsScreenPreview() {
+    AIClosetSettingsScreen(onBack = {})
 }

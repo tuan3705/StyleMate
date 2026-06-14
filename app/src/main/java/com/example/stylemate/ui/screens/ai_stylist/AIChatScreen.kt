@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -1492,4 +1493,15 @@ fun FlowRow(
     ) {
         content()
     }
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AIChatScreenPreview() {
+    AIChatScreen(
+        onBack = {},
+        onNavigateToSettings = {}
+    )
 }

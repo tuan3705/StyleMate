@@ -60,6 +60,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -2438,7 +2439,21 @@ fun CategoryChip(
         ) {
             Text(text = category, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, fontSize = 16.sp)
             Spacer(Modifier.width(4.dp))
-            Text(text = count.toString(), fontSize = 12.sp, color = if (isSelected) Color.Black.copy(alpha = 0.7f) else Color.Gray)
+    Text(text = count.toString(), fontSize = 12.sp, color = if (isSelected) Color.Black.copy(alpha = 0.7f) else Color.Gray)
         }
     }
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ClosetScreenPreview() {
+    ClosetScreen(
+        onEditItem = {},
+        refreshSignal = remember { kotlinx.coroutines.flow.MutableStateFlow(false) },
+        onRefreshConsumed = {},
+        pendingActionSignal = remember { kotlinx.coroutines.flow.MutableStateFlow<String?>(null) },
+        onPendingActionConsumed = {}
+    )
 }

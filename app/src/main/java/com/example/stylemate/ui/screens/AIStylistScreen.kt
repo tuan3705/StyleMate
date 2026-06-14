@@ -43,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -435,4 +436,21 @@ private fun aiStylistDateLabel(epochMillis: Long): String {
     val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = epochMillis }
     val monthNames = stringArrayResource(R.array.month_names)
     return "${cal.get(Calendar.DAY_OF_MONTH)} ${monthNames[cal.get(Calendar.MONTH)]}"
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AIStylistScreenPreview() {
+    AIStylistScreen(
+        onNavigateToChat = {},
+        onNavigateToPersonalStylist = {},
+        onNavigateToVirtualTryOn = {},
+        onNavigateToAddItem = {},
+        onNavigateToCreateOutfit = {},
+        onNavigateToCalendar = {},
+        onNavigateToEditOutfit = null,
+        onNavigateToCalendarDay = null
+    )
 }

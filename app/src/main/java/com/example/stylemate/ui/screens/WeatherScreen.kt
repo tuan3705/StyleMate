@@ -63,6 +63,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -517,4 +518,12 @@ private fun getForecastEmojiResId(conditionText: String): Int = when {
     conditionText.contains("Snow", ignoreCase = true) -> R.drawable.ic_weather_snow
     conditionText.contains("Clear", ignoreCase = true) -> R.drawable.ic_weather_clear_night
     else -> R.drawable.ic_weather_cloudy
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun WeatherScreenPreview() {
+    WeatherScreen()
 }

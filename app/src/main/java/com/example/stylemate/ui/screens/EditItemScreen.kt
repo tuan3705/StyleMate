@@ -52,10 +52,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.stylemate.R
@@ -663,4 +665,12 @@ private fun getCategoryIcon(category: String): String = when (category) {
     "Accessories" -> "\u231A"  // ⌚
     "Jewelry" -> "\uD83D\uDC8D" // 💍
     else -> "\uD83E\uDDE5"    // 🧥
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun EditItemScreenPreview() {
+    EditItemScreen(navController = rememberNavController(), itemId = "preview_item_id")
 }

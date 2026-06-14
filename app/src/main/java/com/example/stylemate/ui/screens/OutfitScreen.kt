@@ -32,6 +32,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -829,3 +830,11 @@ private fun OutfitItemThumbnail(item: ClothingItemEntity) {
 
 // 🎨 Helpers getCategoryColor & getCategoryIcon
 // được import từ com.example.stylemate.ui.components
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun OutfitScreenPreview() {
+    OutfitScreen()
+}

@@ -66,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.stylemate.R
@@ -895,4 +896,12 @@ private fun generateDaysInMonth(year: Int, month: Int): List<Long> {
     val temp = cal.clone() as Calendar
     temp.add(Calendar.DAY_OF_MONTH, -diff)
     return (0 until 42).map { val t = temp.timeInMillis; temp.add(Calendar.DAY_OF_MONTH, 1); t }
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CalendarScreenPreview() {
+    CalendarScreen()
 }

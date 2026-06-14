@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -68,12 +69,10 @@ fun MainScreen(onLogout: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
-    // ── Notification Permission ─────────────────────────────────────
     var showNotificationRationale by remember { mutableStateOf(false) }
     var showNotificationSettingsRedirect by remember { mutableStateOf(false) }
     var hasCheckedPermission by remember { mutableStateOf(false) }
 
-    // 🆕 Theo dõi trạng thái notification permission REAL-TIME (re-check khi resume)
     val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         rememberPermissionGranted(AppPermissions.POST_NOTIFICATIONS)
     } else {
@@ -94,8 +93,6 @@ fun MainScreen(onLogout: () -> Unit) {
         }
     }
 
-    // ⚡ LaunchedEffect chạy lại mỗi khi hasNotificationPermission thay đổi
-    // (kể cả khi app resume - handle "Only this time" trên notification)
     LaunchedEffect(hasNotificationPermission) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val enabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
@@ -176,7 +173,6 @@ fun MainScreen(onLogout: () -> Unit) {
                 .padding(innerPadding)
         ) {
             composable(BottomNavItem.Closet.route) { backStackEntry ->
-                Log.d("MainScreen", "Route: CLOSET")
                 val refreshSignal =
                     backStackEntry.savedStateHandle.getStateFlow("refresh_items", false)
                 val pendingActionSignal =
@@ -192,17 +188,10 @@ fun MainScreen(onLogout: () -> Unit) {
             }
 
             composable(BottomNavItem.AIStylist.route) {
-                Log.d("MainScreen", "Route: AI_HUB")
                 AIStylistScreen(
-                    onNavigateToChat = {
-                        navController.navigate(StyleMateRoutes.AI_CHAT)
-                    },
-                    onNavigateToPersonalStylist = {
-                        navController.navigate(StyleMateRoutes.AI_PERSONAL_STYLIST)
-                    },
-                    onNavigateToVirtualTryOn = {
-                        navController.navigate(StyleMateRoutes.VIRTUAL_TRY_ON)
-                    },
+                    onNavigateToChat = { navController.navigate(StyleMateRoutes.AI_CHAT) },
+                    onNavigateToPersonalStylist = { navController.navigate(StyleMateRoutes.AI_PERSONAL_STYLIST) },
+                    onNavigateToVirtualTryOn = { navController.navigate(StyleMateRoutes.VIRTUAL_TRY_ON) },
                     onNavigateToAddItem = {
                         navController.navigate(BottomNavItem.Closet.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -229,7 +218,6 @@ fun MainScreen(onLogout: () -> Unit) {
                         }
                     },
                     onNavigateToEditOutfit = { outfitId ->
-                        // Navigate to Closet and signal to open outfit canvas editor
                         navController.navigate(BottomNavItem.Closet.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
@@ -239,7 +227,6 @@ fun MainScreen(onLogout: () -> Unit) {
                             .savedStateHandle["closet_pending_action"] = "edit_outfit:$outfitId"
                     },
                     onNavigateToCalendarDay = { epochMillis ->
-                        // Navigate to Calendar tab with selected date
                         navController.navigate(BottomNavItem.Calendar.route) {
                             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
@@ -253,7 +240,6 @@ fun MainScreen(onLogout: () -> Unit) {
             }
 
             composable(StyleMateRoutes.AI_CHAT) {
-                Log.d("MainScreen", "Route: AI_CHAT")
                 AIChatScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToSettings = { navController.navigate(StyleMateRoutes.AI_SETTINGS) }
@@ -261,7 +247,6 @@ fun MainScreen(onLogout: () -> Unit) {
             }
 
             composable(StyleMateRoutes.AI_PERSONAL_STYLIST) { backStackEntry ->
-                Log.d("MainScreen", "Route: PERSONAL_STYLIST")
                 val wizardResult = backStackEntry.savedStateHandle.get<String>("wizard_result")
                 PersonalStylistScreen(
                     onBack = { navController.popBackStack() },
@@ -273,7 +258,6 @@ fun MainScreen(onLogout: () -> Unit) {
             }
 
             composable(StyleMateRoutes.AI_SETTINGS) {
-                Log.d("MainScreen", "Route: AI_SETTINGS")
                 AISettingsScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToLocation = { navController.navigate(StyleMateRoutes.AI_SETTINGS_LOCATION) },
@@ -295,7 +279,6 @@ fun MainScreen(onLogout: () -> Unit) {
             }
 
             composable(StyleMateRoutes.OUTFIT_SUGGESTION) {
-                Log.d("MainScreen", "Route: WIZARD")
                 OutfitSuggestionWizard(
                     onBack = { navController.popBackStack() },
                     onFinish = { items, occasion, style, theme ->
@@ -306,12 +289,8 @@ fun MainScreen(onLogout: () -> Unit) {
                 )
             }
 
-            // ✅ VIRTUAL TRY-ON ROUTE
             composable(StyleMateRoutes.VIRTUAL_TRY_ON) {
-                Log.d("MainScreen", "Route: VIRTUAL_TRY_ON")
-                TryOnSetupScreen(
-                    onBack = { navController.popBackStack() }
-                )
+                TryOnSetupScreen(onBack = { navController.popBackStack() })
             }
 
             composable(BottomNavItem.Weather.route) {
@@ -335,7 +314,6 @@ fun MainScreen(onLogout: () -> Unit) {
         }
     }
 
-    // ── Notification Permission Dialogs ────────────────────────────
     if (showNotificationRationale) {
         PermissionRationaleDialog(
             title = stringResource(R.string.notification_permission_rationale_title),
@@ -345,9 +323,7 @@ fun MainScreen(onLogout: () -> Unit) {
                 showNotificationRationale = false
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             },
-            onDeny = {
-                showNotificationRationale = false
-            }
+            onDeny = { showNotificationRationale = false }
         )
     }
 
@@ -367,4 +343,12 @@ fun MainScreen(onLogout: () -> Unit) {
             onDismiss = { showNotificationSettingsRedirect = false }
         )
     }
+}
+
+// --- Previews ---
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun MainScreenPreview() {
+    MainScreen(onLogout = {})
 }
