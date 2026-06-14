@@ -88,6 +88,15 @@ fun rememberImagePickerState(
     var showGalleryRationale by remember { mutableStateOf(false) }
     var showGallerySettingsRedirect by remember { mutableStateOf(false) }
 
+    // ── Track whether we've ever requested the permission before ──
+    // This is needed because shouldShowRequestPermissionRationale()
+    // returns FALSE in two cases:
+    //   1. Permission has NEVER been requested yet (first time)
+    //   2. Permission was PERMANENTLY denied (never ask again)
+    // We use these flags to differentiate the two cases.
+    var hasRequestedCameraBefore by remember { mutableStateOf(false) }
+    var hasRequestedGalleryBefore by remember { mutableStateOf(false) }
+
     // ── Take Picture ──────────────────────────────────────────────
     val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val file = pendingCameraFile
@@ -129,8 +138,15 @@ fun rememberImagePickerState(
             pendingCameraFile = file
             takePictureLauncher.launch(uri)
         } else {
-            // ⚡ Không được cấp → chuyển đến settings (vì đã bị từ chối vĩnh viễn)
-            showCameraSettingsRedirect = true
+            // ⚡ Vừa bị từ chối → kiểm tra xem có bị vĩnh viễn không
+            val activity = context as? Activity
+            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)) {
+                // Từ chối nhưng chưa vĩnh viễn → show rationale để giải thích
+                showCameraRationale = true
+            } else {
+                // Từ chối vĩnh viễn (có check "Never ask again") → redirect settings
+                showCameraSettingsRedirect = true
+            }
         }
     }
 
@@ -141,7 +157,14 @@ fun rememberImagePickerState(
         if (granted) {
             openPhotoPicker(context, pickMediaLauncher, getContentLauncher)
         } else {
-            showGallerySettingsRedirect = true
+            val activity = context as? Activity
+            if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, galleryPermName)) {
+                // Từ chối nhưng chưa vĩnh viễn → show rationale
+                showGalleryRationale = true
+            } else {
+                // Từ chối vĩnh viễn → redirect settings
+                showGallerySettingsRedirect = true
+            }
         }
     }
 
@@ -154,14 +177,16 @@ fun rememberImagePickerState(
             pendingCameraFile = file
             takePictureLauncher.launch(uri)
         } else {
-            // ⚡ FIX: Trong ModalBottomSheet, context có thể là Application → as? Activity = null
-            // Dùng shouldShowRequestPermissionRationale với fallback context
             val activity = context as? Activity
             if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)) {
-                // Đã từ chối vĩnh viễn → không thể show rationale → redirect settings
+                // ⚡ Đã từ chối 1 lần (không vĩnh viễn) → show dialog giải thích
                 showCameraRationale = true
-            } else if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)) {
-                // Đã từ chối vĩnh viễn → redirect settings ngay
+            } else if (activity != null && !hasRequestedCameraBefore) {
+                // ⚡ CHƯA BAO GIỜ hỏi quyền này → request trực tiếp (KHÔNG show settings redirect)
+                hasRequestedCameraBefore = true
+                requestCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            } else if (activity != null && hasRequestedCameraBefore) {
+                // ⚡ Đã request rồi và bị từ chối vĩnh viễn → redirect settings
                 showCameraSettingsRedirect = true
             } else {
                 // Trong bottom sheet, context không phải Activity → fallback: redirect trực tiếp
@@ -178,8 +203,14 @@ fun rememberImagePickerState(
         } else {
             val activity = context as? Activity
             if (activity != null && ActivityCompat.shouldShowRequestPermissionRationale(activity, galleryPermName)) {
+                // ⚡ Đã từ chối 1 lần → show dialog giải thích
                 showGalleryRationale = true
-            } else if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, galleryPermName)) {
+            } else if (activity != null && !hasRequestedGalleryBefore) {
+                // ⚡ CHƯA BAO GIỜ hỏi quyền này → request trực tiếp
+                hasRequestedGalleryBefore = true
+                requestGalleryPermissionLauncher.launch(galleryPermName)
+            } else if (activity != null && hasRequestedGalleryBefore) {
+                // ⚡ Đã từ chối vĩnh viễn → redirect settings
                 showGallerySettingsRedirect = true
             } else {
                 // Trong bottom sheet, context không phải Activity → fallback: redirect trực tiếp

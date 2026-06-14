@@ -144,10 +144,10 @@ fun CalendarScreen(
             Text(stringResource(R.string.calendar_title), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IconButton(onClick = { showMonthPicker = true }) {
-                    Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.select_month_content_desc), tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = stringResource(R.string.select_month_content_desc), tint = MaterialTheme.colorScheme.primary)
                 }
                 IconButton(onClick = { viewModel.selectDate(todayEpochMidnight()) }) {
-                    Icon(Icons.Filled.CalendarMonth, contentDescription = stringResource(R.string.today_content_desc), tint = MaterialTheme.colorScheme.primary)
+                    Icon(Icons.Filled.DateRange, contentDescription = stringResource(R.string.today_content_desc), tint = MaterialTheme.colorScheme.primary)
                 }
                 accountMenu()
             }
@@ -238,18 +238,16 @@ private fun todayEpochMidnight(): Long {
 private fun getStartOfWeek(epochMillis: Long): Long {
     val cal = epochToCalendar(epochMillis)
     val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
-    // Calendar.SUNDAY=1, MONDAY=2, ... SATURDAY=7
+
     val diff = when (dayOfWeek) {
-        Calendar.SUNDAY -> -6  // CN → lui về T2 tuần trước
-        else -> 2 - dayOfWeek   // T3(3)→ lui 1, T4(4)→ lui 2, ...
+        Calendar.SUNDAY -> -6
+        else -> 2 - dayOfWeek
     }
     cal.add(Calendar.DAY_OF_MONTH, diff)
     return cal.timeInMillis
 }
 
-/**
- * Helper: Format tháng + năm từ epoch millis
- */
+
 @Composable
 private fun formatMonthYear(epochMillis: Long): String {
     val cal = epochToCalendar(epochMillis)
@@ -258,9 +256,7 @@ private fun formatMonthYear(epochMillis: Long): String {
     return "${names[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.YEAR)}"
 }
 
-/**
- * Helper: Lấy tên thứ tiếng Việt từ epoch millis
- */
+
 @Composable
 private fun getDayOfWeekName(epochMillis: Long): String {
     val cal = epochToCalendar(epochMillis)
@@ -277,25 +273,19 @@ private fun getDayOfWeekName(epochMillis: Long): String {
     }
 }
 
-/**
- * Helper: Lấy ngày trong tháng từ epoch millis
- */
+
 private fun getDayOfMonth(epochMillis: Long): Int {
     return epochToCalendar(epochMillis).get(Calendar.DAY_OF_MONTH)
 }
 
-/**
- * Helper: Cộng/trừ ngày từ epoch millis
- */
+
 private fun addDays(epochMillis: Long, days: Int): Long {
     val cal = epochToCalendar(epochMillis)
     cal.add(Calendar.DAY_OF_MONTH, days)
     return cal.timeInMillis
 }
 
-/**
- * Helper: So sánh 2 ngày có cùng ngày/tháng/năm không
- */
+
 private fun isSameDay(epoch1: Long, epoch2: Long): Boolean {
     val cal1 = epochToCalendar(epoch1)
     val cal2 = epochToCalendar(epoch2)
@@ -392,7 +382,6 @@ private fun DayCell(
             fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
             color = textColor
         )
-        // Chấm tròn báo hiệu ngày đã có outfit
         Spacer(modifier = Modifier.height(2.dp))
         if (hasOutfit) {
             Box(
@@ -405,16 +394,12 @@ private fun DayCell(
                     )
             )
         } else {
-            // Placeholder để giữ khoảng cách đều nhau
             Spacer(modifier = Modifier.size(5.dp))
         }
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// � Helper: chuyển List<ClothingItemEntity> → List<OutfitItemPlacement>
-// Dùng canvasPosX, canvasPosY từ item (đã được set từ outfit crossRef)
-// ══════════════════════════════════════════════════════════════════════
+
 
 private fun itemsToPlacements(items: List<com.example.stylemate.model.ClothingItemEntity>): List<OutfitViewModel.OutfitItemPlacement> {
     return items.mapIndexed { index, item ->
@@ -436,15 +421,6 @@ private fun defaultGridPosition(index: Int): Pair<Float, Float> {
     return x to y
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// 🎨 OUTFIT CANVAS PREVIEW SECTION — Hiển thị bộ đồ với Canvas preview
-// ══════════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Card lớn hiển thị tên outfit + OutfitCanvasPreview (giống Outfit screen)
-//   - Nút "Xoá" (gỡ outfit khỏi ngày)
-//   - Nút "Chọn bộ đồ khác" → mở BottomSheet
-// ══════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun AssignedOutfitCard(
@@ -508,7 +484,6 @@ private fun AssignedOutfitCard(
                 }
             }
 
-            // 🎨 Canvas preview — giống y hệt Outfit screen
             if (items.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
@@ -526,7 +501,6 @@ private fun AssignedOutfitCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Nút chọn bộ đồ khác
             Button(
                     onClick = onSelectAnother,
                     modifier = Modifier.fillMaxWidth()
@@ -569,9 +543,7 @@ private fun OutfitItemMiniCard(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// 📭 NO OUTFIT PLACEHOLDER — Khi chưa có bộ đồ nào được gán
-// ══════════════════════════════════════════════════════════════════════
+
 
 @Composable
 private fun NoOutfitPlaceholder(onAssign: () -> Unit) {
@@ -617,17 +589,6 @@ private fun NoOutfitPlaceholder(onAssign: () -> Unit) {
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// 📋 OUTFIT SELECTION SHEET — BottomSheet chọn Outfit để gán
-// ══════════════════════════════════════════════════════════════════════
-//
-// 🎯 UX Logic:
-//   - Danh sách tất cả Outfit đã lưu (dạng LazyColumn)
-//   - Mỗi item: Card nhỏ với tên + số lượng item
-//   - Click vào một outfit → gọi callback (assign)
-//   - Outfit đang được chọn → highlight (primary border)
-//   - Nếu chưa có outfit nào → hiển thị empty state
-// ══════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun OutfitSelectionSheetContent(
@@ -762,7 +723,6 @@ private fun OutfitSelectionItem(
                     )
                 }
 
-                // Icon check nếu đang selected
                 if (isSelected) {
                     Icon(
                         Icons.Filled.CheckCircle,
@@ -772,10 +732,8 @@ private fun OutfitSelectionItem(
                 }
             }
 
-            // 🎨 Canvas preview của outfit ngay trong item chọn
             if (items.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
-                // Sử dụng OutfitCanvasPreview từ components (import ở đầu file)
                 OutfitCanvasPreview(
                     items = placements,
                     modifier = Modifier.fillMaxWidth().height(200.dp)
@@ -785,9 +743,6 @@ private fun OutfitSelectionItem(
     }
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// 🗓️ MONTH PICKER SHEET — BottomSheet chọn ngày cụ thể trong tháng
-// ══════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun MonthPickerSheet(

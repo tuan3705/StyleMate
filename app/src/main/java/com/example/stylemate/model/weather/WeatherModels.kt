@@ -47,7 +47,7 @@ data class LocationInfo(
  */
 data class WeatherCondition(
     @SerializedName("text") val text: String,
-    @SerializedName("icon") val icon: String // relative path: "//cdn.weatherapi.com/weather/..."
+    @SerializedName("icon") val icon: String
 )
 
 data class ForecastResponse(
@@ -55,7 +55,7 @@ data class ForecastResponse(
 )
 
 data class ForecastDay(
-    @SerializedName("date") val date: String, // "2024-01-15"
+    @SerializedName("date") val date: String,
     @SerializedName("day") val day: DayWeather,
     @SerializedName("astro") val astro: Astro? = null
 )

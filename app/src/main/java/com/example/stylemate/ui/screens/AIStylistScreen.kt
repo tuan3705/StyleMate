@@ -11,10 +11,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
@@ -70,6 +74,7 @@ import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIStylistScreen(
     onNavigateToChat: () -> Unit = {},
@@ -122,12 +127,34 @@ fun AIStylistScreen(
         }
     }
 
+    // ⚡ Pull-to-refresh: kéo từ trên xuống dưới = nhấn nút Reload RAG
+    var isRefreshing by remember { mutableStateOf(false) }
+    var dragStartedAtTop by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { AIStylistHeader(userName = userName, userEmail = userEmail, onNavigateToCalendar = onNavigateToCalendar, accountMenu = accountMenu) }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp),
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding).padding(horizontal = 16.dp)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragStart = { startOffset ->
+                            dragStartedAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                        },
+                        onVerticalDrag = { _, _ -> },
+                        onDragEnd = {
+                            if (!isRefreshing && dragStartedAtTop && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
+                                isRefreshing = true
+                            }
+                            dragStartedAtTop = false
+                        }
+                    )
+                },
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item(key = "weather_recommendation") {
@@ -138,6 +165,13 @@ fun AIStylistScreen(
             item(key = "ai_tools") { AIToolsSection(onNavigateToChat = onNavigateToChat, onNavigateToVirtualTryOn = onNavigateToVirtualTryOn) }
             item(key = "outfit_calendar") { BackendOutfitCalendarSection(onNavigateToCalendar = onNavigateToCalendar, onNavigateToOutfit = onNavigateToEditOutfit, onNavigateToCalendarDay = onNavigateToCalendarDay) }
             item(key = "bottom_spacer") { Spacer(modifier = Modifier.height(16.dp)) }
+        }
+    }
+
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            refreshWithLocation()
+            isRefreshing = false
         }
     }
 }

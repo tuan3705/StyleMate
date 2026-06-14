@@ -146,7 +146,6 @@ fun WeatherScreen(
 
         if (fineGranted || coarseGranted) {
             deniedCount = 0
-            // Đã có quyền → kiểm tra GPS có bật không?
             if (!isGpsEnabled()) {
                 showGpsDialog = true
             } else {
@@ -171,7 +170,6 @@ fun WeatherScreen(
     LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
             deniedCount = 0
-            // Đã có quyền → luôn kiểm tra GPS
             if (!isGpsEnabled()) {
                 showGpsDialog = true
             } else {
@@ -282,7 +280,7 @@ fun WeatherScreen(
         }
     }
 
-    // ── Permission Dialogs (hiển thị ở top-level composable) ──────
+    // ── Permission Dialogs ──────
     if (showLocationRationale) {
         PermissionRationaleDialog(
             title = stringResource(R.string.location_permission_rationale_title),
@@ -323,7 +321,7 @@ fun WeatherScreen(
 }
 
 // ═════════════════════════════════════════════════════════════════
-// 📡 Lấy vị trí GPS — chỉ gọi sau khi đã xác minh quyền ở trên
+// 📡 Get GPS Location
 // ═════════════════════════════════════════════════════════════════
 
 private fun getLastKnownLocation(

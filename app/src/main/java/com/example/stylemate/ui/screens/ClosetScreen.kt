@@ -416,6 +416,7 @@ fun ClosetScreen(
             sheetState = quickAddSheetState
         ) {
             NewClothingItemSheet(
+                context = context,
                 viewModel = clothingVM,
                 onItemAdded = {
                     scope.launch {
@@ -1952,6 +1953,7 @@ private val sheetCategories = listOf("Tops", "Bottoms", "Dresses", "Footwear", "
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NewClothingItemSheet(
+    context: android.content.Context,
     viewModel: ClothingViewModel,
     onItemAdded: () -> Unit,
     onError: (String) -> Unit
@@ -1965,7 +1967,6 @@ fun NewClothingItemSheet(
     val brandFocus = remember { FocusRequester() }
     val priceFocus = remember { FocusRequester() }
 
-    val context = LocalContext.current
     val apiService = com.example.stylemate.network.RetrofitClient.stylemateApiService
     val imageProcessingRepository = ImageProcessingRepository(apiService, context)
     val imageProcessingViewModel: ImageProcessingViewModel = viewModel(
@@ -1992,7 +1993,7 @@ fun NewClothingItemSheet(
     val seasons = listOf("Spring", "Summer", "Autumn", "Winter")
     val occasions = listOf("Casual", "Work", "Sports", "Formal")
     val isLoading by viewModel.isLoading.collectAsState()
-    val imagePickerState = rememberImagePickerState(onError = onError)
+    val imagePickerState = rememberImagePickerState(context = context, onError = onError)
     val imagePath by imagePickerState.imagePath
     var noBgPath by remember { mutableStateOf<String?>(null) }
 

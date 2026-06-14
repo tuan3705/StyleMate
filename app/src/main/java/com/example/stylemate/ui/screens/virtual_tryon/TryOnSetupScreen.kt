@@ -73,6 +73,9 @@ fun TryOnSetupScreen(
     var isSavingToGallery by remember { mutableStateOf(false) }
     var showStorageRationale by remember { mutableStateOf(false) }
     var showStorageSettingsRedirect by remember { mutableStateOf(false) }
+    // ⚡ Track whether we've ever requested storage permission before
+    // to differentiate "first time ask" from "permanently denied"
+    var hasRequestedStorageBefore by remember { mutableStateOf(false) }
 
     // Storage permission launcher
     val requestStoragePermissionLauncher = rememberLauncherForActivityResult(
@@ -86,18 +89,15 @@ fun TryOnSetupScreen(
             }
         } else {
             val activity = context as? androidx.activity.ComponentActivity
-            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(
+            if (activity != null && androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
                     activity, getStoragePermission()
                 )
             ) {
-                showStorageSettingsRedirect = true
+                // ⚡ Từ chối nhưng chưa vĩnh viễn → show rationale để giải thích
+                showStorageRationale = true
             } else {
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(R.string.tryon_save_gallery_permission_denied),
-                        duration = SnackbarDuration.Short
-                    )
-                }
+                // ⚡ Từ chối vĩnh viễn (có check "Never ask again") → redirect settings
+                showStorageSettingsRedirect = true
             }
         }
     }
@@ -125,7 +125,24 @@ fun TryOnSetupScreen(
                 isSavingToGallery = false
             }
         } else {
-            showStorageRationale = true
+            val activity = context as? androidx.activity.ComponentActivity
+            if (activity != null && androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
+                    activity, getStoragePermission()
+                )
+            ) {
+                // ⚡ Đã từ chối 1 lần (không vĩnh viễn) → show dialog giải thích
+                showStorageRationale = true
+            } else if (activity != null && !hasRequestedStorageBefore) {
+                // ⚡ CHƯA BAO GIỜ hỏi quyền này → request trực tiếp (KHÔNG show rationale hay settings redirect)
+                hasRequestedStorageBefore = true
+                requestStoragePermissionLauncher.launch(getStoragePermission())
+            } else if (activity != null && hasRequestedStorageBefore) {
+                // ⚡ Đã request rồi và bị từ chối vĩnh viễn → redirect settings
+                showStorageSettingsRedirect = true
+            } else {
+                // Trong bottom sheet / non-Activity context → fallback: redirect trực tiếp
+                showStorageSettingsRedirect = true
+            }
         }
     }
 
