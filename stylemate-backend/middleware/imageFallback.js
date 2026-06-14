@@ -1,9 +1,9 @@
 /**
  * 🖼️ Image Fallback Middleware
  * 
- * Xử lý các request ảnh cũ có path /uploads/xxx.jpg
- * (không có subfolder items/) để fallback tìm file
- * ở cả uploads/root và uploads/items/
+ * Handles old image requests with path /uploads/xxx.jpg
+ * (without subfolder items/) to fallback and find file
+ * in both uploads/root and uploads/items/
  */
 const path = require('path');
 const fs = require('fs');
@@ -13,37 +13,37 @@ const itemsDir = path.join(uploadsDir, 'items');
 const tryonDir = path.join(uploadsDir, 'tryon');
 
 /**
- * Middleware kiểm tra file ảnh tồn tại trước khi pass sang static.
- * Nếu file không tồn tại ở đường dẫn gốc /uploads/,
- * thử tìm trong /uploads/items/
+ * Middleware to check if image file exists before passing to static.
+ * If file doesn't exist in root /uploads/ path,
+ * tries to find in /uploads/items/
  */
 function imageFallback(req, res, next) {
-  // Chỉ xử lý request ảnh
-  const requestPath = req.path; // ví dụ: /items/abc.jpg hoặc /abc.jpg
+  // Only process image requests
+  const requestPath = req.path; // e.g.: /items/abc.jpg or /abc.jpg
   const requestedFile = requestPath.startsWith('/') ? requestPath.slice(1) : requestPath;
   
-  // Kiểm tra file trong uploads gốc trước
+  // Check file in root uploads first
   const rootFile = path.join(uploadsDir, requestedFile);
   if (fs.existsSync(rootFile)) {
-    // File tồn tại → để static serve xử lý
+    // File exists → let static serve handle it
     return next();
   }
 
-  // Nếu request đến /uploads/something.jpg và không có trong root,
-  // thử tìm trong thư mục items/
+  // If request is for /uploads/something.jpg and not in root,
+  // try to find in items/ directory
   const itemsFile = path.join(itemsDir, requestedFile);
   if (fs.existsSync(itemsFile)) {
-    // Redirect đến file trong items/
+    // Redirect to file in items/
     return res.sendFile(itemsFile);
   }
 
-  // Thử tìm trong tryon/
+  // Try to find in tryon/
   const tryonFile = path.join(tryonDir, requestedFile);
   if (fs.existsSync(tryonFile)) {
     return res.sendFile(tryonFile);
   }
 
-  // Không tìm thấy → để static serve xử lý như bình thường (sẽ trả 404)
+  // Not found → let static serve handle it normally (will return 404)
   next();
 }
 

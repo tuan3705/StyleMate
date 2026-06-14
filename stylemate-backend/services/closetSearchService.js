@@ -20,7 +20,6 @@ async function findRelevantItems(userId, queryText, limit = 15) {
   const text = (queryText || '').toLowerCase();
   const searchFilter = { userId: new mongoose.Types.ObjectId(userId) };
 
-  // Phân tích bối cảnh (Heuristic mapping)
   const contextMap = {
     'tiệc': ['Formal', 'Party', 'Evening'],
     'party': ['Formal', 'Party', 'Evening'],
@@ -73,7 +72,7 @@ async function findRelevantItems(userId, queryText, limit = 15) {
   }
 
   // Temperature heuristics
-  const tempMatch = text.match(/(\d+)/); // Just match any number as temp
+  const tempMatch = text.match(/(\d+)/);
   if (tempMatch) {
     const temp = parseInt(tempMatch[1]);
     console.log(`[RAG LOG] Temp matched: ${temp}C`);

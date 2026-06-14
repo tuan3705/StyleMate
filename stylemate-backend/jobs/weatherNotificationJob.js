@@ -72,8 +72,8 @@ const runWeatherNotificationJob = async ({ userId } = {}) => {
   return {
     successCount,
     failureCount,
-    tokens: tokens.length,
-    weatherCode: lastWeatherCode
+    tokens: tokens.length
+    //weatherCode: lastWeatherCode
   };
 };
 

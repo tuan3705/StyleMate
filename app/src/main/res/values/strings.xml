@@ -267,6 +267,13 @@
     <string name="weather_network_error">No internet connection. Please check your network.</string>
     <string name="weather_generic_error">Unable to load weather data: %1$s</string>
 
+    <!-- Weather analysis suggestions -->
+    <string name="weather_suggestion_very_cold">Very cold! Wear a heavy coat, scarf, and gloves.</string>
+    <string name="weather_suggestion_cold">Cold weather. Sweater, light jacket, and long pants are suitable.</string>
+    <string name="weather_suggestion_cool">Cool weather. Long sleeves, jeans, or light skirt.</string>
+    <string name="weather_suggestion_warm">Warm weather. Short sleeves, dresses, lightweight pants.</string>
+    <string name="weather_suggestion_hot">Hot weather! Shorts, tank tops, maxi dresses, breathable fabrics.</string>
+
     <!-- Weather emoji icons -->
     <string name="weather_emoji_very_cold">🥶</string>
     <string name="weather_emoji_cold">❄️</string>

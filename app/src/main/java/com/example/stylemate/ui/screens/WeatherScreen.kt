@@ -445,6 +445,12 @@ private fun WeatherInfoItem(icon: ImageVector, label: String, value: String) {
 
 @Composable
 private fun WeatherAnalysisCard(analysis: WeatherAnalysis) {
+    val context = LocalContext.current
+    val suggestionString = remember(analysis.label) {
+        val resourceKey = WeatherRepository.getSuggestionResourceKey(analysis.label)
+        val resId = context.resources.getIdentifier(resourceKey, "string", context.packageName)
+        if (resId != 0) context.getString(resId) else analysis.suggestion
+    }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2E7D32).copy(alpha = 0.3f))) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -454,7 +460,7 @@ private fun WeatherAnalysisCard(analysis: WeatherAnalysis) {
                 Text(text = stringResource(R.string.weather_analysis_label_format, analysis.label),
                     style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color.White)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = analysis.suggestion, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
+                Text(text = suggestionString, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.85f))
             }
         }
     }

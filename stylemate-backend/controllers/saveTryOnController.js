@@ -1,10 +1,10 @@
 /**
  * 🖼️ Save Try-On Result to Collection Controller
  *
- * Cho phép người dùng lưu ảnh kết quả từ virtual try-on
- * vào bộ sưu tập ClothingItem của họ (tủ đồ).
+ * Allows user to save the result image from virtual try-on
+ * into their ClothingItem collection (closet).
  *
- * Yêu cầu: User phải được xác thực (requireAuth).
+ * Requirement: User must be authenticated (requireAuth).
  *
  * POST /api/ai-stylist/virtual-tryon/:jobId/save-to-collection
  * Body: { name, category?, color?, season?, occasion?, brand?, price? }
@@ -23,35 +23,35 @@ const crypto = require('crypto');
 /**
  * POST /api/ai-stylist/virtual-tryon/:jobId/save-to-collection
  * 
- * Lưu ảnh kết quả try-on vào tủ đồ của user như một ClothingItem.
- * Chỉ cho phép chủ sở hữu của job mới được lưu.
+ * Save try-on result image to user's closet as a ClothingItem.
+ * Only the job owner is allowed to save.
  */
 const saveTryOnToCollection = asyncHandler(async (req, res, next) => {
   const { jobId } = req.params;
   const currentUserId = req.user._id;
 
-  // 1. Kiểm tra job có tồn tại và đã hoàn thành không
+  // 1. Check if job exists and is completed
   const job = await ProcessingJob.findOne({ jobId });
   if (!job) {
-    return next(new AppError('Không tìm thấy job try-on này', 404));
+    return next(new AppError('Try-on job not found', 404));
   }
   if (job.status !== 'completed') {
-    return next(new AppError('Job try-on chưa hoàn thành, không thể lưu', 400));
+    return next(new AppError('Try-on job not completed yet, cannot save', 400));
   }
   
-  // 2. Kiểm tra quyền: chỉ user sở hữu job mới được lưu
+  // 2. Check permissions: only job owner can save
   if (job.userId && job.userId.toString() !== currentUserId.toString()) {
-    return next(new AppError('Bạn không có quyền lưu kết quả try-on này', 403));
+    return next(new AppError('You do not have permission to save this try-on result', 403));
   }
 
-  // 3. Kiểm tra ảnh kết quả có tồn tại
+  // 3. Check if result image exists
   const result = job.result || {};
   const generatedImageUrl = result.generatedImageUrl;
   if (!generatedImageUrl) {
-    return next(new AppError('Không tìm thấy ảnh kết quả try-on', 404));
+    return next(new AppError('Try-on result image not found', 404));
   }
 
-  // 4. Copy ảnh từ uploads/tryon/ sang uploads/items/
+  // 4. Copy image from uploads/tryon/ to uploads/items/
   const sourcePath = path.join(__dirname, '..', generatedImageUrl);
   const itemsDir = path.join(__dirname, '..', 'uploads', 'items');
   if (!fs.existsSync(itemsDir)) {
@@ -64,12 +64,12 @@ const saveTryOnToCollection = asyncHandler(async (req, res, next) => {
 
   if (fs.existsSync(sourcePath)) {
     fs.copyFileSync(sourcePath, destPath);
-    console.log(`📋 Đã copy ảnh try-on vào items/: ${newFileName}`);
+    console.log(`📋 Copied try-on image to items/: ${newFileName}`);
   } else {
-    return next(new AppError('File ảnh kết quả không tồn tại trên server', 404));
+    return next(new AppError('Result image file does not exist on server', 404));
   }
 
-  // 5. Lấy thông tin từ body (nếu có)
+  // 5. Get info from body (if provided)
   const {
     name = 'Try-On Result',
     category = 'Tops',
@@ -80,7 +80,7 @@ const saveTryOnToCollection = asyncHandler(async (req, res, next) => {
     price = 0
   } = req.body;
 
-  // 6. Tạo ClothingItem mới với ảnh đã copy
+  // 6. Create new ClothingItem with copied image
   const newItem = await ClothingItem.create({
     _id: `tryon_${jobId}_${Date.now()}`,
     userId: currentUserId,
@@ -99,11 +99,11 @@ const saveTryOnToCollection = asyncHandler(async (req, res, next) => {
     createdAt: Date.now()
   });
 
-  console.log(`✅ Đã lưu try-on result vào tủ đồ: ${newItem._id}`);
+  console.log(`✅ Saved try-on result to closet: ${newItem._id}`);
 
   res.status(201).json({
     success: true,
-    message: 'Đã lưu kết quả try-on vào bộ sưu tập thành công',
+    message: 'Try-on result saved to collection successfully',
     data: newItem
   });
 });

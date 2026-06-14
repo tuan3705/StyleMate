@@ -3,23 +3,23 @@ const FormData = require('form-data');
 const sharp = require('sharp');
 
 const DEFAULT_ENDPOINT = 'https://cloudapi.lykdat.com/v1/detection/tags';
-const MAX_FILE_SIZE = 2.5 * 1024 * 1024; // 2.5MB (dưới limit 3MB của Lykdat)
+const MAX_FILE_SIZE = 2.5 * 1024 * 1024; // 2.5MB (under Lykdat's 3MB limit)
 
 /**
- * Resize ảnh nếu > 2.5MB để Lykdat không từ chối.
+ * Resize image if > 2.5MB so Lykdat doesn't reject it.
  */
 async function compressImage(buffer) {
   if (buffer.length <= MAX_FILE_SIZE) return buffer;
 
   console.log(`[Lykdat] Image too large (${(buffer.length / 1024 / 1024).toFixed(2)}MB), compressing...`);
 
-  // Thử resize xuống 1200px rộng, chất lượng 80%
+  // Try resizing to 1200px wide, quality 80%
   let compressed = await sharp(buffer)
     .resize(1200, undefined, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 80 })
     .toBuffer();
 
-  // Nếu vẫn > 2.5MB, giảm chất lượng thêm
+  // If still > 2.5MB, reduce quality further
   let quality = 70;
   while (compressed.length > MAX_FILE_SIZE && quality > 30) {
     compressed = await sharp(buffer)
@@ -39,7 +39,7 @@ const tagImage = async ({ buffer, filename, mimetype }) => {
     throw new Error('LYKDAT_TAGGING_API_KEY is not configured');
   }
 
-  // ⚡ Nén ảnh nếu quá lớn
+  // ⚡ Compress image if too large
   const resizedBuffer = await compressImage(buffer);
 
   const formData = new FormData();

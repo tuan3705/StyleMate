@@ -72,12 +72,12 @@ data class Astro(
 )
 
 /**
- * 🧠 WeatherAnalysis — Kết quả phân tích thời tiết để làm context cho Chatbot.
+ * 🧠 WeatherAnalysis — Weather analysis result used as context for Chatbot.
  *
- * @property label Nhãn thời tiết: "VeryCold", "Cold", "Cool", "Warm", "Hot"
- * @property suggestion Gợi ý phối đồ dựa trên thời tiết (cho Chatbot sau này).
+ * @property label Weather label: "VeryCold", "Cold", "Cool", "Warm", "Hot"
+ * @property suggestion Outfit suggestion based on weather (resolved from strings.xml resources).
  */
 data class WeatherAnalysis(
     val label: String,
-    val suggestion: String
+    val suggestion: String = ""
 )

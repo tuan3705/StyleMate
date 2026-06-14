@@ -9,54 +9,54 @@ const pickWeatherCondition = (snapshot) => {
   const uv = snapshot.uv ?? 0;
 
   if (conditionText.includes('thunder')) {
-    return { code: 'THUNDER', label: 'Giông', tempC };
+    return { code: 'THUNDER', label: 'Thunderstorm', tempC };
   }
   if (conditionText.includes('rain') || conditionText.includes('drizzle')) {
-    return { code: 'RAIN', label: 'Mưa', tempC };
+    return { code: 'RAIN', label: 'Rainy', tempC };
   }
   if (tempC <= 18) {
-    return { code: 'COLD', label: 'Lạnh', tempC };
+    return { code: 'COLD', label: 'Cold', tempC };
   }
   if (windKph >= 35) {
-    return { code: 'WINDY', label: 'Gió mạnh', tempC };
+    return { code: 'WINDY', label: 'Windy', tempC };
   }
   if (uv >= 8 || tempC >= 33) {
-    return { code: 'HOT', label: 'Nắng gắt', tempC };
+    return { code: 'HOT', label: 'Hot & Sunny', tempC };
   }
-  return { code: 'NORMAL', label: 'Thời tiết', tempC };
+  return { code: 'NORMAL', label: 'Weather', tempC };
 };
 
 const buildWeatherMessage = (condition) => {
   switch (condition.code) {
     case 'THUNDER':
       return {
-        title: 'Cảnh báo giông',
-        body: 'Hôm nay có giông. Nhớ mang áo mưa và hạn chế ra ngoài.'
+        title: 'Thunderstorm Alert',
+        body: 'Thunderstorms expected today. Bring an umbrella and stay indoors if possible.'
       };
     case 'RAIN':
       return {
-        title: 'Mưa rồi',
-        body: 'Hôm nay có mưa. Mang theo ô/áo mưa nhé.'
+        title: 'Rainy Day Ahead',
+        body: 'Expect rain today. Don\'t forget your umbrella or raincoat!'
       };
     case 'COLD':
       return {
-        title: 'Trời lạnh',
-        body: 'Nhiệt độ thấp. Ưu tiên áo khoác và giữ ấm.'
+        title: 'Cold Weather',
+        body: 'Temperatures are low. Layer up with a jacket and stay warm.'
       };
     case 'WINDY':
       return {
-        title: 'Gió mạnh',
-        body: 'Gió lớn ngoài trời. Cẩn thận khi di chuyển.'
+        title: 'Strong Winds',
+        body: 'Strong winds outside. Be careful when traveling.'
       };
     case 'HOT':
       return {
-        title: 'Nắng gắt',
-        body: 'Nắng gắt, hãy uống đủ nước và mặc đồ thoáng.'
+        title: 'Hot & Sunny',
+        body: 'It\'s hot out there! Stay hydrated and wear breathable clothing.'
       };
     default:
       return {
-        title: 'Thời tiết hôm nay',
-        body: 'Chúc bạn một ngày dễ chịu!'
+        title: 'Today\'s Weather',
+        body: 'Have a great day! The weather is looking pleasant.'
       };
   }
 };
@@ -100,4 +100,3 @@ module.exports = {
   buildWeatherPayload,
   pickWeatherCondition
 };
-

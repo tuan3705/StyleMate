@@ -3,9 +3,9 @@ const { AppError } = require('../middleware/errorHandler');
 
 const DEFAULT_DAYS = 3;
 
-// ⚡ Bộ nhớ đệm cho WeatherAPI: tránh gọi API liên tục cùng 1 tọa độ
+// ⚡ WeatherAPI cache: avoid calling the API repeatedly for the same coordinates
 const weatherCache = new Map();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 phút
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const buildWeatherParams = (lat, lon) => {
   return {
@@ -19,27 +19,27 @@ const buildWeatherParams = (lat, lon) => {
 
 const fetchWeatherForecast = async (lat, lon) => {
   if (!process.env.WEATHER_API_KEY) {
-    throw new AppError('Thiếu WEATHER_API_KEY trong môi trường', 500);
+    throw new AppError('Missing WEATHER_API_KEY in environment', 500);
   }
 
   const latNum = Number(lat);
   const lonNum = Number(lon);
   if (Number.isNaN(latNum) || Number.isNaN(lonNum)) {
-    throw new AppError('lat/lon phải là số hợp lệ', 400);
+    throw new AppError('lat/lon must be valid numbers', 400);
   }
 
-  // ⚡ Kiểm tra cache trước
+  // ⚡ Check cache first
   const cacheKey = `${latNum.toFixed(4)},${lonNum.toFixed(4)}`;
   const cached = weatherCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    console.log(`⚡ Dùng cache WeatherAPI cho ${cacheKey} (còn ${Math.round((CACHE_TTL_MS - (Date.now() - cached.timestamp)) / 1000)}s)`);
+    console.log(`⚡ Using WeatherAPI cache for ${cacheKey} (${Math.round((CACHE_TTL_MS - (Date.now() - cached.timestamp)) / 1000)}s remaining)`);
     return cached.data;
   }
 
   const weatherUrl = 'https://api.weatherapi.com/v1/forecast.json';
   const params = buildWeatherParams(latNum, lonNum);
 
-  // ⚡ Tăng timeout lên 15s + thêm retry 1 lần nếu timeout
+  // ⚡ Increase timeout to 15s + add 1 retry on timeout
   const MAX_RETRIES = 1;
   let lastError = null;
 
@@ -47,16 +47,16 @@ const fetchWeatherForecast = async (lat, lon) => {
     try {
       const response = await axios.get(weatherUrl, {
         params,
-        timeout: 15000 // Tăng từ 10s lên 15s
+        timeout: 15000 // Increased from 10s to 15s
       });
 
-      // Lưu cache
+      // Save to cache
       weatherCache.set(cacheKey, {
         data: response.data,
         timestamp: Date.now()
       });
 
-      // Dọn cache cũ (nếu có nhiều hơn 20 entry)
+      // Clean old cache (if more than 20 entries)
       if (weatherCache.size > 20) {
         const keys = [...weatherCache.keys()];
         const now = Date.now();
@@ -71,8 +71,8 @@ const fetchWeatherForecast = async (lat, lon) => {
     } catch (error) {
       lastError = error;
       if (error.code === 'ECONNABORTED' && attempt < MAX_RETRIES) {
-        console.log(`⚠️ WeatherAPI timeout lần ${attempt + 1}, thử lại...`);
-        // Chờ 1s trước khi retry
+        console.log(`⚠️ WeatherAPI timeout attempt ${attempt + 1}, retrying...`);
+        // Wait 1s before retry
         await new Promise(resolve => setTimeout(resolve, 1000));
         continue;
       }

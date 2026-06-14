@@ -19,28 +19,28 @@ import kotlinx.coroutines.withContext
 
 /**
  * ═══════════════════════════════════════════════════════════════
- * 🏪 OUTFIT REPOSITORY — Phiên bản API (thay thế Room)
+ * 🏪 OUTFIT REPOSITORY — API version (replaces Room)
  * ═══════════════════════════════════════════════════════════════
  *
- * ⚡ CẢI TIẾN HIỆU NĂNG (06/2026):
- *   - Thêm ObjectCache dùng chung để cache danh sách clothes 60s
- *   - getAllOutfitsWithItems() chỉ gọi getAllClothes() 1 lần duy nhất
- *   - getOutfitItemsWithPosition() dùng cache thay vì gọi API riêng
- *   - Tránh N+1 API call khi hiển thị nhiều Outfit Card
+ * ⚡ PERFORMANCE IMPROVEMENTS (06/2026):
+ *   - Added shared ObjectCache to cache clothes list for 60s
+ *   - getAllOutfitsWithItems() only calls getAllClothes() once
+ *   - getOutfitItemsWithPosition() uses cache instead of separate API call
+ *   - Avoids N+1 API call when displaying multiple Outfit Cards
  *
- * 🔄 Backend trả về OutfitDto (items lồng sẵn trong clothingItems).
- *    Repository map DTO → Entity (OutfitWithClothingItems, OutfitItemWithPosition...)
- *    để giữ nguyên kiểu trả về cho ViewModel.
+ * 🔄 Backend returns OutfitDto (items already nested in clothingItems).
+ *    Repository maps DTO → Entity (OutfitWithClothingItems, OutfitItemWithPosition...)
+ *    to keep return types unchanged for ViewModel.
  * ───────────────────────────────────────────────────────────────
  */
 class OutfitRepository(private val apiService: StylemateApiService) {
 
     companion object {
         private const val TAG = "OutfitRepository"
-        private const val CACHE_TTL_MS = 60_000L // 60 giây
+        private const val CACHE_TTL_MS = 60_000L // 60 seconds
 
         /**
-         * Chuyển OutfitDto (từ API) thành OutfitWithClothingItems (cho ViewModel).
+         * Convert OutfitDto (from API) to OutfitWithClothingItems (for ViewModel).
          */
         fun OutfitDto.toOutfitWithClothingItems(): OutfitWithClothingItems {
             val outfitEntity = OutfitEntity(
@@ -82,8 +82,8 @@ class OutfitRepository(private val apiService: StylemateApiService) {
     private var clothesCacheTimestamp: Long = 0L
 
     /**
-     * Lấy danh sách clothes đã cache (60s TTL).
-     * Dùng map<String, ClothingItemEntity> để lookup nhanh theo ID.
+     * Get cached clothes list (60s TTL).
+     * Uses map<String, ClothingItemEntity> for fast ID lookup.
      */
     private suspend fun getCachedClothesMap(): Map<String, ClothingItemEntity> = clothesCacheMutex.withLock {
         val now = System.currentTimeMillis()
@@ -91,7 +91,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
             return@withLock cachedAllClothes!!
         }
         try {
-            Log.d(TAG, "📦 Cache clothes miss, gọi API getAllClothes()...")
+            Log.d(TAG, "📦 Cache clothes miss, calling API getAllClothes()...")
             val response = apiService.getAllClothes()
             val clothesMap: Map<String, ClothingItemEntity> = if (response.isSuccessful) {
                 val items = response.body()?.data ?: emptyList()
@@ -126,7 +126,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
     }
 
     /**
-     * Xoá cache để lần gọi tiếp theo fetch mới.
+     * Invalidate cache so next call fetches fresh data.
      */
     fun invalidateClothesCache() {
         cachedAllClothes = null
@@ -134,8 +134,8 @@ class OutfitRepository(private val apiService: StylemateApiService) {
     }
 
     /**
-     * Map OutfitDto thành OutfitWithClothingItems với đầy đủ thông tin item.
-     * Dùng cache clothes để tránh gọi API riêng cho từng outfit.
+     * Map OutfitDto to OutfitWithClothingItems with full item details.
+     * Uses clothes cache to avoid separate API calls per outfit.
      */
     private suspend fun OutfitDto.toFullOutfitWithItems(clothesMap: Map<String, ClothingItemEntity>): OutfitWithClothingItems {
         val outfitEntity = OutfitEntity(
@@ -174,7 +174,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
     }
 
     /**
-     * Map OutfitDto thành OutfitItemWithPosition (kèm vị trí).
+     * Map OutfitDto to OutfitItemWithPosition (including position).
      */
     private suspend fun OutfitDto.toOutfitItemsWithPosition(clothesMap: Map<String, ClothingItemEntity>): List<OutfitItemWithPosition> {
         return this.clothingItems.mapNotNull { ref ->
@@ -206,14 +206,14 @@ class OutfitRepository(private val apiService: StylemateApiService) {
     }
 
     // ═════════════════════════════════════════════════════════════
-    // 📋 Đọc (Read) — Reactive với Flow
+    // 📋 Read — Reactive with Flow
     // ═════════════════════════════════════════════════════════════
 
     /**
-     * Lấy danh sách tất cả Outfit (kèm ClothingItem đầy đủ) dưới dạng Flow.
+     * Get all Outfits (with full ClothingItem details) as Flow.
      * 
-     * ⚡ Tối ưu: Chỉ gọi API getAllClothes() 1 lần dùng chung cho tất cả outfits.
-     * Dùng cache 60s để tránh gọi lại khi chuyển tab.
+     * ⚡ Optimized: Only calls API getAllClothes() once shared for all outfits.
+     * Uses 60s cache to avoid refetching when switching tabs.
      */
     fun getAllOutfitsWithItems(nameQuery: String? = null): Flow<List<OutfitWithClothingItems>> = flow {
         try {
@@ -228,7 +228,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                     return@flow
                 }
 
-                // ⚡ Chỉ gọi getAllClothes() 1 lần (dùng cache 60s)
+                // ⚡ Only calls getAllClothes() once (uses 60s cache)
                 val clothesMap = getCachedClothesMap()
                 val result = outfits.map { outfitDto ->
                     outfitDto.toFullOutfitWithItems(clothesMap)
@@ -238,13 +238,13 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                 emit(emptyList())
             }
         } catch (e: Exception) {
-            Log.w(TAG, "getAllOutfitsWithItems() loi: ${e.message}")
+            Log.w(TAG, "getAllOutfitsWithItems() error: ${e.message}")
             emit(emptyList())
         }
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Lấy chi tiết một Outfit theo ID.
+     * Get outfit details by ID.
      */
     suspend fun getOutfitWithItemsById(outfitId: String): OutfitWithClothingItems? =
         withContext(Dispatchers.IO) {
@@ -256,13 +256,13 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                     outfitDto.toFullOutfitWithItems(clothesMap)
                 } else null
             } catch (e: Exception) {
-                Log.w(TAG, "⚠️ getOutfitWithItemsById() lỗi: ${e.message}")
+                Log.w(TAG, "⚠️ getOutfitWithItemsById() error: ${e.message}")
                 null
             }
         }
 
     /**
-     * Lấy danh sách Outfit có chứa một ClothingItem cụ thể.
+     * Get list of Outfits containing a specific ClothingItem.
      */
     fun getOutfitsContainingItem(clothingItemId: String): Flow<List<OutfitWithClothingItems>> =
         flow {
@@ -276,15 +276,15 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                     emit(emptyList())
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "⚠️ getOutfitsContainingItem() lỗi: ${e.message}")
+                Log.w(TAG, "⚠️ getOutfitsContainingItem() error: ${e.message}")
                 emit(emptyList())
             }
         }.flowOn(Dispatchers.IO)
 
     /**
-     * Lấy danh sách items trong outfit kèm vị trí đã lưu.
+     * Get items in outfit with saved positions.
      * 
-     * ⚡ Tối ưu: Dùng cache clothes thay vì gọi lại API getAllClothes().
+     * ⚡ Optimized: Uses clothes cache instead of calling API getAllClothes() again.
      */
     suspend fun getOutfitItemsWithPosition(outfitId: String): List<OutfitItemWithPosition> =
         withContext(Dispatchers.IO) {
@@ -296,13 +296,13 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                     outfitDto.toOutfitItemsWithPosition(clothesMap)
                 } else emptyList()
             } catch (e: Exception) {
-                Log.w(TAG, "getOutfitItemsWithPosition() loi: ${e.message}")
+                Log.w(TAG, "getOutfitItemsWithPosition() error: ${e.message}")
                 emptyList()
             }
         }
 
     // ═════════════════════════════════════════════════════════════
-    // ➕ Ghi (Write) — Suspend + IO
+    // ➕ Write — Suspend + IO
     // ═════════════════════════════════════════════════════════════
 
     suspend fun insertOutfit(outfit: OutfitEntity) = withContext(Dispatchers.IO) {
@@ -316,7 +316,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
             apiService.createOutfit(dto)
             invalidateClothesCache()
         } catch (e: Exception) {
-            Log.w(TAG, "⚠️ insertOutfit() lỗi: ${e.message}")
+            Log.w(TAG, "⚠️ insertOutfit() error: ${e.message}")
         }
     }
 
@@ -338,7 +338,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
                 apiService.updateOutfit(outfitId, updateMap)
                 invalidateClothesCache()
             } catch (e: Exception) {
-                Log.w(TAG, "⚠️ insertOutfitClothingCrossRefs() lỗi: ${e.message}")
+                Log.w(TAG, "⚠️ insertOutfitClothingCrossRefs() error: ${e.message}")
             }
         }
 
@@ -348,7 +348,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
             apiService.updateOutfit(outfitId, updateMap)
             invalidateClothesCache()
         } catch (e: Exception) {
-            Log.w(TAG, "⚠️ clearOutfitItems() lỗi: ${e.message}")
+            Log.w(TAG, "⚠️ clearOutfitItems() error: ${e.message}")
         }
     }
 
@@ -357,7 +357,7 @@ class OutfitRepository(private val apiService: StylemateApiService) {
             apiService.deleteOutfit(outfit.id)
             invalidateClothesCache()
         } catch (e: Exception) {
-            Log.w(TAG, "⚠️ deleteOutfit() lỗi: ${e.message}")
+            Log.w(TAG, "⚠️ deleteOutfit() error: ${e.message}")
         }
     }
 }

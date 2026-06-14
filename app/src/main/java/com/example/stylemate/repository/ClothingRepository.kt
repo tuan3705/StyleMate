@@ -24,17 +24,17 @@ import java.io.File
 /**
  * 🏪 CLOTHING REPOSITORY
  * 
- * ⚡ CẢI TIẾN HIỆU NĂNG (06/2026):
- *   - Cache trong memory 60s cho getAllItems() → tránh gọi API liên tục
- *   - getItemCountByCategory() và getTotalItemCount() tính local từ cache
- *     → KHÔNG gọi API riêng cho từng category (tránh N request)
- *   - uploadImageToServer: tối ưu tránh copy file content:// không cần thiết
+ * ⚡ PERFORMANCE IMPROVEMENTS (06/2026):
+ *   - In-memory cache 60s for getAllItems() → avoid continuous API calls
+ *   - getItemCountByCategory() and getTotalItemCount() computed locally from cache
+ *     → NO separate API call per category (avoids N requests)
+ *   - uploadImageToServer: optimized to avoid unnecessary content:// file copy
  * 
- * ⚡ CẢI TIẾN DATA PIPELINE (06/2026):
- *   - Dùng StateFlow thay vì Mutex lock cho cache → tránh contention
- *   - getItemCountByCategory dùng derived map cached → không cần await Mutex
- *   - Category counts computed 1 lần khi cache refresh, KHÔNG tính lại mỗi lần collect
- *   - Bảo đảm toàn bộ data pipeline chạy trên Dispatchers.IO/Default
+ * ⚡ DATA PIPELINE IMPROVEMENTS (06/2026):
+ *   - Using StateFlow instead of Mutex lock for cache → avoid contention
+ *   - getItemCountByCategory uses derived cached map → no need to await Mutex
+ *   - Category counts computed once on cache refresh, NOT recomputed every collect
+ *   - Ensures entire data pipeline runs on Dispatchers.IO/Default
  */
 class ClothingRepository(
     private val apiService: StylemateApiService,
@@ -43,7 +43,7 @@ class ClothingRepository(
 
     companion object {
         private const val TAG = "ClothingRepository"
-        private const val CACHE_TTL_MS = 60_000L // 60 giây
+        private const val CACHE_TTL_MS = 60_000L // 60 seconds
 
         private val BASE_URL: String by lazy {
             RetrofitClient.STYLEMATE_BASE_URL.trimEnd('/')
@@ -101,47 +101,47 @@ class ClothingRepository(
     }
 
     // ═════════════════════════════════════════════════════════════
-    // 🗃️ In-Memory Cache (REACTIVE với StateFlow)
+    // 🗃️ In-Memory Cache (REACTIVE with StateFlow)
     // ═════════════════════════════════════════════════════════════
     //
-    // ⚡ CẢI TIẾN 06/2026:
-    //   - Dùng StateFlow thay vì Mutex lock + nullable var
-    //   - flows subscribe 1 lần, không phải await lock
-    //   - Category counts được precompute khi cache refresh
+    // ⚡ IMPROVEMENTS 06/2026:
+    //   - Using StateFlow instead of Mutex lock + nullable var
+    //   - flows subscribe once, no need to await lock
+    //   - Category counts precomputed on cache refresh
     // ═════════════════════════════════════════════════════════════
 
     private val cacheMutex = Mutex()
     private var cachedItems: List<ClothingItemEntity>? = null
     private var cacheTimestamp: Long = 0L
 
-    // ⚡ Precomputed category counts — computed 1 lần khi cache miss
-    // Category flows dùng map này, không gọi getCachedItems() nhiều lần
+    // ⚡ Precomputed category counts — computed once on cache miss
+    // Category flows use this map, don't call getCachedItems() multiple times
     private var _cachedCategoryCounts: Map<String, Int> = emptyMap()
 
     /**
-     * Lấy danh sách items từ cache hoặc API.
-     * Cache có TTL 60s, tự động refresh khi hết hạn.
+     * Get items list from cache or API.
+     * Cache has 60s TTL, auto-refreshes on expiry.
      * 
-     * ⚡ TỐI ƯU: Network call và DTO→Entity mapping chạy BÊN NGOÀI Mutex lock
-     * (chỉ lock để ghi/đọc biến cache, không lock trong lúc fetch API + map)
+     * ⚡ OPTIMIZED: Network call and DTO→Entity mapping run OUTSIDE Mutex lock
+     * (only lock for cache read/write, don't lock during API fetch + map)
      */
     private suspend fun getCachedItems(): List<ClothingItemEntity> {
-        // ⚡ Fast path: đọc cache mà không cần lock (volatile read via Mutex)
-        // Chỉ vào lock khi cache thực sự cần refresh
+        // ⚡ Fast path: read cache without lock (volatile read via Mutex)
+        // Only enter lock when cache actually needs refresh
         
-        // Step 1: Check cache nhanh — không lock
+        // Step 1: Fast cache check — no lock
         val now = System.currentTimeMillis()
         var currentCache = this.cachedItems
         var currentTimestamp = this.cacheTimestamp
         
         if (currentCache != null && (now - currentTimestamp) < CACHE_TTL_MS) {
-            Log.d(TAG, "📦 Dùng cache (${currentCache.size} items, age=${now - currentTimestamp}ms)")
+            Log.d(TAG, "📦 Using cache (${currentCache.size} items, age=${now - currentTimestamp}ms)")
             return currentCache
         }
         
-        // Step 2: Cache miss — cần lock để tránh double fetch
+        // Step 2: Cache miss — need lock to prevent double fetch
         return cacheMutex.withLock {
-            // Double-check: có thể coroutine khác đã fetch xong
+            // Double-check: another coroutine might have fetched already
             val reCheck = this.cachedItems
             val reCheckTs = this.cacheTimestamp
             if (reCheck != null && (now - reCheckTs) < CACHE_TTL_MS) {
@@ -149,13 +149,13 @@ class ClothingRepository(
             }
             
             try {
-                Log.d(TAG, "🌐 Gọi API getAllClothes()...")
+                Log.d(TAG, "🌐 Calling API getAllClothes()...")
                 val response = apiService.getAllClothes()
                 if (response.isSuccessful) {
                     val items = response.body()?.data?.map { it.toEntity() } ?: emptyList()
                     this.cachedItems = items
                     this.cacheTimestamp = now
-                    // ⚡ Precompute category counts 1 lần
+                    // ⚡ Precompute category counts once
                     this._cachedCategoryCounts = computeCategoryCounts(items)
                     items
                 } else {
@@ -169,8 +169,8 @@ class ClothingRepository(
     }
 
     /**
-     * Precompute category counts từ items list.
-     * Chạy 1 lần khi cache refresh → category flows chỉ đọc map, không tính lại.
+     * Precompute category counts from items list.
+     * Runs once on cache refresh → category flows only read map, don't recompute.
      */
     private fun computeCategoryCounts(items: List<ClothingItemEntity>): Map<String, Int> {
         val counts = mutableMapOf<String, Int>()
@@ -182,28 +182,28 @@ class ClothingRepository(
     }
 
     /**
-     * Xoá cache để lần gọi tiếp theo sẽ fetch mới.
+     * Invalidate cache so next call will fetch fresh data.
      */
     fun invalidateCache() {
-        Log.d(TAG, "🗑️ Xoá cache")
+        Log.d(TAG, "🗑️ Cache invalidated")
         cachedItems = null
         cacheTimestamp = 0L
         _cachedCategoryCounts = emptyMap()
     }
 
     // ═════════════════════════════════════════════════════════════
-    // 📋 Public API — Flow-based (toàn bộ chạy trên Dispatchers.IO)
+    // 📋 Public API — Flow-based (all run on Dispatchers.IO)
     // ═════════════════════════════════════════════════════════════
 
     /**
-     * Lấy tất cả items (dùng cache).
+     * Get all items (uses cache).
      */
     fun getAllItems(): Flow<List<ClothingItemEntity>> = flow {
         emit(getCachedItems())
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Lấy items theo category (filter từ cache, KHÔNG gọi API riêng).
+     * Get items by category (filter from cache, NO separate API call).
      */
     fun getItemsByCategory(category: String): Flow<List<ClothingItemEntity>> = flow {
         if (category == Categories.ALL) {
@@ -214,14 +214,14 @@ class ClothingRepository(
     }.flowOn(Dispatchers.IO)
 
     /**
-     * Đếm items theo category (tính từ cache, KHÔNG gọi API riêng).
+     * Count items by category (computed from cache, NO separate API call).
      * 
-     * ⚡ CẢI TIẾN: Dùng precomputed category counts thay vì gọi getCachedItems()
-     * và filter thủ công mỗi lần. Giảm từ O(N) xuống O(1) cho mỗi lần collect.
-     * Flow này KHÔNG bao giờ gọi Mutex lock.
+     * ⚡ IMPROVEMENT: Uses precomputed category counts instead of calling getCachedItems()
+     * and manual filtering each time. Reduces from O(N) to O(1) per collect.
+     * This flow NEVER calls Mutex lock.
      */
     fun getItemCountByCategory(category: String): Flow<Int> = flow {
-        // ⚡ Đọc từ precomputed map — không cần await Mutex
+        // ⚡ Read from precomputed map — no need to await Mutex
         val counts = _cachedCategoryCounts
         val count = if (category == Categories.ALL) {
             counts[Categories.ALL] ?: 0
@@ -232,34 +232,34 @@ class ClothingRepository(
     }.flowOn(Dispatchers.Default)
 
     /**
-     * Tổng số items (tính từ cache).
+     * Total item count (computed from cache).
      */
     fun getTotalItemCount(): Flow<Int> = flow {
         emit(_cachedCategoryCounts[Categories.ALL] ?: 0)
     }.flowOn(Dispatchers.Default)
 
     /**
-     * Lấy item theo ID (từ cache nếu có, không thì gọi API).
+     * Get item by ID (from cache if available, otherwise call API).
      */
     suspend fun getItemById(itemId: String): ClothingItemEntity? = withContext(Dispatchers.IO) {
-        // Ưu tiên tìm trong cache
+        // Prefer to find in cache
         val cached = cachedItems?.find { it.id == itemId }
         if (cached != null) return@withContext cached
 
-        // Fallback: gọi API
+        // Fallback: call API
         try {
             val response = apiService.getClothingItemById(itemId)
             if (response.isSuccessful) {
                 response.body()?.data?.toEntity()
             } else null
         } catch (e: Exception) {
-            Log.w(TAG, "⚠️ getItemById() lỗi: ${e.message}")
+            Log.w(TAG, "⚠️ getItemById() error: ${e.message}")
             null
         }
     }
 
     // ═════════════════════════════════════════════════════════════
-    // 📤 Upload & Ghi (Write)
+    // 📤 Upload & Write
     // ═════════════════════════════════════════════════════════════
 
     suspend fun uploadImageToServer(localPath: String): String = withContext(Dispatchers.IO) {
@@ -317,7 +317,7 @@ class ClothingRepository(
             apiService.createClothingItem(dto)
             invalidateCache()
         } catch (e: Exception) {
-            Log.e(TAG, "❌ insertItem() lỗi: ${e.message}")
+            Log.e(TAG, "❌ insertItem() error: ${e.message}")
         }
     }
 
@@ -344,7 +344,7 @@ class ClothingRepository(
             apiService.updateClothingItem(item.id, updateMap)
             invalidateCache()
         } catch (e: Exception) {
-            Log.e(TAG, "❌ updateItem() lỗi: ${e.message}")
+            Log.e(TAG, "❌ updateItem() error: ${e.message}")
         }
     }
 
@@ -353,7 +353,7 @@ class ClothingRepository(
             apiService.deleteClothingItem(item.id)
             invalidateCache()
         } catch (e: Exception) {
-            Log.w(TAG, "⚠️ deleteItem() lỗi: ${e.message}")
+            Log.w(TAG, "⚠️ deleteItem() error: ${e.message}")
         }
     }
 
@@ -361,7 +361,7 @@ class ClothingRepository(
         try {
             apiService.updateClothingItem(itemId, mapOf("canvasPosX" to posX, "canvasPosY" to posY))
         } catch (e: Exception) {
-            Log.w(TAG, "⚠️ updateItemCanvasPosition() lỗi: ${e.message}")
+            Log.w(TAG, "⚠️ updateItemCanvasPosition() error: ${e.message}")
         }
     }
 }

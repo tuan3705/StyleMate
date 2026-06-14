@@ -12,15 +12,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * 🧩 WeatherViewModel — ViewModel cho màn hình Thời tiết.
+ * 🧩 WeatherViewModel — ViewModel for Weather screen.
  *
- * Quản lý 4 StateFlow chính:
- *   1. [weatherData] — Dữ liệu thời tiết (hiện tại + dự báo).
- *   2. [weatherAnalysis] — Kết quả phân tích thời tiết (cho Chatbot).
- *   3. [isLoading] — Trạng thái loading.
- *   4. [errorMessage] — Thông báo lỗi nếu có.
+ * Manages 4 main StateFlows:
+ *   1. [weatherData] — Weather data (current + forecast).
+ *   2. [weatherAnalysis] — Weather analysis result (for Chatbot).
+ *   3. [isLoading] — Loading state.
+ *   4. [errorMessage] — Error message if any.
  *
- * 🔄 Luồng dữ liệu:
+ * 🔄 Data flow:
  *   UI (Compose) ← collect StateFlow ← WeatherViewModel ← WeatherRepository ← Retrofit ← API
  */
 class WeatherViewModel(
@@ -30,35 +30,35 @@ class WeatherViewModel(
     companion object {
         private const val TAG = "WeatherViewModel"
 
-        // 🌏 Toạ độ mặc định: Hà Nội, Việt Nam
-        // Được dùng khi không có quyền truy cập vị trí
+        // 🌏 Default coordinates: Hanoi, Vietnam
+        // Used when location permission is not granted
         const val DEFAULT_LAT = 21.0285
         const val DEFAULT_LON = 105.8542
     }
 
     // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Dữ liệu thời tiết
+    // 🔷 State: Weather data
     // ──────────────────────────────────────────────────────────────
 
     private val _weatherData = MutableStateFlow<WeatherApiResponse?>(null)
     val weatherData: StateFlow<WeatherApiResponse?> = _weatherData
 
     // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Tên thành phố / vị trí đang hiển thị
+    // 🔷 State: City name / current location display
     // ──────────────────────────────────────────────────────────────
 
     private val _locationName = MutableStateFlow("Determining…")
     val locationName: StateFlow<String> = _locationName
 
     // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Toạ độ hiện tại (để refresh)
+    // 🔷 State: Current coordinates (for refresh)
     // ──────────────────────────────────────────────────────────────
 
     private var currentLat = DEFAULT_LAT
     private var currentLon = DEFAULT_LON
 
     // ──────────────────────────────────────────────────────────────
-    // 🔷 State: Kết quả phân tích thời tiết (cho Chatbot context)
+    // 🔷 State: Weather analysis result (for Chatbot context)
     // ──────────────────────────────────────────────────────────────
 
     private val _weatherAnalysis = MutableStateFlow<WeatherAnalysis?>(null)
@@ -75,54 +75,54 @@ class WeatherViewModel(
     val errorMessage: StateFlow<String?> = _errorMessage
 
     // ═════════════════════════════════════════════════════════════
-    // 🎯 HÀM LẤY DỮ LIỆU THỜI TIẾT
+    // 🎯 WEATHER DATA FETCHING
     // ═════════════════════════════════════════════════════════════
 
     /**
-     * 🌤️ Lấy dữ liệu thời tiết cho toạ độ chỉ định.
+     * 🌤️ Fetch weather data for specified coordinates.
      *
-     * Gọi từ UI khi màn hình được hiển thị (onStart/LaunchedEffect).
+     * Called from UI when the screen is displayed (onStart/LaunchedEffect).
      *
-     * @param lat Vĩ độ.
-     * @param lon Kinh độ.
-     * @param cityName Tên thành phố (hiển thị trên UI), null nếu dùng mặc định.
+     * @param lat Latitude.
+     * @param lon Longitude.
+     * @param cityName City name (displayed on UI), null if using default.
      */
     fun fetchWeather(lat: Double, lon: Double, cityName: String? = null) {
         viewModelScope.launch {
             try {
-                // ── Bước 1: Bật loading ──────────────────────────
+                // ── Step 1: Enable loading ──────────────────────────
                 _isLoading.value = true
                 _errorMessage.value = null
                 currentLat = lat
                 currentLon = lon
 
-                Log.d(TAG, "🌤️ Đang lấy dữ liệu thời tiết cho: $lat, $lon")
+                Log.d(TAG, "🌤️ Fetching weather data for: $lat, $lon")
 
-                // ── Bước 2: Gọi API ──────────────────────────────
+                // ── Step 2: Call API ──────────────────────────────
                 val response = repository.getWeatherForecast(lat, lon)
 
-                // ── Bước 3: Cập nhật State ───────────────────────
+                // ── Step 3: Update State ───────────────────────
                 _weatherData.value = response
 
-                // ── Bước 4: Cập nhật tên thành phố từ API ────────
+                // ── Step 4: Update city name from API ────────
                 val apiCity = response.location.name
                 val apiCountry = response.location.country
                 _locationName.value = if (apiCountry == "Vietnam") {
-                    apiCity // Chỉ hiện "Hanoi", "Saigon"...
+                    apiCity // Just show "Hanoi", "Saigon"...
                 } else {
                     "$apiCity, $apiCountry"
                 }
 
-                Log.d(TAG, "✅ Thành công! Vị trí: ${_locationName.value}, " +
-                        "Nhiệt độ: ${response.current.tempC}°C")
+                Log.d(TAG, "✅ Success! Location: ${_locationName.value}, " +
+                        "Temperature: ${response.current.tempC}°C")
 
-                // ── Bước 5: Phân tích thời tiết ──────────────────
+                // ── Step 5: Analyze weather ──────────────────
                 val analysis = repository.analyzeWeather(response.current.tempC)
                 _weatherAnalysis.value = analysis
-                Log.d(TAG, "🧠 Phân tích: ${analysis.label}")
+                Log.d(TAG, "🧠 Analysis: ${analysis.label}")
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Lỗi: ${e.message}", e)
+                Log.e(TAG, "❌ Error: ${e.message}", e)
                 val msg = e.message ?: ""
                 _errorMessage.value = when {
                     msg.contains("403") ->
@@ -132,17 +132,17 @@ class WeatherViewModel(
                     else -> "Unable to load weather data: ${e.message}"
                 }
             } finally {
-                // ── Bước 6: Tắt loading ──────────────────────────
+                // ── Step 6: Disable loading ──────────────────────────
                 _isLoading.value = false
             }
         }
     }
 
     /**
-     * 🌍 Cập nhật vị trí từ GPS và fetch thời tiết.
+     * 🌍 Update location from GPS and fetch weather.
      *
-     * @param lat Vĩ độ từ GPS.
-     * @param lon Kinh độ từ GPS.
+     * @param lat Latitude from GPS.
+     * @param lon Longitude from GPS.
      */
     fun fetchWeatherByGps(lat: Double, lon: Double) {
         _locationName.value = "Current location"
@@ -150,14 +150,14 @@ class WeatherViewModel(
     }
 
     /**
-     * 🔄 Refresh dữ liệu thời tiết (giữ nguyên toạ độ).
+     * 🔄 Refresh weather data (keep current coordinates).
      */
     fun refresh() {
         fetchWeather(currentLat, currentLon)
     }
 
     /**
-     * 🧹 Xoá thông báo lỗi.
+     * 🧹 Clear error message.
      */
     fun clearError() {
         _errorMessage.value = null
@@ -165,7 +165,7 @@ class WeatherViewModel(
 }
 
 /**
- * 🏭 WeatherViewModelFactory — Factory để inject [WeatherRepository].
+ * 🏭 WeatherViewModelFactory — Factory to inject [WeatherRepository].
  */
 class WeatherViewModelFactory(
     private val repository: WeatherRepository

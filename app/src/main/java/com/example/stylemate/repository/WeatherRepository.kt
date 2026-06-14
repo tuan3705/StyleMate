@@ -19,6 +19,24 @@ class WeatherRepository(
     private val apiService: StylemateApiService = RetrofitClient.stylemateApiService
 ) {
 
+    companion object {
+        /**
+         * Resource key prefix for weather suggestions defined in strings.xml.
+         * Usage: context.getString(
+         *     context.resources.getIdentifier(key, "string", context.packageName)
+         * )
+         */
+        const val SUGGESTION_RESOURCE_PREFIX = "weather_suggestion_"
+
+        /**
+         * Returns the resource key for a given weather label.
+         * Example: "VeryCold" -> "weather_suggestion_very_cold"
+         */
+        fun getSuggestionResourceKey(label: String): String {
+            return "$SUGGESTION_RESOURCE_PREFIX${label.lowercase().replace(' ', '_')}"
+        }
+    }
+
     /**
      * Fetches weather data + 3-day forecast via Backend proxy.
      *
@@ -42,6 +60,10 @@ class WeatherRepository(
     /**
      * Quick weather analysis for Chatbot context.
      *
+     * Returns a [WeatherAnalysis] containing only a label.
+     * The suggestion text must be resolved from string resources
+     * in the ViewModel/UI layer using [getSuggestionResourceKey].
+     *
      * Simple rules based on temperature:
      *   - < 10°C  -> "VeryCold"
      *   - < 20°C  -> "Cold"
@@ -50,30 +72,15 @@ class WeatherRepository(
      *   - >= 30°C -> "Hot"
      *
      * @param tempC Current temperature (°C).
-     * @return [WeatherAnalysis] with label + suggestion.
+     * @return [WeatherAnalysis] with label only. Suggestion is resolved via resource key.
      */
     fun analyzeWeather(tempC: Double): WeatherAnalysis {
         return when {
-            tempC < 10 -> WeatherAnalysis(
-                label = "VeryCold",
-                suggestion = "Very cold! Wear a heavy coat, scarf, and gloves."
-            )
-            tempC < 20 -> WeatherAnalysis(
-                label = "Cold",
-                suggestion = "Cold weather. Sweater, light jacket, and long pants are suitable."
-            )
-            tempC < 25 -> WeatherAnalysis(
-                label = "Cool",
-                suggestion = "Cool weather. Long sleeves, jeans, or light skirt."
-            )
-            tempC < 30 -> WeatherAnalysis(
-                label = "Warm",
-                suggestion = "Warm weather. Short sleeves, dresses, lightweight pants."
-            )
-            else -> WeatherAnalysis(
-                label = "Hot",
-                suggestion = "Hot weather! Shorts, tank tops, maxi dresses, breathable fabrics."
-            )
+            tempC < 10 -> WeatherAnalysis(label = "VeryCold")
+            tempC < 20 -> WeatherAnalysis(label = "Cold")
+            tempC < 25 -> WeatherAnalysis(label = "Cool")
+            tempC < 30 -> WeatherAnalysis(label = "Warm")
+            else -> WeatherAnalysis(label = "Hot")
         }
     }
 }
